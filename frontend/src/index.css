@@ -1,0 +1,817 @@
+/* =========================================================
+   1. VARIABLES & DESIGN TOKENS
+   ========================================================= */
+:root {
+    /* --- Google Dark Mode Theme --- */
+    --bg-elevated: #303134; /* Cards, search bars, buttons */
+    --bg-footer: #171717; /* Slightly darker than main */
+
+    --text-main: #e8eaed; /* Primary white text */
+    --text-muted: #9aa0a6; /* Gray icons and secondary text */
+    --text-dim: #bdc1c6; /* Subtitles and tiny text */
+
+    --border-main: #5f6368; /* Input borders */
+    --border-subtle: #262626; /* Dividers and card borders */
+
+    --link-blue: #8ab4f8; /* Classic dark-mode link color */
+
+    /* --- Index Logo Colors --- */
+    --logo-blue: #4285f4;
+    --logo-red: #ea4335;
+    --logo-yellow: #fbbc05;
+    --logo-green: #34a853;
+
+    /* --- Goodreads Brand --- */
+    --goodreads-brown: #382110;
+    --goodreads-dark: #1e1914;
+    --goodreads-light: #faf8f6;
+
+    --bg-sidebar: #00000050;
+    --hover-sidebar: #1a1a1a;
+    --border-sidebar: #1a1a1a;
+}
+
+/* =========================================================
+   2. GLOBAL BASE STYLES & RESETS
+   ========================================================= */
+*,
+*::before,
+*::after {
+    box-sizing: inherit;
+}
+
+html,
+body,
+#root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100vh;
+    background-color: var(--goodreads-dark);
+    color: var(--text-main);
+    font-family: "Nunito", "Quicksand", sans-serif;
+}
+
+body {
+    /* Ensure the background is cute everywhere */
+    background: linear-gradient(135deg, #ffe6f2 0%, #ffcce6 100%) fixed;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+html {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+/* =========================================================
+   3. SHARED UTILITIES & COMPONENTS
+   ========================================================= */
+.pill-button {
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes skeleton-pulse {
+    0% {
+        background-color: var(--bg-elevated);
+    }
+    50% {
+        background-color: var(--border-subtle);
+    }
+    100% {
+        background-color: var(--bg-elevated);
+    }
+}
+
+.skeleton-card {
+    animation: skeleton-pulse 1.5s infinite ease-in-out;
+}
+
+/* --- React Masonry CSS --- */
+.my-masonry-grid {
+    display: flex;
+    margin-left: -20px; /* Offset the padding below */
+    width: auto;
+}
+
+.my-masonry-grid_column {
+    padding-left: 20px; /* Dictates the horizontal gap */
+    background-clip: padding-box;
+}
+
+.my-masonry-grid_column > div {
+    margin-bottom: 20px; /* Dictates the vertical gap */
+}
+
+/* =========================================================
+   4. MAIN SCAFFOLDING & SIDEBAR
+   ========================================================= */
+.layout-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+.content-area {
+    flex-grow: 1;
+    margin-left: 72px;
+    width: calc(100% - 72px);
+}
+
+.sidebar {
+    background-color: transparent;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 12px 20px 12px;
+    box-sizing: border-box;
+    z-index: 1000;
+    width: 72px;
+    border-right: 1px solid var(--border-sidebar);
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 24px;
+    border-radius: 8px;
+    color: var(--goodreads-light);
+    text-decoration: none;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+.sidebar-link:hover {
+    background-color: var(--goodreads-brown);
+}
+
+.sidebar-icon {
+    font-size: 24px;
+    margin-right: 16px;
+    transition: transform 0.2s ease;
+}
+
+.sidebar-link:hover .sidebar-icon {
+    transform: scale(1.05);
+}
+
+.nav-menu {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    margin-top: 40px;
+}
+
+.bottom-menu {
+    display: flex;
+    flex-direction: column;
+}
+
+.logo-link {
+    text-decoration: none;
+    padding: 25px 12px 30px 12px;
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        top: 0;
+        bottom: auto;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 60px;
+        flex-direction: row;
+        align-items: center;
+        padding: 0 20px;
+        justify-content: space-between;
+        background-color: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(10px);
+        border-right: none;
+        border-bottom: 1px solid var(--border-sidebar);
+    }
+    .content-area {
+        margin-left: 0;
+        margin-top: 60px;
+        width: 100%;
+    }
+    .nav-menu {
+        flex-direction: row;
+        margin-top: 0;
+        flex-grow: 0;
+        gap: 16px;
+    }
+    .logo-link {
+        padding: 0;
+        display: flex;
+        align-items: center;
+    }
+    .logo-link img {
+        height: 24px;
+    }
+    .sidebar-link {
+        margin-bottom: 0;
+        padding: 8px;
+    }
+    .sidebar-icon {
+        color: var(--text-main);
+    }
+    .bottom-menu {
+        display: none;
+    }
+}
+
+/* =========================================================
+   5. EXPLORE PAGE
+   ========================================================= */
+.explore-container {
+    margin: 0 auto;
+    display: flex;
+    flex-direction: row;
+    max-width: 1200px;
+    gap: 40px;
+    align-items: flex-start;
+}
+
+.explore-feeds {
+    flex: 3;
+    max-width: 800px;
+    margin-top: 6px;
+}
+
+.explore-sidebar {
+    flex: 1;
+    padding: 24px 12px;
+    border-radius: 16px;
+    position: sticky;
+    top: 40px;
+}
+
+.explore-sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.explore-sidebar-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+}
+
+@media (max-width: 900px) {
+    .explore-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .explore-feeds {
+        width: 100%;
+        max-width: 100%;
+    }
+    .explore-sidebar {
+        position: static;
+        margin-top: 20px;
+    }
+    .explore-sidebar-content {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    .explore-sidebar-item {
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        padding: 12px 16px;
+    }
+}
+
+/* =========================================================
+   6. COLLECTION & PROFILE PAGE
+   ========================================================= */
+.collection-container {
+    max-width: 935px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.profile-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: rgba(235, 226, 215, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 24px;
+    padding: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+    max-width: 648px;
+    margin: 32px auto;
+}
+
+.avatar-container {
+    position: relative;
+    flex-shrink: 0;
+    margin-right: 40px;
+}
+
+.info-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.action-row {
+    display: flex;
+    align-items: center;
+    min-width: 300px;
+}
+
+.follow-button {
+    flex: 1;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.suggested-container {
+    margin: 0 120px 20px 120px;
+}
+
+.suggested-header {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 20px;
+}
+
+.see-more-btn {
+    text-decoration: none;
+    color: #0095f6;
+    font-weight: 500;
+    font-size: 16px;
+}
+
+.suggested-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.suggested-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.suggested-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #ffffff20;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 24px 16px;
+    text-decoration: none;
+    min-width: 100px;
+}
+
+.suggested-avatar {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background-color: var(--bg-elevated);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: #888;
+    margin-bottom: 12px;
+    object-fit: cover;
+    border: 1px solid var(--border-subtle);
+}
+
+.suggested-name {
+    color: #f5f5f5;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100px;
+}
+
+@media (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        margin: 32px 20px;
+    }
+    .avatar-container {
+        margin-right: 0;
+        margin-bottom: 24px;
+    }
+    .info-container {
+        min-width: 100%;
+        align-items: center;
+        padding-top: 0;
+    }
+    .action-row {
+        width: 200px;
+    }
+    .suggested-container {
+        margin: 0 0 20px 0;
+    }
+}
+
+/* =========================================================
+   7. DETAIL / PDF PAGE & VIEWER LAYOUT
+   ========================================================= */
+.detail-content-wrapper {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+}
+
+.detail-backdrop-gradient {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    background: linear-gradient(
+        to left bottom,
+        var(--goodreads-brown) 0%,
+        var(--goodreads-dark) 100%
+    );
+}
+
+.detail-left-col {
+    width: 230px;
+    flex-shrink: 0;
+}
+
+.work-cover-img {
+    max-width: 100%;
+    max-height: 586px;
+    display: block;
+    object-fit: contain;
+}
+
+.detail-middle-col {
+    flex-grow: 1;
+}
+
+.detail-right-col {
+    width: 250px;
+    flex-shrink: 0;
+}
+
+.detail-title {
+    margin-top: 30px;
+    font-family: "Libre Baskerville";
+    font-size: 3.5rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+/* --- Responsive Detail Wrap --- */
+@media (max-width: 900px) {
+    .detail-content-wrapper {
+        flex-wrap: wrap;
+    }
+    .detail-middle-col {
+        width: calc(100% - 270px);
+    }
+    .detail-right-col {
+        width: 230px;
+    }
+}
+
+@media (max-width: 700px) {
+    .detail-content-wrapper {
+        flex-direction: column;
+        align-items: center;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+    .detail-left-col {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+    .detail-middle-col {
+        width: 100%;
+    }
+    .detail-title {
+        margin-top: 0;
+    }
+    .detail-right-col {
+        width: 100%;
+    }
+}
+
+/* --- PDF Viewer Pane --- */
+.pdf-viewer-pane {
+    flex: 1 1 800px;
+    min-width: 320px;
+    position: sticky;
+    top: 80px;
+    height: calc(100vh - 100px);
+    display: flex;
+    background-color: #161616;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    transition:
+        background-color 0.3s ease,
+        padding 0.3s ease;
+}
+
+/* Force Right Column to Wrap when PDF Viewer is side-by-side */
+.detail-content-wrapper.pdf-open-wrap {
+    flex-wrap: wrap;
+}
+
+.detail-content-wrapper.pdf-open-wrap .detail-middle-col {
+    width: calc(100% - 270px);
+}
+
+.detail-content-wrapper.pdf-open-wrap .detail-right-col {
+    width: 230px;
+}
+
+/* --- Responsive PDF Modal/Drawer States --- */
+@media (max-width: 1470px) {
+    .detail-content-wrapper.pdf-open-wrap {
+        position: static;
+        z-index: auto;
+    }
+
+    /* Modal Overlay Mode */
+    .pdf-viewer-pane {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 3000;
+        background-color: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+        border: none;
+        border-radius: 0;
+        padding: 40px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: row;
+        gap: 20px;
+    }
+
+    .detail-content-wrapper.pdf-open-wrap .detail-middle-col {
+        width: 100%;
+    }
+
+    .quotes-grid.pdf-open-grid {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+
+    /* Morph Right Column into Sliding Drawer */
+    .detail-content-wrapper.pdf-open-wrap .detail-right-col {
+        position: fixed;
+        top: 15vh;
+        right: 0;
+        z-index: 5000;
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .detail-content-wrapper.pdf-open-wrap .detail-right-col.drawer-closed {
+        transform: translateX(100%);
+    }
+
+    .detail-content-wrapper.pdf-open-wrap .detail-right-col.drawer-open {
+        transform: translateX(0);
+    }
+
+    .detail-content-wrapper.pdf-open-wrap .drawer-handle {
+        display: flex;
+        position: absolute;
+        left: -48px;
+        top: 20px;
+        width: 48px;
+        height: 80px;
+        background-color: var(--bg-elevated);
+        border: 1px solid var(--border-subtle);
+        border-right: none;
+        border-radius: 12px 0 0 12px;
+        color: var(--text-dim);
+        cursor: pointer;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+        box-shadow: -4px 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .detail-content-wrapper.pdf-open-wrap .drawer-handle:hover {
+        background-color: #444;
+        color: #fff;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Stacked Modal Mode */
+    .pdf-viewer-pane {
+        padding: 16px;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .viewer-toolbar {
+        width: 100% !important;
+        height: auto !important;
+        border-left: none !important;
+        border-top: 1px solid var(--border-subtle);
+    }
+}
+
+.drawer-handle {
+    display: none; /* Hidden by default */
+}
+
+/* =========================================================
+   8. QUOTES GRID, 3D CARDS & PAPER UI
+   ========================================================= */
+.quotes-grid {
+    margin-top: 48px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+}
+
+.quotes-grid.pdf-open-grid {
+    margin-top: 32px;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+.quotes-grid.pdf-open-grid .quote-card {
+    padding: 20px 24px;
+    background-color: #121212;
+    border-color: var(--border-subtle);
+}
+
+.quote-card {
+    position: relative;
+    padding: 24px 32px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background-color: transparent;
+    transition: background-color 0.2s ease;
+}
+
+.quote-card:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* --- 3D Flipper Structure --- */
+.quote-card-container {
+    perspective: 1200px;
+}
+
+.quote-card-flipper {
+    display: grid;
+    transform-style: preserve-3d;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.quote-face-front,
+.quote-face-back {
+    grid-area: 1 / 1;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.quote-face-back {
+    transform: rotateY(180deg);
+    background-color: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+}
+
+.quote-edit-hint {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 11px;
+    color: #888;
+    opacity: 0;
+    transition: opacity 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.quote-face-front:hover {
+    cursor: pointer;
+}
+
+.quote-face-front:hover .quote-edit-hint {
+    opacity: 1;
+}
+
+/* --- Physical Paper Textures --- */
+.quote-face-front {
+    background: linear-gradient(135deg, #fdfbf7 0%, #f3efe6 100%);
+    box-shadow:
+        2px 6px 15px rgba(0, 0, 0, 0.4),
+        inset 0 0 20px rgba(200, 190, 170, 0.15);
+    border: 1px solid #e2dcd0;
+    border-radius: 2px;
+}
+
+.quote-face-back {
+    background: linear-gradient(135deg, #e6e1d6 0%, #d5cfc0 100%);
+    box-shadow: inset 2px 4px 15px rgba(0, 0, 0, 0.08);
+    border: 1px solid #ccc5b3;
+    border-radius: 2px;
+}
+
+/* --- Typography for Paper Cards --- */
+.quote-text {
+    position: relative;
+    font-family: "Libre Baskerville", ui-serif, Georgia, serif;
+    font-size: 1.2rem;
+    line-height: 1.65;
+    color: var(--goodreads-light);
+    margin: 0;
+}
+
+.quote-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.quote-author {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.85rem;
+    color: #d2d2d2;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.quote-source {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.95rem;
+    color: #9aa0a6;
+    font-style: italic;
+}
+
+/* --- Override Text Colors for the "Paper" Look --- */
+.quote-face-front .quote-text,
+.quote-face-front .quote-author,
+.quote-face-front .quote-meta {
+    color: #2c2825 !important;
+}
+
+.quote-face-front .quote-meta {
+    border-top: 1px solid rgba(44, 40, 37, 0.15);
+}
+
+.quote-face-front .quote-edit-hint {
+    color: rgba(44, 40, 37, 0.4);
+    font-weight: 600;
+}

@@ -1,0 +1,19 @@
+{
+  "name": "index",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "install": "npm install --prefix frontend && npm install --prefix backend",
+    "start": "concurrently \"npm run dev --prefix frontend\" \"npm start --prefix backend\"",
+    "build": "concurrently \"npm run build --prefix frontend\" \"npm run build --prefix backend --if-present\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
