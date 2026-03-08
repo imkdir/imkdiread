@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
@@ -5,7 +6,7 @@ const path = require("path");
 const Database = require("better-sqlite3");
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // ============================================================================
 // MIDDLEWARE & SETUP
@@ -140,6 +141,109 @@ function getAuthorWithRelations(authorRow) {
     .get(authorRow.name).count;
   return { ...authorRow, works_count: count };
 }
+
+// ============================================================================
+// HELPER FUNCTIONS: AUTH MIDDLEWARES
+// ============================================================================
+
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const { v4: uuidv4 } = require("uuid");
+
+// Middleware 1: Are you logged in?
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Format: "Bearer <token>"
+
+  if (!token)
+    return res.status(401).json({ error: "Access denied. Please log in." });
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err)
+      return res.status(403).json({ error: "Invalid or expired token." });
+    req.user = user; // Attach the user payload (id, username, role) to the request
+    next();
+  });
+};
+
+// Middleware 2: Are you the boss?
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Admin privileges required." });
+  }
+  next();
+};
+
+// ============================================================================
+// DOMAIN: AUTH
+// ============================================================================
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { username, password, inviteCode } = req.body;
+
+    // 1. Check the invitation code
+    if (inviteCode !== process.env.GUEST_INVITE_CODE) {
+      return res.status(403).json({ error: "Invalid invitation code." });
+    }
+
+    // 2. Check if username exists
+    const existingUser = db
+      .prepare("SELECT id FROM users WHERE username = ?")
+      .get(username);
+    if (existingUser) {
+      return res.status(400).json({ error: "Username is already taken." });
+    }
+
+    // 3. Hash the password and save the guest
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+    const userId = uuidv4();
+
+    db.prepare(
+      "INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)",
+    ).run(userId, username, passwordHash, "guest");
+
+    res.json({ success: true, message: "Guest account created successfully!" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to register user." });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    // 1. Find the user
+    const user = db
+      .prepare("SELECT * FROM users WHERE username = ?")
+      .get(username);
+    if (!user) {
+      return res.status(400).json({ error: "Invalid username or password." });
+    }
+
+    // 2. Check the password
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return res.status(400).json({ error: "Invalid username or password." });
+    }
+
+    // 3. Generate the JWT token (expires in 7 days)
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" },
+    );
+
+    // Send the token and user data back to React
+    res.json({
+      token,
+      user: { id: user.id, username: user.username, role: user.role },
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to log in." });
+  }
+});
 
 // ============================================================================
 // DOMAIN: TAGS & SERIES
