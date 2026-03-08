@@ -1,5 +1,5 @@
 import React from "react";
-import instagramIcon from "../assets/instagram.svg";
+import instagramIcon from "../assets/imgs/instagram.svg";
 import { Link } from "react-router-dom";
 
 interface PageState {
@@ -26,13 +26,13 @@ export class SplashPage extends React.Component<any, PageState> {
           <Link to={"/explore"} style={{ textDecoration: "none" }}>
             {!images.length || (
               <span
+                className="splash-title"
                 style={{
-                  ...styles.title,
                   backgroundImage: `url(${images[index]})`,
                   ...styles.clipText,
                 }}
               >
-                {"PDF"}
+                {"P D F"}
               </span>
             )}
           </Link>
@@ -82,12 +82,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
-  },
-  title: {
-    fontSize: "45vw",
-    fontWeight: "bold",
-    color: "var(--text-main)",
-    cursor: "pointer",
   },
   clipText: {
     WebkitBackgroundClip: "text",

@@ -1,6 +1,6 @@
 import React from "react";
-import editIcon from "../../assets/edit.svg";
-import searchIcon from "../../assets/search.svg";
+import editIcon from "../../assets/imgs/edit.svg";
+import searchIcon from "../../assets/imgs/search.svg";
 
 interface AdminAuthor {
   name: string;

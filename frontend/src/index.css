@@ -31,6 +31,14 @@
     --border-sidebar: #1a1a1a;
 }
 
+@font-face {
+    font-family: "Blackout";
+    src: url("./assets/fonts/Blackout-Midnight.ttf") format("truetype");
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* =========================================================
    2. GLOBAL BASE STYLES & RESETS
    ========================================================= */
@@ -78,6 +86,14 @@ html {
     font-size: 13px;
     font-weight: 500;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.splash-title {
+    font-size: 45vw;
+    font-family: Blackout;
+    font-weight: bold;
+    color: var(--text-main);
+    cursor: pointer;
 }
 
 @keyframes skeleton-pulse {

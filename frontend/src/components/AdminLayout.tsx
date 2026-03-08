@@ -1,10 +1,10 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 
-import usersIcon from "../assets/users.svg";
-import tagIcon from "../assets/tag.svg";
-import arrowLeftIcon from "../assets/arrow-left.svg";
-import pdfIcon from "../assets/pdf.svg";
+import usersIcon from "../assets/imgs/users.svg";
+import tagIcon from "../assets/imgs/tag.svg";
+import arrowLeftIcon from "../assets/imgs/arrow-left.svg";
+import pdfIcon from "../assets/imgs/pdf.svg";
 
 export const AdminLayout: React.FC = () => {
   const location = useLocation();

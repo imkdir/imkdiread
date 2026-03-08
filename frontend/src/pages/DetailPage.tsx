@@ -4,18 +4,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import Masonry from "react-masonry-css";
 import type { Work, Quote } from "../types";
 
-import eyeIcon from "../assets/eye.svg";
-import eyeFilledIcon from "../assets/eye-filled.svg";
+import eyeIcon from "../assets/imgs/eye.svg";
+import eyeFilledIcon from "../assets/imgs/eye-filled.svg";
 
-import heartIcon from "../assets/heart.svg";
-import heartFilledIcon from "../assets/heart-filled.svg";
+import heartIcon from "../assets/imgs/heart.svg";
+import heartFilledIcon from "../assets/imgs/heart-filled.svg";
 
-import clockIcon from "../assets/clock.svg";
-import clockFilledIcon from "../assets/clock-filled.svg";
+import clockIcon from "../assets/imgs/clock.svg";
+import clockFilledIcon from "../assets/imgs/clock-filled.svg";
 
-import starIcon from "../assets/star.svg";
-import starHalfIcon from "../assets/star-half.svg";
-import starFilledIcon from "../assets/star-filled.svg";
+import starIcon from "../assets/imgs/star.svg";
+import starHalfIcon from "../assets/imgs/star-half.svg";
+import starFilledIcon from "../assets/imgs/star-filled.svg";
 
 import { GoodreadsButton } from "../components/GoodreadsButton";
 import { DropboxButton } from "../components/DropboxButton";
@@ -273,17 +273,10 @@ class DetailPage extends React.Component<Props, State> {
     });
   };
 
-  togglePDFViewer = (source?: string) => {
+  togglePDFViewer = (source: "local" | "dropbox") => {
     const { work, isPDFViewerOpen } = this.state;
 
-    if (isPDFViewerOpen) {
-      this.setState({
-        isActionDrawerOpen: false,
-      });
-      return;
-    }
-
-    if (!work) return;
+    if (isPDFViewerOpen || !work) return;
 
     let initialUrl = null;
 
@@ -557,7 +550,12 @@ class DetailPage extends React.Component<Props, State> {
                   {!isPDFViewerOpen || (
                     <div style={styles.actionRow}>
                       <button
-                        onClick={() => this.togglePDFViewer()}
+                        onClick={() =>
+                          this.setState({
+                            ...this.state,
+                            isPDFViewerOpen: false,
+                          })
+                        }
                         style={styles.actionButton}
                       >
                         <span style={styles.actionLabel}>
@@ -606,7 +604,7 @@ class DetailPage extends React.Component<Props, State> {
           {isPDFViewerOpen && (
             <div className="pdf-viewer-pane">
               {/* The PDF iframe */}
-              <div style={{ flex: 1, backgroundColor: "#333" }}>
+              <div style={{ flex: 1 }}>
                 <iframe
                   src={viewerInitialUrl as string}
                   width="100%"
@@ -837,6 +835,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     // If the screen is smaller than 500px + PDF width, trigger the wrap.
     flex: "1 1 500px",
     minWidth: "320px",
+    maxWidth: "1080px",
+    margin: "0 auto",
     display: "flex",
     flexDirection: "column",
   },

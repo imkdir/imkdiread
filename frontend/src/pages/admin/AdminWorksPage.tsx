@@ -1,7 +1,7 @@
 import React from "react";
-import editIcon from "../../assets/edit.svg";
-import trashIcon from "../../assets/trash.svg";
-import searchIcon from "../../assets/search.svg";
+import editIcon from "../../assets/imgs/edit.svg";
+import trashIcon from "../../assets/imgs/trash.svg";
+import searchIcon from "../../assets/imgs/search.svg";
 import type { Work } from "../../types";
 import Papa from "papaparse";
 

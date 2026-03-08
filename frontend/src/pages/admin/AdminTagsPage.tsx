@@ -1,6 +1,6 @@
 import React from "react";
-import editIcon from "../../assets/edit.svg";
-import trashIcon from "../../assets/trash.svg";
+import editIcon from "../../assets/imgs/edit.svg";
+import trashIcon from "../../assets/imgs/trash.svg";
 
 interface State {
   tags: string[];

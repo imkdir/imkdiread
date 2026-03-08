@@ -1,4 +1,5 @@
 import React, { PureComponent } from "react";
+import logo from "../assets/imgs/finder.png";
 
 interface Props {
   style?: React.CSSProperties;
@@ -12,7 +13,7 @@ export class FinderButton extends PureComponent<Props, {}> {
         style={{ ...styles.root, ...this.props.style }}
         onClick={this.props.onClick}
       >
-        <img src={"/finder.png"} style={styles.logo} alt={"finder-logo"} />
+        <img src={logo} style={styles.logo} alt={"finder-logo"} />
       </button>
     );
   }

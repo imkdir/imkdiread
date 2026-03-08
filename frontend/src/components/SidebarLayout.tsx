@@ -1,9 +1,9 @@
 import React from "react";
 import { Link, Outlet } from "react-router-dom";
-import homeIcon from "../assets/home.svg";
-import searchIcon from "../assets/search.svg";
-import exploreIcon from "../assets/compass.svg";
-import settingsIcon from "../assets/settings.svg";
+import homeIcon from "../assets/imgs/home.svg";
+import searchIcon from "../assets/imgs/search.svg";
+import exploreIcon from "../assets/imgs/compass.svg";
+import settingsIcon from "../assets/imgs/settings.svg";
 
 export const SidebarLayout: React.FC = () => {
   return (

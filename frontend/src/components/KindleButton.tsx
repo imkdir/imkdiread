@@ -1,5 +1,6 @@
 import React, { PureComponent } from "react";
 import { Link } from "react-router-dom";
+import logo from "../assets/imgs/kindle.png";
 
 interface Props {
   asin: string;
@@ -14,7 +15,7 @@ export class KindleButton extends PureComponent<Props, {}> {
         title="Right Click then Select Open Link in Split View"
         style={{ ...styles.root, ...this.props.style }}
       >
-        <img src={"/kindle.png"} style={styles.icon} alt={"kindle-logo"} />
+        <img src={logo} style={styles.icon} alt={"kindle-logo"} />
       </Link>
     );
   }

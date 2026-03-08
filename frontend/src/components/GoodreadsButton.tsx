@@ -1,5 +1,5 @@
 import React, { PureComponent } from "react";
-import goodreadsLogo from "/goodreads.svg";
+import logo from "../assets/imgs/goodreads.svg";
 
 interface Props {
   category: "book" | "author";
@@ -14,7 +14,7 @@ export class GoodreadsButton extends PureComponent<Props, {}> {
         style={{ ...styles.root, ...this.props.style }}
         onClick={this.openGoodreadsPage}
       >
-        <img src={goodreadsLogo} style={styles.icon} alt={"goodreads-logo"} />
+        <img src={logo} style={styles.icon} alt={"goodreads-logo"} />
       </div>
     );
   }

@@ -2,7 +2,7 @@ import React from "react";
 import Masonry from "react-masonry-css";
 import { type Work } from "../types";
 import { GoodreadsCover } from "../components/GoodreadsImages";
-import searchIcon from "../assets/search.svg";
+import searchIcon from "../assets/imgs/search.svg";
 
 interface Series {
   id: string;
