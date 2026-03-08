@@ -8,13 +8,9 @@ import { GoodreadsButton } from "../components/GoodreadsButton";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { useParams } from "react-router-dom";
 
-interface CollectionData {
-  Work: Work[];
-  profile: Author | null;
-}
-
 interface State {
-  data: CollectionData | null;
+  works: Work[];
+  profile: Author | null;
   loading: boolean;
   optimisticFollow: boolean | null; // For instant UI toggling
   activeTab: "works" | "quotes";
@@ -27,7 +23,8 @@ export function AuthorPageWrapper() {
 
 export class AuthorPage extends React.Component<{ keyword: string }, State> {
   state: State = {
-    data: null,
+    works: [],
+    profile: null,
     loading: true,
     optimisticFollow: null,
     activeTab: "works",
@@ -56,10 +53,10 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
 
     fetch(`/api/collection/${keyword}`)
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: { works: Work[]; profile: Author | null }) => {
         this.setState({
           ...this.state,
-          data,
+          ...data,
           loading: false,
         });
       })
@@ -70,32 +67,31 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
   };
 
   toggleFollow = () => {
-    const { data, optimisticFollow } = this.state;
-    if (!data || !data.profile) return;
+    const { works, profile, optimisticFollow } = this.state;
+    if (!works.length || !profile) return;
 
     // Determine current visual state, then flip it
     const isCurrentlyFollowing =
-      optimisticFollow !== null ? optimisticFollow : data.profile.followed;
+      optimisticFollow !== null ? optimisticFollow : profile.followed;
     const newFollowState = !isCurrentlyFollowing;
 
     // Instantly update UI
     this.setState({ ...this.state, optimisticFollow: newFollowState });
 
-    fetch(`/api/authors/${encodeURIComponent(data.profile.name)}`, {
+    fetch(`/api/authors/${encodeURIComponent(profile.name)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data.profile, followed: newFollowState }),
+      body: JSON.stringify({ ...profile, followed: newFollowState }),
     }).catch((err) => console.error("Failed to update follow status", err));
   };
 
   render() {
-    const { data, loading, optimisticFollow, activeTab } = this.state;
+    const { works, profile, loading, optimisticFollow, activeTab } = this.state;
 
-    if (loading || !data) {
+    if (loading || !works.length) {
       return <div style={styles.loading} />;
     }
 
-    const profile = data.profile;
     const isFollowing = profile
       ? optimisticFollow !== null
         ? optimisticFollow
@@ -137,7 +133,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
                     {
                       label: "Works",
                       value: "works",
-                      count: data.works.length,
+                      count: works.length,
                     },
                     { label: "Quotes", value: "quotes", count: 0 },
                   ]}
@@ -158,7 +154,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
           <div style={styles.gridContainer}>
             {activeTab === "works" ? (
               <div style={styles.worksGrid}>
-                {data.works.map((work) => (
+                {works.map((work) => (
                   <GoodreadsCover
                     key={work.id}
                     work={work}
