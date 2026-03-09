@@ -193,10 +193,15 @@ class DetailPage extends React.Component<Props, State> {
   };
 
   getEditEmptyForm = (target: "quote" | "progress") => {
+    let pageNumber = "";
+    if (target === "progress") {
+      const current_page = this.state.work?.current_page || 0;
+      pageNumber = current_page ? String(current_page) : "";
+    }
     return {
       target,
       quote: "",
-      pageNumber: "",
+      pageNumber,
     };
   };
 
@@ -227,33 +232,54 @@ class DetailPage extends React.Component<Props, State> {
     e.preventDefault();
 
     if (this.state.editingForm.target === "quote") {
-      // 1. Trigger the flip animation to show the front of the paper
       this.setState({ isSavingQuote: true });
 
-      // 2. Wait 600ms for the 3D spring animation to finish, THEN save & fly away
       setTimeout(() => {
         this.submitQuoteToDB();
       }, 1200);
     } else {
-      // Progress updates don't flip, just save immediately
-      this.submitQuoteToDB();
+      this.submitProgressToDB();
     }
   };
 
+  handleProgressFinished = () => {
+    const note = this.state.editingForm.quote.trim();
+
+    request(
+      `/api/works/${encodeURIComponent(this.props.workId)}/progress/finish`,
+      {
+        method: "POST",
+        body: JSON.stringify({ note }),
+      },
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          this.setState({
+            ...this.state,
+            read: true,
+            shelved: false,
+            editingForm: this.getEditEmptyForm("quote"),
+            isAddQuoteModalOpen: false,
+          });
+          this.fetchData();
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to finish work:", err);
+      });
+  };
+
   submitQuoteToDB = () => {
-    const { quote: rawQuote, pageNumber, target } = this.state.editingForm;
-
-    let quote = rawQuote.trim();
-
-    if (target === "progress" && quote.length) {
-      quote = `@notes:${quote}`;
-    }
+    const { quote: rawQuote, pageNumber } = this.state.editingForm;
+    const quote = rawQuote.trim();
+    const parsedPageNumber = pageNumber.trim().length ? Number(pageNumber) : null;
 
     request(`/api/works/${encodeURIComponent(this.props.workId)}/quotes`, {
       method: "POST",
       body: JSON.stringify({
         quote,
-        pageNumber: Number(pageNumber),
+        pageNumber: parsedPageNumber,
       }),
     })
       .then((res) => res.json())
@@ -263,9 +289,43 @@ class DetailPage extends React.Component<Props, State> {
             ...this.state,
             editingForm: this.getEditEmptyForm("quote"),
             isAddQuoteModalOpen: false,
+            isSavingQuote: false,
           });
           this.fetchData();
         }
+      })
+      .catch((err) => {
+        console.error("Failed to save quote:", err);
+        this.setState({ isSavingQuote: false });
+      });
+  };
+
+  submitProgressToDB = () => {
+    const { quote, pageNumber } = this.state.editingForm;
+    const parsedPageNumber = Number(pageNumber);
+
+    request(`/api/works/${encodeURIComponent(this.props.workId)}/progress`, {
+      method: "POST",
+      body: JSON.stringify({
+        note: quote.trim(),
+        pageNumber: parsedPageNumber,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          this.setState({
+            ...this.state,
+            read: !!data.read,
+            shelved: false,
+            editingForm: this.getEditEmptyForm("quote"),
+            isAddQuoteModalOpen: false,
+          });
+          this.fetchData();
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to save progress:", err);
       });
   };
 
@@ -713,43 +773,45 @@ class DetailPage extends React.Component<Props, State> {
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "8px",
-                            marginRight: "4px",
+                            justifyContent: "space-between",
                           }}
                         >
-                          <h3
+                          <div
                             style={{
-                              margin: "0",
-                              flex: 1,
-                              color: "#2c2825",
-                              fontSize: "16px",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.05em",
+                              display: "flex",
+                              gap: "8px",
+                              alignItems: "center",
                             }}
                           >
-                            {"Update Progress"}
-                          </h3>
+                            <label style={styles.secondaryLabel}>
+                              {"Currently on"}
+                            </label>
 
-                          <input
-                            name="pageNumber"
-                            required
-                            value={editingForm.pageNumber}
-                            placeholder={
-                              work.current_page ? String(work.current_page) : ""
-                            }
-                            onChange={this.handleQuoteInputChange}
-                            style={{
-                              ...styles.input,
-                              width: "60px",
-                              padding: "6px",
-                              textAlign: "right",
-                            }}
-                            autoFocus
-                          />
+                            <input
+                              name="pageNumber"
+                              required
+                              value={editingForm.pageNumber}
+                              placeholder={"p."}
+                              onChange={this.handleQuoteInputChange}
+                              style={{
+                                ...styles.input,
+                                width: "36px",
+                                padding: "2px 4px",
+                              }}
+                              autoFocus
+                            />
 
-                          <label style={styles.secondaryLabel}>
-                            {`/ ${work.page_count}`}
-                          </label>
+                            <label style={styles.secondaryLabel}>
+                              {`of ${work.page_count}`}
+                            </label>
+                          </div>
+                          <button
+                            type="button"
+                            style={styles.finishedBtn}
+                            onClick={this.handleProgressFinished}
+                          >
+                            I'm finished!
+                          </button>
                         </div>
                       ) : (
                         <h3
@@ -1017,6 +1079,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: "14px",
     fontFamily: "inherit",
     color: "var(--goodreads-dark)",
+  },
+  finishedBtn: {
+    border: "none",
+    backgroundColor: "transparent",
+    textDecorationLine: "underline",
+    fontSize: "14px",
+    fontFamily: "Fredoka",
+    color: "#01635d",
   },
   cancelBtn: {
     flex: 1,

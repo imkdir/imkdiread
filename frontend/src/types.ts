@@ -1,6 +1,6 @@
 export interface Quote {
   id: number;
-  work_id: string;
+  pdf_id: string;
   user_id?: string | null;
   quote: string;
   page_number?: number | null;

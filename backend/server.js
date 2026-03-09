@@ -50,6 +50,7 @@ app.use(express.json());
 
 const dbPath = path.join(__dirname, "db", "database.sqlite");
 const db = new Database(dbPath);
+db.pragma("foreign_keys = ON");
 
 const BACKEND_URL = "";
 
@@ -226,6 +227,75 @@ function getAuthorWithRelations(authorRow, userId = null) {
   }
 
   return { ...authorRow, works_count: count, followed };
+}
+
+function normalizePageNumber(value) {
+  const pageNumber = Number(value);
+  if (!Number.isFinite(pageNumber) || pageNumber <= 0) return null;
+  return Math.floor(pageNumber);
+}
+
+function normalizeProgressQuote(note) {
+  const trimmed = typeof note === "string" ? note.trim() : "";
+  return trimmed ? `@notes:${trimmed}` : "";
+}
+
+function ensureUserWorkInteraction(userId, pdfId) {
+  db.prepare(
+    `INSERT OR IGNORE INTO user_pdf_interactions (user_id, pdf_id) VALUES (?, ?)`,
+  ).run(userId, pdfId);
+}
+
+function recordProgressUpdate(
+  pdfId,
+  userId,
+  pageNumber,
+  note = "",
+  options = {},
+) {
+  const work = db
+    .prepare("SELECT page_count FROM pdfs WHERE id = ?")
+    .get(pdfId);
+  if (!work) {
+    const error = new Error("Work not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const totalPages = Number(work.page_count) || 0;
+  const markFinished = !!options.markFinished;
+  const safePageNumber = markFinished ? totalPages || pageNumber : pageNumber;
+
+  if (!safePageNumber) {
+    const error = new Error("A valid page number is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const progressQuote = normalizeProgressQuote(note);
+
+  db.transaction(() => {
+    db.prepare(
+      "INSERT INTO pdf_quotes (pdf_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
+    ).run(pdfId, userId, progressQuote, safePageNumber);
+
+    ensureUserWorkInteraction(userId, pdfId);
+
+    const isFinished =
+      markFinished || (totalPages > 0 && safePageNumber >= totalPages);
+
+    db.prepare(
+      `UPDATE user_pdf_interactions
+       SET shelved = 0, read = ?
+       WHERE user_id = ? AND pdf_id = ?`,
+    ).run(isFinished ? 1 : 0, userId, pdfId);
+  })();
+
+  return {
+    page_number: safePageNumber,
+    page_count: totalPages,
+    read: markFinished || (totalPages > 0 && safePageNumber >= totalPages),
+  };
 }
 
 // ============================================================================
@@ -847,43 +917,59 @@ app.post("/api/works/:id/quotes", authenticateToken, (req, res) => {
   try {
     const pdfId = req.params.id;
     const userId = req.user.id;
-    const { quote, pageNumber } = req.body;
+    const quote =
+      typeof req.body.quote === "string" ? req.body.quote.trim() : "";
+    const pageNumber = normalizePageNumber(req.body.pageNumber);
 
-    // 1. Insert the quote/progress record
+    if (!quote) {
+      return res.status(400).json({ error: "Quote text is required." });
+    }
+
     db.prepare(
       "INSERT INTO pdf_quotes (pdf_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
-    ).run(pdfId, userId, quote, pageNumber || null);
-
-    // 2. AUTOMATIC STATUS LOGIC
-    if (pageNumber) {
-      // Get the total page count of the book
-      const book = db
-        .prepare("SELECT page_count FROM pdfs WHERE id = ?")
-        .get(pdfId);
-      const pageCount = book ? book.page_count : 0;
-
-      // Ensure an interaction row exists for this user before updating
-      db.prepare(
-        `INSERT OR IGNORE INTO user_pdf_interactions (user_id, pdf_id) VALUES (?, ?)`,
-      ).run(userId, pdfId);
-
-      // Rule 1: Always remove from "Want to Read" (shelved) if they are making progress
-      let updateQuery = "UPDATE user_pdf_interactions SET shelved = 0";
-
-      // Rule 2: If progress is less than 100%, set read to false.
-      // (If it is 100%, you could optionally set read = 1 here too!)
-      if (pageNumber < pageCount) {
-        updateQuery += ", read = 0";
-      }
-
-      updateQuery += " WHERE user_id = ? AND pdf_id = ?";
-      db.prepare(updateQuery).run(userId, pdfId);
-    }
+    ).run(pdfId, userId, quote, pageNumber);
 
     res.json({ success: true });
   } catch (error) {
     console.error("Failed to add quote:", error);
-    res.status(500).json({ error: "Failed to add quote" });
+    res
+      .status(error.statusCode || 500)
+      .json({ error: error.message || "Failed to add quote" });
+  }
+});
+
+app.post("/api/works/:id/progress", authenticateToken, (req, res) => {
+  try {
+    const result = recordProgressUpdate(
+      req.params.id,
+      req.user.id,
+      normalizePageNumber(req.body.pageNumber),
+      req.body.note || "",
+    );
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error("Failed to save progress:", error);
+    res.status(error.statusCode || 500).json({
+      error: error.message || "Failed to save progress update",
+    });
+  }
+});
+
+app.post("/api/works/:id/progress/finish", authenticateToken, (req, res) => {
+  try {
+    const result = recordProgressUpdate(
+      req.params.id,
+      req.user.id,
+      null,
+      req.body.note || "",
+      { markFinished: true },
+    );
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error("Failed to finish work:", error);
+    res.status(error.statusCode || 500).json({
+      error: error.message || "Failed to finish work",
+    });
   }
 });
 
