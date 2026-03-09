@@ -72,32 +72,52 @@ const syncAuthors = (workId, authors) => {
 // HELPER FUNCTIONS: DATA PROCESSING
 // ============================================================================
 
-const processWork = (work) => {
+function getProgressWithWork(work) {
   const quotes = work.quotes || [];
   let current_page = 0;
 
   if (quotes.length) {
-    const sortedEmptyQuotes = quotes
-      .filter((q) => !q.quote)
-      .sort(
-        (a, b) =>
-          (Date.parse(a.created_at) || 0) - (Date.parse(b.created_at) || 0),
-      );
+    let maxPageOverall = 0;
+    let latestProgressTs = -1;
 
-    if (sortedEmptyQuotes.length) {
-      current_page =
-        sortedEmptyQuotes[sortedEmptyQuotes.length - 1].page_number || 0;
-    } else {
-      current_page = Math.max(...quotes.map((q) => q.page_number || 0));
+    // We only loop through the array EXACTLY once
+    for (const q of quotes) {
+      const pageNum = q.page_number || 0;
+
+      // 1. Track the highest page number overall (This replaces your Math.max fallback)
+      if (pageNum > maxPageOverall) {
+        maxPageOverall = pageNum;
+      }
+
+      // 2. Check if it's a valid "progress update" quote
+      if (pageNum && (!q.quote.length || q.quote.startsWith("@notes:"))) {
+        // Parse the date EXACTLY once per valid quote, not hundreds of times
+        const ts = Date.parse(q.created_at) || 0;
+
+        // If this is the newest timestamp we've seen, save this page number
+        if (ts > latestProgressTs) {
+          latestProgressTs = ts;
+          current_page = pageNum;
+        }
+      }
     }
-  }
 
+    // If we never found a valid progress timestamp, fallback to the highest page seen
+    if (latestProgressTs === -1) {
+      return maxPageOverall;
+    }
+
+    return current_page;
+  }
+}
+
+const processWork = (work) => {
   const coverFilename = work.goodreads_id ? `${work.goodreads_id}.png` : null;
   const fileFilename = `${work.id}.pdf`;
 
   return {
     ...work,
-    current_page,
+    current_page: getProgressWithWork(work),
     cover_img_url: getStaticUrlIfItExists(["imgs", "covers"], coverFilename),
     file_url: getStaticUrlIfItExists(["files"], fileFilename),
   };
@@ -115,23 +135,45 @@ const processAuthor = (author) => {
 // HELPER FUNCTIONS: DATABASE FETCHERS
 // ============================================================================
 
-function getWorkWithRelations(workRow) {
+function getWorkWithRelations(workRow, userId = null) {
   const authors = db
     .prepare("SELECT author_name FROM pdf_authors WHERE pdf_id = ?")
     .all(workRow.id)
     .map((r) => r.author_name);
+
   const tags = db
     .prepare(
       "SELECT tags.name FROM pdf_tags JOIN tags ON pdf_tags.tag_id = tags.id WHERE pdf_id = ?",
     )
     .all(workRow.id)
     .map((r) => r.name);
-  const quotes = db
-    .prepare(
-      "SELECT * FROM pdf_quotes WHERE pdf_id = ? ORDER BY created_at DESC",
-    )
-    .all(workRow.id);
-  return { ...workRow, authors, tags, quotes };
+
+  // Filter quotes so they only see THEIR OWN quotes
+  const quotes = userId
+    ? db
+        .prepare(
+          "SELECT * FROM pdf_quotes WHERE pdf_id = ? AND user_id = ? ORDER BY created_at DESC",
+        )
+        .all(workRow.id, userId)
+    : db
+        .prepare(
+          "SELECT * FROM pdf_quotes WHERE pdf_id = ? ORDER BY created_at DESC",
+        )
+        .all(workRow.id);
+
+  // Grab their personal interaction stats (If they aren't logged in, default to 0)
+  let userStats = { read: 0, liked: 0, shelved: 0, rating: 0 };
+  if (userId) {
+    const stats = db
+      .prepare(
+        "SELECT read, liked, shelved, rating FROM user_pdf_interactions WHERE user_id = ? AND pdf_id = ?",
+      )
+      .get(userId, workRow.id);
+    if (stats) userStats = stats;
+  }
+
+  // Merge the book data, relations, and user stats together
+  return { ...workRow, authors, tags, quotes, ...userStats };
 }
 
 function getAuthorWithRelations(authorRow) {
@@ -262,22 +304,6 @@ app.use("/api", (req, res, next) => {
 
   // For all other /api/ routes, force token authentication
   authenticateToken(req, res, next);
-});
-
-// 2. ONLY Admins are allowed to modify data (POST, PUT, PATCH, DELETE)
-app.use("/api", (req, res, next) => {
-  // Skip auth routes
-  if (req.path === "/auth/login" || req.path === "/auth/register") {
-    return next();
-  }
-
-  // If the request is trying to change data (not just GETting it)
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-    // Force admin check
-    return requireAdmin(req, res, next);
-  }
-
-  next(); // If it's just a GET request, let the Guest through!
 });
 
 // ============================================================================
@@ -559,13 +585,15 @@ app.get("/api/works/:id", (req, res) => {
       .prepare("SELECT * FROM pdfs WHERE id = ?")
       .get(req.params.id);
     if (!workRow) return res.status(404).json({ error: "Work not found" });
-    res.json(processWork(getWorkWithRelations(workRow)));
+
+    // Pass req.user.id so it grabs their specific likes/reads!
+    res.json(processWork(getWorkWithRelations(workRow, req.user?.id)));
   } catch (error) {
     res.status(500).json({ error: "Failed to load work" });
   }
 });
 
-app.post("/api/works", (req, res) => {
+app.post("/api/works", requireAdmin, (req, res) => {
   try {
     const work = req.body;
     if (!work || !work.id)
@@ -595,7 +623,7 @@ app.post("/api/works", (req, res) => {
   }
 });
 
-app.put("/api/works/:id", (req, res) => {
+app.put("/api/works/:id", requireAdmin, (req, res) => {
   try {
     const id = req.params.id;
     const work = req.body;
@@ -650,47 +678,37 @@ app.put("/api/works/:id", (req, res) => {
   }
 });
 
-app.patch("/api/works/:id", (req, res) => {
+// Handle User Interactions (Like, Read, Shelve, Rating)
+app.post("/api/works/:id", (req, res) => {
   try {
-    const id = req.params.id;
-    const body = req.body;
+    const pdfId = req.params.id;
+    const userId = req.user.id; // Guaranteed to exist because of authenticateToken middleware
+    const { action, value } = req.body;
 
-    // Support partial body spread OR the old action/value pair
-    const updates = [];
-    const values = [];
-
-    if (body.action !== undefined && body.value !== undefined) {
-      updates.push(`${body.action} = ?`);
-      values.push(
-        body.value === true ? 1 : body.value === false ? 0 : body.value,
-      );
-    } else {
-      for (const [key, val] of Object.entries(body)) {
-        updates.push(`${key} = ?`);
-        values.push(val === true ? 1 : val === false ? 0 : val);
-      }
+    // Make sure they are only sending valid actions
+    if (!["read", "liked", "shelved", "rating"].includes(action)) {
+      return res.status(400).json({ error: "Invalid action" });
     }
 
-    if (updates.length > 0) {
-      values.push(id);
-      db.prepare(`UPDATE pdfs SET ${updates.join(", ")} WHERE id = ?`).run(
-        ...values,
-      );
-    }
+    // Convert booleans to 1 or 0 for SQLite
+    const safeValue = value === true ? 1 : value === false ? 0 : value;
 
-    res.json(
-      processWork(
-        getWorkWithRelations(
-          db.prepare("SELECT * FROM pdfs WHERE id = ?").get(id),
-        ),
-      ),
-    );
+    db.prepare(
+      `
+      INSERT INTO user_pdf_interactions (user_id, pdf_id, ${action})
+      VALUES (?, ?, ?)
+      ON CONFLICT(user_id, pdf_id) DO UPDATE SET ${action} = excluded.${action}
+    `,
+    ).run(userId, pdfId, safeValue);
+
+    res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: "Failed to update work data" });
+    console.error("Interaction error:", error);
+    res.status(500).json({ error: "Failed to update interaction" });
   }
 });
 
-app.delete("/api/works/:id", (req, res) => {
+app.delete("/api/works/:id", requireAdmin, (req, res) => {
   try {
     const id = req.params.id;
     db.transaction(() => {
@@ -705,7 +723,7 @@ app.delete("/api/works/:id", (req, res) => {
   }
 });
 
-app.post("/api/works/bulk-import", (req, res) => {
+app.post("/api/works/bulk-import", requireAdmin, (req, res) => {
   try {
     const works = req.body;
     if (!Array.isArray(works))
@@ -745,7 +763,7 @@ app.post("/api/works/bulk-import", (req, res) => {
   }
 });
 
-app.post("/api/works/bulk-tags", (req, res) => {
+app.post("/api/works/bulk-tags", requireAdmin, (req, res) => {
   try {
     const { workIds, tags } = req.body;
     if (!Array.isArray(workIds) || !Array.isArray(tags))
@@ -775,29 +793,72 @@ app.post("/api/works/bulk-tags", (req, res) => {
 
 app.post("/api/works/:id/quotes", (req, res) => {
   try {
+    const pdfId = req.params.id;
+    const userId = req.user.id;
+    const { quote, pageNumber } = req.body;
+
     db.prepare(
-      "INSERT INTO pdf_quotes (pdf_id, quote, page_number) VALUES (?, ?, ?)",
-    ).run(req.params.id, req.body.quote, req.body.pageNumber || null);
+      "INSERT INTO pdf_quotes (pdf_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
+    ).run(pdfId, userId, quote, pageNumber || null);
+
     res.json({ success: true });
   } catch (error) {
+    console.error("Failed to add quote:", error);
     res.status(500).json({ error: "Failed to add quote" });
   }
 });
 
-app.put("/api/quotes/:id", (req, res) => {
+// EDIT A QUOTE (Ownership Guarded)
+app.put("/api/quotes/:id", authenticateToken, (req, res) => {
   try {
-    db.prepare(
-      "UPDATE pdf_quotes SET quote = ?, page_number = ? WHERE id = ?",
-    ).run(req.body.quote, req.body.pageNumber || null, req.params.id);
+    const { quote, pageNumber } = req.body;
+    const userId = req.user.id;
+    const quoteId = req.params.id;
+
+    // 1. Check if the user is an admin
+    const isAdmin = req.user.role === "admin";
+
+    // 2. Build the query: Admins can edit anything, Guests can only edit their own
+    const result = isAdmin
+      ? db
+          .prepare(
+            "UPDATE pdf_quotes SET quote = ?, page_number = ? WHERE id = ?",
+          )
+          .run(quote, pageNumber || null, quoteId)
+      : db
+          .prepare(
+            "UPDATE pdf_quotes SET quote = ?, page_number = ? WHERE id = ? AND user_id = ?",
+          )
+          .run(quote, pageNumber || null, quoteId, userId);
+
+    if (result.changes === 0) {
+      return res.status(403).json({ error: "Unauthorized or quote not found" });
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: "Failed to update quote" });
   }
 });
 
-app.delete("/api/quotes/:id", (req, res) => {
+// DELETE A QUOTE (Ownership Guarded)
+app.delete("/api/quotes/:id", authenticateToken, (req, res) => {
   try {
-    db.prepare("DELETE FROM pdf_quotes WHERE id = ?").run(req.params.id);
+    const userId = req.user.id;
+    const quoteId = req.params.id;
+    const isAdmin = req.user.role === "admin";
+
+    // Admins delete anything, Guests delete only their own
+    const result = isAdmin
+      ? db.prepare("DELETE FROM pdf_quotes WHERE id = ?").run(quoteId)
+      : db
+          .prepare("DELETE FROM pdf_quotes WHERE id = ? AND user_id = ?")
+          .run(quoteId, userId);
+
+    if (result.changes === 0) {
+      return res.status(403).json({ error: "Unauthorized or quote not found" });
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete quote" });

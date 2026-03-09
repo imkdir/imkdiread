@@ -241,12 +241,18 @@ class DetailPage extends React.Component<Props, State> {
   };
 
   submitQuoteToDB = () => {
-    const { quote, pageNumber } = this.state.editingForm;
+    const { quote: rawQuote, pageNumber, target } = this.state.editingForm;
+
+    let quote = rawQuote.trim();
+
+    if (target === "progress" && quote.length) {
+      quote = `@notes:${quote}`;
+    }
 
     request(`/api/works/${encodeURIComponent(this.props.workId)}/quotes`, {
       method: "POST",
       body: JSON.stringify({
-        quote: quote.trim(),
+        quote,
         pageNumber: Number(pageNumber),
       }),
     })
@@ -279,21 +285,13 @@ class DetailPage extends React.Component<Props, State> {
     let initialUrl = null;
 
     if (source === "local") {
-      // 1. Calculate the page to resume on!
-      let pageHash = "";
-      const quotesWithPages = work?.quotes?.filter((q) => q.page_number) || [];
+      const pdfParams = ["view=FitH"];
 
-      if (quotesWithPages.length > 0) {
-        // Find the highest page number you've recorded so far
-        const highestPage = Math.max(
-          ...quotesWithPages.map((q) => Number(q.page_number)),
-        );
-        if (highestPage > 0) {
-          pageHash = `#page=${highestPage}`;
-        }
+      if (work.current_page) {
+        pdfParams.unshift(`page=${work.current_page}`); // unshift puts it at the front!
       }
-      // 2. Point directly to your Express server's static folder
-      initialUrl = `${work.file_url}${pageHash}&view=FitH&toolbar=0&navpanes=0&scrollbar=0`;
+
+      initialUrl = `${work.file_url}#${pdfParams.join("&")}`;
     } else if (source === "dropbox" && work.dropbox_link) {
       initialUrl = work.dropbox_link;
     }
@@ -326,7 +324,9 @@ class DetailPage extends React.Component<Props, State> {
     const isEditProgress = editingForm.target === "progress";
 
     const quotes = work.quotes || [];
-    const displayQuotes = quotes.filter((q) => q.quote.trim().length > 0);
+    const displayQuotes = quotes.filter(
+      (q) => q.quote.trim().length > 0 && !q.quote.startsWith("@notes:"),
+    );
 
     return (
       <div style={styles.page}>
@@ -716,6 +716,7 @@ class DetailPage extends React.Component<Props, State> {
                             display: "flex",
                             alignItems: "center",
                             gap: "8px",
+                            marginRight: "4px",
                           }}
                         >
                           <h3
@@ -733,6 +734,7 @@ class DetailPage extends React.Component<Props, State> {
 
                           <input
                             name="pageNumber"
+                            required
                             value={editingForm.pageNumber}
                             placeholder={
                               work.current_page ? String(work.current_page) : ""
@@ -778,9 +780,10 @@ class DetailPage extends React.Component<Props, State> {
                         placeholder={
                           isEditProgress
                             ? "Type your notes here..."
-                            : "Type your quote here..."
+                            : "Paste your quote here..."
                         }
                         autoFocus={!isEditProgress}
+                        required={!isEditProgress}
                       />
 
                       <div
@@ -790,7 +793,7 @@ class DetailPage extends React.Component<Props, State> {
                           alignItems: "center",
                         }}
                       >
-                        {isEditProgress || (
+                        {!isEditProgress && (
                           <div
                             style={{
                               display: "flex",

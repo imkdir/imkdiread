@@ -2,11 +2,13 @@ import React from "react";
 import { motion } from "framer-motion";
 import type { Quote } from "../types";
 import { request } from "../utils/APIClient";
+import { useAuth } from "./AuthContext";
 
 interface Props {
   quote: Quote;
   workId: string;
   onRefresh: () => void;
+  user: { id: string; username: string; role: string } | null;
 }
 
 interface State {
@@ -16,7 +18,7 @@ interface State {
   isSaving: boolean;
 }
 
-export class QuoteCard extends React.Component<Props, State> {
+class QuoteCardClass extends React.Component<Props, State> {
   private textareaRef = React.createRef<HTMLTextAreaElement>();
 
   constructor(props: Props) {
@@ -31,6 +33,13 @@ export class QuoteCard extends React.Component<Props, State> {
     };
   }
 
+  // --- OWNERSHIP GUARD ---
+  canEditOrDelete = () => {
+    const { quote, user } = this.props;
+    if (!user) return false;
+    return user.id === quote.user_id || user.role === "admin";
+  };
+
   adjustTextareaHeight = () => {
     const el = this.textareaRef.current;
     if (el) {
@@ -40,6 +49,9 @@ export class QuoteCard extends React.Component<Props, State> {
   };
 
   toggleFlip = () => {
+    // 1. Guard check: Don't allow flipping if they don't own it!
+    if (!this.canEditOrDelete()) return;
+
     // Reset state if they flip back without saving
     this.setState(
       {
@@ -101,6 +113,8 @@ export class QuoteCard extends React.Component<Props, State> {
     const { quote } = this.props;
     const { isFlipped, editQuote, editPageNum, isSaving } = this.state;
 
+    const hasPermission = this.canEditOrDelete();
+
     return (
       <motion.div
         layout
@@ -116,13 +130,15 @@ export class QuoteCard extends React.Component<Props, State> {
         >
           <div
             className="quote-face-front quote-card"
-            onClick={this.toggleFlip}
+            onClick={hasPermission ? this.toggleFlip : undefined}
             style={{
               position: isFlipped ? "absolute" : "relative",
-              top: 0, // Pin to the top-left of the flipper
-              left: 0, // Pin to the top-left of the flipper
+              top: 0,
+              left: 0,
               width: "100%",
               pointerEvents: isFlipped ? "none" : "auto",
+              // Override the CSS hover pointer if they don't have permission
+              cursor: hasPermission ? "pointer" : "text",
             }}
           >
             <blockquote className="quote-text">{quote.quote}</blockquote>
@@ -131,98 +147,116 @@ export class QuoteCard extends React.Component<Props, State> {
                 <span className="quote-author">Page {quote.page_number}</span>
               </div>
             )}
-            <div className="quote-edit-hint">Click to edit</div>
+
+            {/* Only show the edit hint if they actually have permission to edit it */}
+            {hasPermission && (
+              <div className="quote-edit-hint">Click to edit</div>
+            )}
           </div>
 
-          <div
-            className="quote-face-back quote-card"
-            style={{
-              position: isFlipped ? "relative" : "absolute",
-              top: 0, // Pin to the top-left of the flipper
-              left: 0, // Pin to the top-left of the flipper
-              width: "100%",
-              pointerEvents: !isFlipped ? "none" : "auto",
-            }}
-          >
-            <form
-              onSubmit={this.handleSave}
+          {/* Only render the back face form if they have permission to prevent DOM bloat */}
+          {hasPermission && (
+            <div
+              className="quote-face-back quote-card"
               style={{
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-                gap: "12px",
+                position: isFlipped ? "relative" : "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                pointerEvents: !isFlipped ? "none" : "auto",
               }}
             >
-              <textarea
-                ref={this.textareaRef}
-                name="editQuote"
-                value={editQuote}
-                onChange={this.handleInputChange}
-                style={{ ...styles.input, overflow: "hidden" }}
-                rows={4}
-              />
-
-              <div
+              <form
+                onSubmit={this.handleSave}
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  flexDirection: "column",
+                  height: "100%",
+                  gap: "12px",
                 }}
               >
+                <textarea
+                  ref={this.textareaRef}
+                  name="editQuote"
+                  value={editQuote}
+                  onChange={this.handleInputChange}
+                  style={{ ...styles.input, overflow: "hidden" }}
+                  rows={4}
+                />
+
                 <div
-                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
                 >
-                  <label style={styles.label}>Pg.</label>
-                  <input
-                    name="editPageNum"
-                    value={editPageNum}
-                    onChange={this.handleInputChange}
-                    style={{ ...styles.input, width: "60px", padding: "6px" }}
-                  />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <label style={styles.label}>Pg.</label>
+                    <input
+                      name="editPageNum"
+                      value={editPageNum}
+                      onChange={this.handleInputChange}
+                      style={{ ...styles.input, width: "60px", padding: "6px" }}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={this.handleDelete}
+                    style={styles.deleteBtn}
+                  >
+                    Delete
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={this.handleDelete}
-                  style={styles.deleteBtn}
-                >
-                  Delete
-                </button>
-              </div>
-
-              <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
-                <button
-                  type="button"
-                  onClick={this.toggleFlip}
-                  style={styles.cancelBtn}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  style={styles.saveBtn}
-                >
-                  {isSaving ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
-          </div>
+                <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
+                  <button
+                    type="button"
+                    onClick={this.toggleFlip}
+                    style={styles.cancelBtn}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    style={styles.saveBtn}
+                  >
+                    {isSaving ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </motion.div>
       </motion.div>
     );
   }
 }
 
+// --- FUNCTIONAL WRAPPER ---
+// Grabs the Auth hook and feeds the user into the Class Component
+export const QuoteCard = (props: Omit<Props, "user">) => {
+  const { user } = useAuth();
+  return <QuoteCardClass {...props} user={user} />;
+};
+
 // Local styles tailored for the light, coarse paper background
 const styles: { [key: string]: React.CSSProperties } = {
   input: {
     width: "100%",
     padding: "10px",
-    borderRadius: "2px", // Match paper corners
-    border: "1px solid rgba(44, 40, 37, 0.3)", // Pencil-like border
-    backgroundColor: "rgba(255, 255, 255, 0.5)", // Translucent white over the coarse paper
-    color: "#2c2825", // Ink color
+    borderRadius: "2px",
+    border: "1px solid rgba(44, 40, 37, 0.3)",
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    color: "#2c2825",
     fontFamily: "inherit",
     fontSize: "14px",
     resize: "none",
@@ -258,9 +292,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   saveBtn: {
     flex: 1,
-    backgroundColor: "#2c2825", // Solid ink block
+    backgroundColor: "#2c2825",
     border: "none",
-    color: "#fdfbf7", // Paper-colored text inside the button
+    color: "#fdfbf7",
     padding: "8px",
     borderRadius: "4px",
     cursor: "pointer",

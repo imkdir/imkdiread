@@ -218,6 +218,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: "rgba(0,0,0,0.15)",
     color: "var(--goodreads-light)",
     fontSize: "16px",
+    fontFamily: "Fredoka",
   },
   button: {
     padding: "10px 12px",
@@ -227,7 +228,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "var(--goodreads-brown)",
     fontSize: "16px",
     fontWeight: "540",
-    fontFamily: "Fredoka",
     cursor: "pointer",
+    fontFamily: "Fredoka",
   },
 };

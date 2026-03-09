@@ -428,19 +428,13 @@ export class AdminWorksPage extends React.Component<{}, State> {
               <form onSubmit={this.saveWork} style={styles.form}>
                 <div style={styles.grid2}>
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>
-                      ID{isAddingNew ? " (required)" : ""}
-                    </label>
+                    <label style={styles.label}>ID (required)</label>
                     <input
                       name="id"
+                      required
                       value={editForm.id}
                       onChange={this.handleInputChange}
-                      readOnly={!isAddingNew}
-                      style={{
-                        ...styles.input,
-                        backgroundColor: isAddingNew ? "#121212" : "#2a2a2a",
-                        color: isAddingNew ? "#fff" : "#888",
-                      }}
+                      style={styles.input}
                     />
                   </div>
                   <div style={styles.inputGroup}>
@@ -458,6 +452,7 @@ export class AdminWorksPage extends React.Component<{}, State> {
                     <label style={styles.label}>Title (required)</label>
                     <input
                       name="title"
+                      required
                       value={editForm.title}
                       onChange={this.handleInputChange}
                       style={styles.input}
