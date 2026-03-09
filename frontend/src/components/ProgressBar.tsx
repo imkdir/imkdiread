@@ -6,7 +6,7 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-export class ProgressBar extends PureComponent<Props, {}> {
+export class ProgressBar extends PureComponent<Props> {
   render() {
     const { page_count, current_page } = this.props.work;
 

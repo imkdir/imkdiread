@@ -11,7 +11,7 @@ interface State {
   editingTag: { oldName: string; newName: string } | null;
 }
 
-export class AdminTagsPage extends React.Component<{}, State> {
+export class AdminTagsPage extends React.Component<Record<string, never>, State> {
   state: State = {
     tags: [],
     loading: true,
@@ -89,7 +89,6 @@ export class AdminTagsPage extends React.Component<{}, State> {
       .then((data) => {
         if (data.success) {
           this.setState((prev) => ({
-            ...this.state,
             tags: prev.tags.filter((t) => t !== tagName),
           }));
         }
@@ -149,7 +148,6 @@ export class AdminTagsPage extends React.Component<{}, State> {
                       <button
                         onClick={() =>
                           this.setState({
-                            ...this.state,
                             editingTag: { oldName: tag, newName: tag },
                           })
                         }
@@ -196,7 +194,6 @@ export class AdminTagsPage extends React.Component<{}, State> {
                     value={editingTag.newName}
                     onChange={(e) =>
                       this.setState({
-                        ...this.state,
                         editingTag: {
                           oldName: editingTag?.oldName || "",
                           newName: e.target.value,

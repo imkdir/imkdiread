@@ -6,7 +6,7 @@ interface Props {
   onClick: () => void;
 }
 
-export class FinderButton extends PureComponent<Props, {}> {
+export class FinderButton extends PureComponent<Props> {
   render() {
     return (
       <button

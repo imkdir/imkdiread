@@ -1,11 +1,15 @@
 export const request = async (url: string, options: RequestInit = {}) => {
   const token = localStorage.getItem("token");
+  const headers = new Headers(options.headers || {});
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
 
-  const headers = {
-    "Content-Type": "application/json",
-    ...options.headers,
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (!isFormData && options.body !== undefined && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
 
   const response = await fetch(url, {
     ...options,

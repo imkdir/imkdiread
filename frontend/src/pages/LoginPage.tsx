@@ -6,12 +6,13 @@ import {
   type Location,
 } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
+import type { User } from "../types";
 
 interface PageProps {
   navigate: NavigateFunction;
   location: Location;
   auth: {
-    login: (userData: any, token: string) => void;
+    login: (userData: User, token: string) => void;
   };
 }
 
@@ -25,14 +26,12 @@ interface PageState {
   index: number;
 }
 
-export const LoginPageWrapper = (props: any) => {
+export const LoginPageWrapper = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const auth = useAuth();
 
-  return (
-    <LoginPage {...props} navigate={navigate} location={location} auth={auth} />
-  );
+  return <LoginPage navigate={navigate} location={location} auth={auth} />;
 };
 
 class LoginPage extends Component<PageProps, PageState> {
@@ -86,14 +85,20 @@ class LoginPage extends Component<PageProps, PageState> {
         auth.login(data.user, data.token);
         navigate(from, { replace: true });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Login failed:", err);
     }
   };
 
   handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    this.setState({ [name]: value });
+    if (name === "username") {
+      this.setState({ username: value });
+    } else if (name === "password") {
+      this.setState({ password: value });
+    } else if (name === "inviteCode") {
+      this.setState({ inviteCode: value });
+    }
   };
 
   loadData() {

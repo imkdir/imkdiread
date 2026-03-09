@@ -7,7 +7,7 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-export class GoodreadsButton extends PureComponent<Props, {}> {
+export class GoodreadsButton extends PureComponent<Props> {
   render() {
     return (
       <div

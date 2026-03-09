@@ -10,11 +10,11 @@ interface Props {
   };
 }
 
-export const SignOutButtonWrapper = (props: any) => {
+export const SignOutButtonWrapper = () => {
   const navigate = useNavigate();
   const auth = useAuth();
 
-  return <SignOutButton {...props} navigate={navigate} auth={auth} />;
+  return <SignOutButton navigate={navigate} auth={auth} />;
 };
 
 class SignOutButton extends React.Component<Props> {

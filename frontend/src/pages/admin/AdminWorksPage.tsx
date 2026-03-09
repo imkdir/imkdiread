@@ -18,6 +18,15 @@ interface EditFormState {
   tags: string;
 }
 
+interface CSVWorkRow {
+  id?: string;
+  goodreads_id?: string;
+  page_count?: string;
+  title?: string;
+  authors?: string;
+  tags?: string;
+}
+
 interface State {
   works: Work[];
   loading: boolean;
@@ -28,7 +37,7 @@ interface State {
   filterText: string; // <-- NEW: State for the search filter
 }
 
-export class AdminWorksPage extends React.Component<{}, State> {
+export class AdminWorksPage extends React.Component<Record<string, never>, State> {
   state: State = {
     works: [],
     loading: true,
@@ -69,7 +78,6 @@ export class AdminWorksPage extends React.Component<{}, State> {
   // --- Modal Handlers ---
   openAddModal = () => {
     this.setState({
-      ...this.state,
       isModalOpen: true,
       isAddingNew: true,
       originalEditingId: null,
@@ -79,7 +87,6 @@ export class AdminWorksPage extends React.Component<{}, State> {
 
   openEditModal = (work: Work) => {
     this.setState({
-      ...this.state,
       isModalOpen: true,
       isAddingNew: false,
       originalEditingId: work.id,
@@ -98,7 +105,6 @@ export class AdminWorksPage extends React.Component<{}, State> {
 
   closeModal = () => {
     this.setState({
-      ...this.state,
       isModalOpen: false,
       editForm: this.getEmptyForm(),
     });
@@ -109,7 +115,6 @@ export class AdminWorksPage extends React.Component<{}, State> {
   ) => {
     const { name, value } = e.target;
     this.setState((prevState) => ({
-      ...this.state,
       editForm: { ...prevState.editForm, [name]: value },
     }));
   };
@@ -125,7 +130,6 @@ export class AdminWorksPage extends React.Component<{}, State> {
       .then((data) => {
         if (data.success) {
           this.setState((prev) => ({
-            ...this.state,
             works: prev.works.filter((w) => w.id !== workId),
           }));
         }
@@ -158,12 +162,12 @@ export class AdminWorksPage extends React.Component<{}, State> {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    Papa.parse(file, {
+    Papa.parse<CSVWorkRow>(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const importedWorks = results.data.map((row: any) => ({
-          id: row.id.trim().toUpperCase(),
+        const importedWorks = results.data.map((row) => ({
+          id: (row.id || "").trim().toUpperCase(),
           goodreads_id: row.goodreads_id?.trim() || "",
           page_count: row.page_count ? parseInt(row.page_count.trim()) : 0,
           title: row.title?.trim() || "",

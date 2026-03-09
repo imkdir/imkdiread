@@ -7,7 +7,7 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-export class KindleButton extends PureComponent<Props, {}> {
+export class KindleButton extends PureComponent<Props> {
   render() {
     return (
       <Link

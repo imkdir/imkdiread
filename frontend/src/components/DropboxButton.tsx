@@ -6,7 +6,7 @@ interface Props {
   onClick?: () => void;
 }
 
-export class DropboxButton extends PureComponent<Props, {}> {
+export class DropboxButton extends PureComponent<Props> {
   render() {
     return (
       <button

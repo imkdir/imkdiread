@@ -15,7 +15,7 @@ interface PageState {
   loading: boolean;
 }
 
-export class ExplorePage extends React.Component<{}, PageState> {
+export class ExplorePage extends React.Component<Record<string, never>, PageState> {
   state: PageState = {
     authors: [],
     works: [],

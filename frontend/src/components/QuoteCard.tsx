@@ -72,11 +72,16 @@ class QuoteCardClass extends React.Component<Props, State> {
   handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
-    this.setState({ [e.target.name]: e.target.value }, () => {
-      if (this.state.isFlipped && e.target.name === "editQuote") {
+    const { name, value } = e.target;
+    if (name === "editQuote") {
+      this.setState({ editQuote: value }, () => {
         setTimeout(this.adjustTextareaHeight, 10);
-      }
-    });
+      });
+      return;
+    }
+    if (name === "editPageNum") {
+      this.setState({ editPageNum: value });
+    }
   };
 
   handleSave = (e: React.FormEvent) => {

@@ -7,7 +7,7 @@ interface PageState {
   index: number;
 }
 
-export class SplashPage extends React.Component<any, PageState> {
+export class SplashPage extends React.Component<Record<string, never>, PageState> {
   state: PageState = {
     images: [],
     index: 0,

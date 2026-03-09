@@ -19,7 +19,7 @@ import { AuthProvider } from "./components/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LoginPageWrapper } from "./pages/LoginPage";
 
-export default class App extends React.Component<any, any> {
+export default class App extends React.Component<Record<string, never>> {
   render() {
     return (
       // 1. Wrap the entire app so auth state is available everywhere

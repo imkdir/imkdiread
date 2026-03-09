@@ -5,6 +5,10 @@ import { request } from "../../utils/APIClient";
 import editIcon from "../../assets/imgs/edit.svg";
 import searchIcon from "../../assets/imgs/search.svg";
 
+interface AdminAuthor extends Omit<Author, "goodreads_id"> {
+  goodreads_id: string;
+}
+
 interface EditFormState {
   name: string;
   goodreads_id: string;
@@ -20,7 +24,7 @@ interface State {
   filterText: string; // <-- Initialized to empty string
 }
 
-export class AdminAuthorsPage extends React.Component<{}, State> {
+export class AdminAuthorsPage extends React.Component<Record<string, never>, State> {
   state: State = {
     authors: [],
     loading: true,
@@ -57,7 +61,6 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
   // --- Modal Handlers ---
   openAddModal = () => {
     this.setState({
-      ...this.state,
       isModalOpen: true,
       isAddingNew: true,
       originalEditingName: null,
@@ -65,9 +68,8 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
     });
   };
 
-  openEditModal = (author: AdminAuthor) => {
+  openEditModal = (author: Author) => {
     this.setState({
-      ...this.state,
       isModalOpen: true,
       isAddingNew: false,
       originalEditingName: author.name,
@@ -80,21 +82,28 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
 
   closeModal = () => {
     this.setState({
-      ...this.state,
       isModalOpen: false,
       editForm: this.getEmptyForm(),
     });
   };
 
   handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    this.setState((prevState) => ({
-      ...this.state,
-      editForm: {
-        ...prevState.editForm,
-        [name]: type === "checkbox" ? checked : value,
-      },
-    }));
+    const { name, value } = e.target;
+    if (name === "name") {
+      this.setState((prevState) => ({
+        editForm: {
+          ...prevState.editForm,
+          name: value,
+        },
+      }));
+    } else if (name === "goodreads_id") {
+      this.setState((prevState) => ({
+        editForm: {
+          ...prevState.editForm,
+          goodreads_id: value,
+        },
+      }));
+    }
   };
 
   saveAuthor = (e: React.FormEvent) => {
@@ -118,12 +127,12 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
     const updatedAuthor: AdminAuthor = {
       name: trimmedName,
       goodreads_id: editForm.goodreads_id.trim(),
+      works_count: 0,
     };
 
     if (isAddingNew) {
       // Optimistic Update: Add to top of list
       this.setState((prev) => ({
-        ...this.state,
         authors: [updatedAuthor, ...prev.authors],
         isModalOpen: false,
       }));
@@ -142,7 +151,6 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
 
       // Optimistic Update: Replace existing entry
       this.setState((prev) => ({
-        ...this.state,
         authors: prev.authors.map((a) =>
           a.name === originalEditingName ? updatedAuthor : a,
         ),
@@ -170,7 +178,7 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
       if (!filterText) return true; // Show all if filter is empty
 
       // Search by ID
-      if (author.goodreads_id.includes(filterText)) return true;
+      if ((author.goodreads_id || "").includes(filterText)) return true;
 
       // Search by Title
       if (author.name.includes(filterText)) return true;

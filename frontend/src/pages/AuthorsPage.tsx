@@ -8,7 +8,7 @@ interface PageState {
   loading: boolean;
 }
 
-export class AuthorsPage extends React.Component<{}, PageState> {
+export class AuthorsPage extends React.Component<Record<string, never>, PageState> {
   state: PageState = {
     authors: [],
     loading: true,

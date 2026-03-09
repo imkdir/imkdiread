@@ -8,15 +8,15 @@ import { GoodreadsCover } from "../components/GoodreadsImages";
 import searchIcon from "../assets/imgs/search.svg";
 
 // --- Custom Debounce Utility ---
-function debounce<T extends (...args: any[]) => void>(
-  func: T,
+function debounce<TArgs extends unknown[]>(
+  func: (...args: TArgs) => void,
   delay: number,
-): T {
+) {
   let timeoutId: ReturnType<typeof setTimeout>;
-  return function (this: any, ...args: any[]) {
+  return (...args: TArgs) => {
     clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func.apply(this, args), delay);
-  } as T;
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
 }
 
 // 1. Define Props to include the injected user
@@ -71,9 +71,8 @@ class SearchPageClass extends React.Component<Props, State> {
 
     request(`/api/search?q=${encodeURIComponent(q)}`)
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: { results?: Work[] }) => {
         this.setState({
-          ...this.state,
           searchResults: data.results || [],
           loading: false,
         });
@@ -107,7 +106,6 @@ class SearchPageClass extends React.Component<Props, State> {
 
   toggleEditMode = () => {
     this.setState((prevState) => ({
-      ...this.state,
       isEditMode: !prevState.isEditMode,
       selectedIds: [],
     }));
@@ -117,7 +115,6 @@ class SearchPageClass extends React.Component<Props, State> {
     this.setState((prevState) => {
       const isSelected = prevState.selectedIds.includes(workId);
       return {
-        ...this.state,
         selectedIds: isSelected
           ? prevState.selectedIds.filter((id) => id !== workId)
           : [...prevState.selectedIds, workId],
@@ -147,7 +144,6 @@ class SearchPageClass extends React.Component<Props, State> {
           // Re-trigger the current search to show the updated tags
           this.performSearch(this.state.query);
           this.setState({
-            ...this.state,
             bulkTagInput: "",
             selectedIds: [],
             isEditMode: false,
@@ -237,9 +233,9 @@ class SearchPageClass extends React.Component<Props, State> {
                     style={styles.clearIcon}
                     onClick={() => {
                       this.setState({
-                        ...this.state,
                         query: "",
                         searchResults: [],
+                        loading: false,
                       });
                       window.history.replaceState(null, "", "?q=");
                     }}
@@ -369,9 +365,9 @@ class SearchPageClass extends React.Component<Props, State> {
 }
 
 // 4. Create the Functional Wrapper to export
-export const SearchPage = (props: any) => {
+export const SearchPage = () => {
   const { user } = useAuth();
-  return <SearchPageClass {...props} user={user} />;
+  return <SearchPageClass user={user} />;
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
