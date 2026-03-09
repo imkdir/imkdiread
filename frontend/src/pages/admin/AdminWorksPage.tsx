@@ -46,12 +46,10 @@ export class AdminWorksPage extends React.Component<{}, State> {
   fetchWorks = () => {
     request("/api/works")
       .then((res) => res.json())
-      .then((data: Work[]) =>
-        this.setState({ ...this.state, works: data, loading: false }),
-      )
+      .then((data: Work[]) => this.setState({ works: data, loading: false }))
       .catch((err) => {
         console.error("Failed to fetch works", err);
-        this.setState({ ...this.state, loading: false });
+        this.setState({ loading: false });
       });
   };
 
@@ -294,17 +292,13 @@ export class AdminWorksPage extends React.Component<{}, State> {
                 type="text"
                 placeholder="Filter by Title, or Tag..."
                 value={filterText}
-                onChange={(e) =>
-                  this.setState({ ...this.state, filterText: e.target.value })
-                }
+                onChange={(e) => this.setState({ filterText: e.target.value })}
                 style={styles.searchInput}
               />
               {filterText && (
                 <span
                   style={styles.clearSearch}
-                  onClick={() =>
-                    this.setState({ ...this.state, filterText: "" })
-                  }
+                  onClick={() => this.setState({ filterText: "" })}
                 >
                   ✕
                 </span>

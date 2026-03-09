@@ -93,14 +93,14 @@ class LoginPage extends Component<PageProps, PageState> {
 
   handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    this.setState({ ...this.state, [name]: value });
+    this.setState({ [name]: value });
   };
 
   loadData() {
     fetch(`/api/screensavers`)
       .then((res) => res.json())
       .then((data: { images: string[]; index: number }) => {
-        this.setState({ ...this.state, ...data });
+        this.setState({ ...data });
       })
       .catch((err) => {
         console.error("Failed to load data:", err);

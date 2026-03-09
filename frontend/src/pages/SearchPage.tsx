@@ -53,7 +53,7 @@ class SearchPageClass extends React.Component<Props, State> {
     this.fetchSeries();
 
     if (initialQuery) {
-      this.setState({ ...this.state, query: initialQuery, loading: true });
+      this.setState({ query: initialQuery, loading: true });
       this.performSearch(initialQuery);
     }
   }
@@ -65,7 +65,7 @@ class SearchPageClass extends React.Component<Props, State> {
 
   performSearch = (q: string) => {
     if (!q.trim()) {
-      this.setState({ ...this.state, searchResults: [], loading: false });
+      this.setState({ searchResults: [], loading: false });
       return;
     }
 
@@ -80,7 +80,7 @@ class SearchPageClass extends React.Component<Props, State> {
       })
       .catch((err) => {
         console.error("Search failed", err);
-        this.setState({ ...this.state, loading: false });
+        this.setState({ loading: false });
       });
   };
 
@@ -88,7 +88,7 @@ class SearchPageClass extends React.Component<Props, State> {
     request("/api/series")
       .then((res) => res.json())
       .then((data: Series[]) => {
-        this.setState({ ...this.state, series: data });
+        this.setState({ series: data });
       })
       .catch((err) => {
         console.error("Failed to load series:", err);
@@ -99,7 +99,7 @@ class SearchPageClass extends React.Component<Props, State> {
     const newQuery = event.target.value;
 
     // Instantly update the input field and set loading state, but debounce the actual fetch
-    this.setState({ ...this.state, query: newQuery, loading: true });
+    this.setState({ query: newQuery, loading: true });
     window.history.replaceState(null, "", `?q=${newQuery}`);
 
     this.debouncedSearch(newQuery);
@@ -187,7 +187,7 @@ class SearchPageClass extends React.Component<Props, State> {
                 placeholder="Enter tags..."
                 value={bulkTagInput}
                 onChange={(e) =>
-                  this.setState({ ...this.state, bulkTagInput: e.target.value })
+                  this.setState({ bulkTagInput: e.target.value })
                 }
                 style={styles.input}
                 onKeyDown={(e) =>
@@ -346,7 +346,7 @@ class SearchPageClass extends React.Component<Props, State> {
                       key={s.id}
                       style={styles.seriesCard}
                       onClick={() => {
-                        this.setState({ ...this.state, query: s.text });
+                        this.setState({ query: s.text });
                         this.performSearch(s.text);
                       }}
                     >

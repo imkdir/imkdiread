@@ -1,24 +1,17 @@
 import React from "react";
+import type { Author } from "../../types";
 import { request } from "../../utils/APIClient";
 
 import editIcon from "../../assets/imgs/edit.svg";
 import searchIcon from "../../assets/imgs/search.svg";
 
-interface AdminAuthor {
-  name: string;
-  goodreads_id: string;
-  followed: boolean;
-  works_count?: number;
-}
-
 interface EditFormState {
   name: string;
   goodreads_id: string;
-  followed: boolean;
 }
 
 interface State {
-  authors: AdminAuthor[];
+  authors: Author[];
   loading: boolean;
   isModalOpen: boolean;
   isAddingNew: boolean;
@@ -45,12 +38,12 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
   fetchAuthors = () => {
     request("/api/authors")
       .then((res) => res.json())
-      .then((data: AdminAuthor[]) =>
-        this.setState({ ...this.state, authors: data, loading: false }),
+      .then((data: Author[]) =>
+        this.setState({ authors: data, loading: false }),
       )
       .catch((err) => {
         console.error("Failed to fetch authors", err);
-        this.setState({ ...this.state, loading: false });
+        this.setState({ loading: false });
       });
   };
 
@@ -58,7 +51,6 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
     return {
       name: "",
       goodreads_id: "",
-      followed: false,
     };
   }
 
@@ -82,7 +74,6 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
       editForm: {
         name: author.name,
         goodreads_id: author.goodreads_id || "",
-        followed: !!author.followed,
       },
     });
   };
@@ -127,7 +118,6 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
     const updatedAuthor: AdminAuthor = {
       name: trimmedName,
       goodreads_id: editForm.goodreads_id.trim(),
-      followed: editForm.followed,
     };
 
     if (isAddingNew) {
@@ -199,17 +189,13 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
                 type="text"
                 placeholder="Filter by ID or name..."
                 value={filterText}
-                onChange={(e) =>
-                  this.setState({ ...this.state, filterText: e.target.value })
-                }
+                onChange={(e) => this.setState({ filterText: e.target.value })}
                 style={styles.searchInput}
               />
               {filterText && (
                 <span
                   style={styles.clearSearch}
-                  onClick={() =>
-                    this.setState({ ...this.state, filterText: "" })
-                  }
+                  onClick={() => this.setState({ filterText: "" })}
                 >
                   ✕
                 </span>
@@ -230,7 +216,6 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
                 <tr>
                   <th style={styles.th}>Name</th>
                   <th style={styles.th}>Goodreads ID</th>
-                  <th style={styles.th}>Followed</th>
                   <th style={styles.th}>Actions</th>
                 </tr>
               </thead>
@@ -257,13 +242,6 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
                       <td style={styles.td}>
                         {author.goodreads_id || (
                           <span style={{ color: "#666" }}>None</span>
-                        )}
-                      </td>
-                      <td style={styles.td}>
-                        {author.followed ? (
-                          <span style={{ color: "#34A853" }}>Yes</span>
-                        ) : (
-                          <span style={{ color: "#666" }}>No</span>
                         )}
                       </td>
                       <td style={styles.td}>
@@ -316,27 +294,6 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
                       style={styles.input}
                     />
                   </div>
-                </div>
-                <div
-                  style={{
-                    ...styles.inputGroup,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginTop: "10px",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    name="followed"
-                    checked={editForm.followed}
-                    onChange={this.handleInputChange}
-                    style={{ width: "18px", height: "18px", cursor: "pointer" }}
-                  />
-                  <label
-                    style={{ ...styles.label, margin: 0, cursor: "pointer" }}
-                  >
-                    Follow this author
-                  </label>
                 </div>
 
                 <div style={styles.buttonRow}>

@@ -121,14 +121,14 @@ class DetailPage extends React.Component<Props, State> {
     if (!workId) return;
 
     if (!this.state.work) {
-      this.setState({ ...this.state, loading: true });
+      this.setState({ loading: true });
     }
 
     request(`/api/works/${encodeURIComponent(workId)}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
-          this.setState({ ...this.state, work: null, loading: false });
+          this.setState({ work: null, loading: false });
         } else {
           this.setState({
             ...this.state,
@@ -143,7 +143,7 @@ class DetailPage extends React.Component<Props, State> {
       })
       .catch((err) => {
         console.error("Failed to fetch work:", err);
-        this.setState({ ...this.state, loading: false });
+        this.setState({ loading: false });
       });
   };
 
@@ -178,13 +178,13 @@ class DetailPage extends React.Component<Props, State> {
     const newHoverRating = x < 12 ? starIndex * 2 - 1 : starIndex * 2;
 
     if (this.state.hoverRating !== newHoverRating) {
-      this.setState({ ...this.state, hoverRating: newHoverRating });
+      this.setState({ hoverRating: newHoverRating });
     }
   };
 
   handleStarClick = () => {
     const newRating = this.state.hoverRating;
-    this.setState({ ...this.state, rating: newRating });
+    this.setState({ rating: newRating });
 
     request(`/api/works/${encodeURIComponent(this.props.workId)}`, {
       method: "POST",
@@ -228,7 +228,7 @@ class DetailPage extends React.Component<Props, State> {
 
     if (this.state.editingForm.target === "quote") {
       // 1. Trigger the flip animation to show the front of the paper
-      this.setState({ ...this.state, isSavingQuote: true });
+      this.setState({ isSavingQuote: true });
 
       // 2. Wait 600ms for the 3D spring animation to finish, THEN save & fly away
       setTimeout(() => {
@@ -482,9 +482,7 @@ class DetailPage extends React.Component<Props, State> {
                     <span style={styles.actionLabel}>Rate</span>
                     <div
                       style={styles.starsRow}
-                      onMouseLeave={() =>
-                        this.setState({ ...this.state, hoverRating: 0 })
-                      }
+                      onMouseLeave={() => this.setState({ hoverRating: 0 })}
                     >
                       {[1, 2, 3, 4, 5].map((starIndex) => {
                         // Determine which SVG to render based on the 10-point scale

@@ -1,6 +1,6 @@
 import React from "react";
 import { useParams } from "react-router-dom";
-import { type Work, type Author } from "../types";
+import { type Work, type Author, type Quote } from "../types";
 import {
   GoodreadsAuthorAvatar,
   GoodreadsCover,
@@ -9,11 +9,15 @@ import { GoodreadsButton } from "../components/GoodreadsButton";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { request } from "../utils/APIClient";
 
+interface AuthorQuote extends Quote {
+  work: Work;
+}
+
 interface State {
   works: Work[];
   profile: Author | null;
   loading: boolean;
-  optimisticFollow: boolean | null; // For instant UI toggling
+  optimisticFollow: boolean | null;
   activeTab: "works" | "quotes";
 }
 
@@ -39,10 +43,11 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
     if (prevProps.keyword !== this.props.keyword) {
       this.setState(
         {
-          ...this.state,
           loading: true,
           optimisticFollow: null,
           activeTab: "works",
+          works: [],
+          profile: null,
         },
         this.fetchData,
       );
@@ -56,119 +61,198 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
       .then((res) => res.json())
       .then((data: { works: Work[]; profile: Author | null }) => {
         this.setState({
-          ...this.state,
-          ...data,
+          works: data.works || [],
+          profile: data.profile,
           loading: false,
+          optimisticFollow: null,
         });
       })
       .catch((err) => {
         console.error("Failed to fetch data", err);
-        this.setState({ ...this.state, loading: false });
+        this.setState({ loading: false });
       });
   };
 
-  toggleFollow = () => {
-    const { works, profile, optimisticFollow } = this.state;
-    if (!works.length || !profile) return;
+  getAuthorQuotes = (): AuthorQuote[] => {
+    const quotes = this.state.works.flatMap((work) =>
+      (work.quotes || [])
+        .filter((quote) => quote.quote && !quote.quote.startsWith("@notes:"))
+        .map((quote) => ({
+          ...quote,
+          work,
+        })),
+    );
 
-    // Determine current visual state, then flip it
+    return quotes.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  };
+
+  toggleFollow = () => {
+    const { profile, optimisticFollow } = this.state;
+    if (!profile) return;
+
     const isCurrentlyFollowing =
-      optimisticFollow !== null ? optimisticFollow : profile.followed;
+      optimisticFollow !== null ? optimisticFollow : !!profile.followed;
     const newFollowState = !isCurrentlyFollowing;
 
-    // Instantly update UI
-    this.setState({ ...this.state, optimisticFollow: newFollowState });
+    this.setState({ optimisticFollow: newFollowState });
 
-    request(`/api/authors/${encodeURIComponent(profile.name)}`, {
-      method: "PUT",
-      body: JSON.stringify({ ...profile, followed: newFollowState }),
-    }).catch((err) => console.error("Failed to update follow status", err));
+    request(`/api/authors/${encodeURIComponent(profile.name)}/follow`, {
+      method: "POST",
+      body: JSON.stringify({ followed: newFollowState }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.success) {
+          throw new Error(data.error || "Failed to update follow status.");
+        }
+
+        this.setState((prev) => ({
+          profile: prev.profile
+            ? { ...prev.profile, followed: !!data.followed }
+            : null,
+          optimisticFollow: null,
+        }));
+      })
+      .catch((err) => {
+        console.error("Failed to update follow status", err);
+        this.setState({ optimisticFollow: null });
+      });
+  };
+
+  renderQuoteCard = (entry: AuthorQuote) => {
+    return (
+      <div key={`${entry.work.id}-${entry.id}`} style={styles.quoteCard}>
+        <div style={styles.quoteMetaTop}>
+          <span style={styles.quoteWorkTitle}>{entry.work.title}</span>
+          {typeof entry.page_number === "number" && (
+            <span style={styles.quotePage}>p. {entry.page_number}</span>
+          )}
+        </div>
+        <p style={styles.quoteText}>“{entry.quote}”</p>
+        <div style={styles.quoteMetaBottom}>
+          <span>
+            {entry.work.authors?.join(", ") || this.state.profile?.name}
+          </span>
+          <span>{new Date(entry.created_at).toLocaleDateString()}</span>
+        </div>
+      </div>
+    );
   };
 
   render() {
     const { works, profile, loading, optimisticFollow, activeTab } = this.state;
+    const authorQuotes = this.getAuthorQuotes();
 
-    if (loading || !works.length) {
-      return <div style={styles.loading} />;
+    if (loading) {
+      return <div style={styles.loading}>Loading author…</div>;
     }
 
-    const isFollowing = profile
-      ? optimisticFollow !== null
-        ? optimisticFollow
-        : profile.followed
-      : false;
+    if (!profile) {
+      return (
+        <div style={styles.emptyState}>
+          <h2 style={styles.emptyTitle}>Author not found</h2>
+          <p style={styles.emptyText}>
+            We could not find a matching author profile for this collection.
+          </p>
+        </div>
+      );
+    }
+
+    const isFollowing =
+      optimisticFollow !== null ? optimisticFollow : !!profile.followed;
 
     return (
       <div style={styles.page}>
         <div className="collection-container">
-          {/* --- PROFILE HEADER --- */}
-          {!profile || (
-            <div className="profile-header">
-              <div className="avatar-container">
-                <GoodreadsAuthorAvatar author={profile} style={styles.avatar} />
-                {!profile.goodreads_id || (
-                  <GoodreadsButton
-                    category="author"
-                    goodreadsId={profile.goodreads_id}
-                    style={styles.badge}
-                  />
-                )}
+          <div className="profile-header">
+            <div className="avatar-container">
+              <GoodreadsAuthorAvatar author={profile} style={styles.avatar} />
+              {!profile.goodreads_id || (
+                <GoodreadsButton
+                  category="author"
+                  goodreadsId={profile.goodreads_id}
+                  style={styles.badge}
+                />
+              )}
+            </div>
+
+            <div className="info-container">
+              <span style={styles.name}>{profile.name}</span>
+              <div style={styles.metaLine}>
+                <span>{profile.works_count} works</span>
+                <span>•</span>
+                <span>{authorQuotes.length} quotes</span>
               </div>
 
-              <div className="info-container">
-                {/* Row 1: Username & Actions */}
-                <span style={styles.name}>{profile.name}</span>
+              <SegmentedControl
+                style={styles.segment}
+                value={activeTab}
+                onChange={(val) =>
+                  this.setState({
+                    activeTab: val as "works" | "quotes",
+                  })
+                }
+                options={[
+                  {
+                    label: "Works",
+                    value: "works",
+                    count: works.length,
+                  },
+                  {
+                    label: "Quotes",
+                    value: "quotes",
+                    count: authorQuotes.length,
+                  },
+                ]}
+              />
 
-                {/* Row 2: Stats / Tabs */}
-                <SegmentedControl
-                  style={styles.segment}
-                  value={activeTab}
-                  onChange={(val) =>
-                    this.setState({
-                      ...this.state,
-                      activeTab: val as "works" | "quotes",
-                    })
-                  }
-                  options={[
-                    {
-                      label: "Works",
-                      value: "works",
-                      count: works.length,
-                    },
-                    { label: "Quotes", value: "quotes", count: 0 },
-                  ]}
-                />
-                {/* Row 3: Action */}
-                <div className="action-row">
-                  <button
-                    className="follow-button"
-                    style={isFollowing ? styles.following : styles.follow}
-                    onClick={this.toggleFollow}
-                  >
-                    {isFollowing ? "Following" : "Follow"}
-                  </button>
-                </div>
+              <div className="action-row">
+                <button
+                  className="follow-button"
+                  style={isFollowing ? styles.following : styles.follow}
+                  onClick={this.toggleFollow}
+                >
+                  {isFollowing ? "Following" : "Follow"}
+                </button>
               </div>
             </div>
-          )}
+          </div>
+
           <div style={styles.gridContainer}>
             {activeTab === "works" ? (
-              <div style={styles.worksGrid}>
-                {works.map((work) => (
-                  <GoodreadsCover
-                    key={work.id}
-                    work={work}
-                    in_transition={true}
-                    style={styles.workCover}
-                  />
-                ))}
+              works.length ? (
+                <div style={styles.worksGrid}>
+                  {works.map((work) => (
+                    <GoodreadsCover
+                      key={work.id}
+                      work={work}
+                      in_transition={true}
+                      style={styles.workCover}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div style={styles.emptyState}>
+                  <div style={styles.emptyIcon}>📚</div>
+                  <h2 style={styles.emptyTitle}>No Works Yet</h2>
+                  <p style={styles.emptyText}>
+                    This author does not have any works in your library yet.
+                  </p>
+                </div>
+              )
+            ) : authorQuotes.length ? (
+              <div style={styles.quotesList}>
+                {authorQuotes.map(this.renderQuoteCard)}
               </div>
             ) : (
               <div style={styles.emptyState}>
-                <div style={styles.emptyIcon}>📷</div>
+                <div style={styles.emptyIcon}>✍️</div>
                 <h2 style={styles.emptyTitle}>No Quotes Yet</h2>
                 <p style={styles.emptyText}>
-                  When you add quotes from {profile?.name}'s works, they will
+                  When you add quotes from {profile.name}'s works, they will
                   appear here.
                 </p>
               </div>
@@ -193,7 +277,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#8ab4f8",
     fontSize: "14px",
   },
-
   avatar: {
     width: "150px",
     height: "150px",
@@ -206,20 +289,25 @@ const styles: { [key: string]: React.CSSProperties } = {
     bottom: "4px",
     right: "-8px",
   },
-
   name: {
     fontSize: "2em",
     fontWeight: "bold",
     fontFamily: "Libre Baskerville",
     color: "#f5f5f5",
-    marginBottom: "16px",
+    marginBottom: "10px",
   },
-
+  metaLine: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    color: "#c7c7c7",
+    fontSize: "14px",
+    marginBottom: "14px",
+  },
   segment: {
     marginBottom: "20px",
     flex: 1,
   },
-
   follow: {
     backgroundColor: "var(--goodreads-light)",
     color: "var(--goodreads-dark)",
@@ -228,8 +316,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: "#ffffff30",
     color: "#f5f5f5",
   },
-
-  // --- Grid ---
   gridContainer: {
     paddingBottom: "50px",
     paddingTop: "20px",
@@ -244,8 +330,47 @@ const styles: { [key: string]: React.CSSProperties } = {
     aspectRatio: "0.66",
     objectFit: "cover",
   },
-
-  // --- Empty State ---
+  quotesList: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "18px",
+  },
+  quoteCard: {
+    border: "1px solid var(--border-subtle)",
+    borderRadius: "16px",
+    padding: "18px",
+    background: "rgba(255,255,255,0.04)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+  },
+  quoteMetaTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    fontSize: "12px",
+    color: "#b3b3b3",
+  },
+  quoteWorkTitle: {
+    fontWeight: 700,
+    color: "#f3f3f3",
+  },
+  quotePage: {
+    whiteSpace: "nowrap",
+  },
+  quoteText: {
+    margin: 0,
+    fontSize: "15px",
+    lineHeight: 1.6,
+    color: "#f7f7f7",
+  },
+  quoteMetaBottom: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    fontSize: "12px",
+    color: "#9f9f9f",
+  },
   emptyState: {
     display: "flex",
     flexDirection: "column",

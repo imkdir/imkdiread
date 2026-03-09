@@ -72,7 +72,7 @@ class QuoteCardClass extends React.Component<Props, State> {
   handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
-    this.setState({ ...this.state, [e.target.name]: e.target.value }, () => {
+    this.setState({ [e.target.name]: e.target.value }, () => {
       if (this.state.isFlipped && e.target.name === "editQuote") {
         setTimeout(this.adjustTextareaHeight, 10);
       }

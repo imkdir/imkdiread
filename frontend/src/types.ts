@@ -1,6 +1,6 @@
 export interface Quote {
   id: number;
-  work_id: number;
+  work_id: string;
   user_id?: string | null;
   quote: string;
   page_number?: number | null;
@@ -20,7 +20,6 @@ export interface Work {
   authors: string[];
   series?: string | null;
   page_count: number;
-  bookmark: number;
   file_id?: string | null;
   read?: boolean;
   liked?: boolean;
@@ -47,4 +46,6 @@ export interface User {
   id: string;
   username: string;
   role: "admin" | "guest";
+  email?: string | null;
+  is_email_public?: boolean | null;
 }

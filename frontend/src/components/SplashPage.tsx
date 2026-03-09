@@ -48,7 +48,7 @@ export class SplashPage extends React.Component<any, PageState> {
     fetch(`/api/screensavers`)
       .then((res) => res.json())
       .then((data: { images: string[]; index: number }) => {
-        this.setState({ ...this.state, ...data });
+        this.setState({ ...data });
       })
       .catch((err) => {
         console.error("Failed to load data:", err);

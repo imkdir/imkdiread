@@ -5,6 +5,39 @@ const cors = require("cors");
 const path = require("path");
 const Database = require("better-sqlite3");
 
+const multer = require("multer");
+
+// 1. Ensure the avatars directory exists
+const userAvatarDir = path.join(
+  __dirname,
+  "public.noindex",
+  "imgs",
+  "users",
+  "avatars",
+);
+if (!fs.existsSync(userAvatarDir)) {
+  fs.mkdirSync(userAvatarDir, { recursive: true });
+}
+
+// 2. Configure Multer Storage (Where and how to save the file)
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, userAvatarDir);
+  },
+  filename: function (req, file, cb) {
+    // Rename the file to ensure it's unique (e.g., "user123-162349123.jpg")
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, req.user.id + "-" + uniqueSuffix + ext);
+  },
+});
+
+// 3. Create the upload middleware (Limit to 5MB to save disk space)
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -106,9 +139,8 @@ function getProgressWithWork(work) {
     if (latestProgressTs === -1) {
       return maxPageOverall;
     }
-
-    return current_page;
   }
+  return current_page;
 }
 
 const processWork = (work) => {
@@ -176,12 +208,24 @@ function getWorkWithRelations(workRow, userId = null) {
   return { ...workRow, authors, tags, quotes, ...userStats };
 }
 
-function getAuthorWithRelations(authorRow) {
+function getAuthorWithRelations(authorRow, userId = null) {
   if (!authorRow) return null;
+
   const count = db
     .prepare("SELECT COUNT(*) as count FROM pdf_authors WHERE author_name = ?")
     .get(authorRow.name).count;
-  return { ...authorRow, works_count: count };
+
+  let followed = false;
+  if (userId) {
+    const row = db
+      .prepare(
+        "SELECT followed FROM user_author_interactions WHERE user_id = ? AND author_name = ?",
+      )
+      .get(userId, authorRow.name);
+    followed = !!row?.followed;
+  }
+
+  return { ...authorRow, works_count: count, followed };
 }
 
 // ============================================================================
@@ -288,29 +332,10 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 // ============================================================================
-// GLOBAL API PROTECTION
-// ============================================================================
-
-// 1. Guests must be logged in to read ANY data from the /api/
-app.use("/api", (req, res, next) => {
-  // Skip auth for the login and register routes!
-  if (
-    req.path === "/auth/login" ||
-    req.path === "/auth/register" ||
-    req.path === "/screensavers"
-  ) {
-    return next();
-  }
-
-  // For all other /api/ routes, force token authentication
-  authenticateToken(req, res, next);
-});
-
-// ============================================================================
 // DOMAIN: TAGS & SERIES
 // ============================================================================
 
-app.get("/api/tags", (req, res) => {
+app.get("/api/tags", requireAdmin, (req, res) => {
   try {
     const tags = db
       .prepare("SELECT name FROM tags")
@@ -323,7 +348,7 @@ app.get("/api/tags", (req, res) => {
   }
 });
 
-app.post("/api/tags", (req, res) => {
+app.post("/api/tags", requireAdmin, (req, res) => {
   try {
     const { newTag } = req.body;
     if (!newTag) return res.status(400).json({ error: "Tag name required." });
@@ -344,7 +369,7 @@ app.post("/api/tags", (req, res) => {
   }
 });
 
-app.put("/api/tags/:oldName", (req, res) => {
+app.put("/api/tags/:oldName", requireAdmin, (req, res) => {
   try {
     const oldName = req.params.oldName;
     const { newName } = req.body;
@@ -379,7 +404,7 @@ app.put("/api/tags/:oldName", (req, res) => {
   }
 });
 
-app.delete("/api/tags/:name", (req, res) => {
+app.delete("/api/tags/:name", requireAdmin, (req, res) => {
   try {
     db.transaction(() => {
       const tag = db
@@ -413,16 +438,20 @@ app.get("/api/series", (req, res) => {
 // DOMAIN: AUTHORS
 // ============================================================================
 
-app.get("/api/authors", (req, res) => {
+app.get("/api/authors", authenticateToken, (req, res) => {
   try {
     const rows = db.prepare("SELECT * FROM authors ORDER BY name").all();
-    res.json(rows.map(getAuthorWithRelations).map(processAuthor));
+    res.json(
+      rows
+        .map((row) => getAuthorWithRelations(row, req.user?.id))
+        .map(processAuthor),
+    );
   } catch (error) {
     res.status(500).json({ error: "Failed to load authors" });
   }
 });
 
-app.post("/api/authors", (req, res) => {
+app.post("/api/authors", requireAdmin, (req, res) => {
   try {
     const newAuthor = req.body;
     if (!newAuthor || !newAuthor.name)
@@ -435,14 +464,10 @@ app.post("/api/authors", (req, res) => {
     }
 
     db.transaction(() => {
-      db.prepare(
-        "INSERT INTO authors (name, goodreads_id, followed) VALUES (?, ?, ?)",
-      ).run(
+      db.prepare("INSERT INTO authors (name, goodreads_id) VALUES (?, ?)").run(
         newAuthor.name,
         newAuthor.goodreads_id || "",
-        newAuthor.followed ? 1 : 0,
       );
-      syncTags(newAuthor.name, newAuthor.tags, "author_tags", "author_name");
     })();
     res.json({ success: true });
   } catch (error) {
@@ -450,7 +475,34 @@ app.post("/api/authors", (req, res) => {
   }
 });
 
-app.put("/api/authors/:name", (req, res) => {
+app.post("/api/authors/:name/follow", authenticateToken, (req, res) => {
+  try {
+    const authorName = req.params.name;
+    const userId = req.user.id;
+    const followed = req.body?.followed ? 1 : 0;
+
+    const exists = db
+      .prepare("SELECT name FROM authors WHERE name = ?")
+      .get(authorName);
+    if (!exists) return res.status(404).json({ error: "Author not found." });
+
+    db.prepare(
+      `
+      INSERT INTO user_author_interactions (user_id, author_name, followed)
+      VALUES (?, ?, ?)
+      ON CONFLICT(user_id, author_name)
+      DO UPDATE SET followed = excluded.followed
+    `,
+    ).run(userId, authorName, followed);
+
+    res.json({ success: true, followed: !!followed });
+  } catch (error) {
+    console.error("Failed to update author follow:", error);
+    res.status(500).json({ error: "Failed to update follow status." });
+  }
+});
+
+app.put("/api/authors/:name", requireAdmin, (req, res) => {
   try {
     const targetName = req.params.name;
     const exists = db
@@ -459,11 +511,8 @@ app.put("/api/authors/:name", (req, res) => {
     if (!exists) return res.status(404).json({ error: "Author not found." });
 
     db.transaction(() => {
-      db.prepare(
-        "UPDATE authors SET goodreads_id = ?, followed = ? WHERE name = ?",
-      ).run(
+      db.prepare("UPDATE authors SET goodreads_id = ? WHERE name = ?").run(
         req.body.goodreads_id || exists.goodreads_id || "",
-        req.body.followed ? 1 : 0,
         targetName,
       );
     })();
@@ -477,12 +526,12 @@ app.put("/api/authors/:name", (req, res) => {
 // DOMAIN: WORKS
 // ============================================================================
 
-app.get("/api/explore", (req, res) => {
+app.get("/api/explore", authenticateToken, (req, res) => {
   try {
     const works = db
       .prepare("SELECT * FROM pdfs ORDER BY RANDOM() LIMIT 12")
       .all()
-      .map(getWorkWithRelations)
+      .map((row) => getWorkWithRelations(row, req.user?.id))
       .map(processWork);
     const authors = db
       .prepare(
@@ -493,7 +542,8 @@ app.get("/api/explore", (req, res) => {
     `,
       )
       .all()
-      .map((r) => processAuthor({ ...r, followed: !!r.followed }));
+      .map((row) => getAuthorWithRelations(row, req.user?.id))
+      .map(processAuthor);
 
     res.json({ works, authors });
   } catch (error) {
@@ -501,7 +551,7 @@ app.get("/api/explore", (req, res) => {
   }
 });
 
-app.get("/api/search", (req, res) => {
+app.get("/api/search", authenticateToken, (req, res) => {
   try {
     const term = `%${(req.query.q || "").trim()}%`;
     if (term === "%%") return res.json({ results: [] });
@@ -518,7 +568,7 @@ app.get("/api/search", (req, res) => {
     `,
       )
       .all(term, term, term, term)
-      .map(getWorkWithRelations)
+      .map((row) => getWorkWithRelations(row, req.user?.id))
       .map(processWork);
 
     res.json({ results: works });
@@ -527,7 +577,7 @@ app.get("/api/search", (req, res) => {
   }
 });
 
-app.get("/api/collection/:keyword", (req, res) => {
+app.get("/api/collection/:keyword", authenticateToken, (req, res) => {
   try {
     const keyword = req.params.keyword;
     const authorRow = db
@@ -538,7 +588,7 @@ app.get("/api/collection/:keyword", (req, res) => {
     let profile = null;
 
     if (authorRow) {
-      profile = processAuthor(getAuthorWithRelations(authorRow));
+      profile = processAuthor(getAuthorWithRelations(authorRow, req.user?.id));
       matchedRows = db
         .prepare(
           `
@@ -557,7 +607,9 @@ app.get("/api/collection/:keyword", (req, res) => {
     }
 
     res.json({
-      works: matchedRows.map(getWorkWithRelations).map(processWork),
+      works: matchedRows
+        .map((row) => getWorkWithRelations(row, req.user?.id))
+        .map(processWork),
       profile,
     });
   } catch (error) {
@@ -565,13 +617,13 @@ app.get("/api/collection/:keyword", (req, res) => {
   }
 });
 
-app.get("/api/works", (req, res) => {
+app.get("/api/works", authenticateToken, (req, res) => {
   try {
     res.json(
       db
         .prepare("SELECT * FROM pdfs")
         .all()
-        .map(getWorkWithRelations)
+        .map((row) => getWorkWithRelations(row, req.user?.id))
         .map(processWork),
     );
   } catch (error) {
@@ -579,7 +631,7 @@ app.get("/api/works", (req, res) => {
   }
 });
 
-app.get("/api/works/:id", (req, res) => {
+app.get("/api/works/:id", authenticateToken, (req, res) => {
   try {
     const workRow = db
       .prepare("SELECT * FROM pdfs WHERE id = ?")
@@ -679,7 +731,7 @@ app.put("/api/works/:id", requireAdmin, (req, res) => {
 });
 
 // Handle User Interactions (Like, Read, Shelve, Rating)
-app.post("/api/works/:id", (req, res) => {
+app.post("/api/works/:id", authenticateToken, (req, res) => {
   try {
     const pdfId = req.params.id;
     const userId = req.user.id; // Guaranteed to exist because of authenticateToken middleware
@@ -791,15 +843,42 @@ app.post("/api/works/bulk-tags", requireAdmin, (req, res) => {
   }
 });
 
-app.post("/api/works/:id/quotes", (req, res) => {
+app.post("/api/works/:id/quotes", authenticateToken, (req, res) => {
   try {
     const pdfId = req.params.id;
     const userId = req.user.id;
     const { quote, pageNumber } = req.body;
 
+    // 1. Insert the quote/progress record
     db.prepare(
       "INSERT INTO pdf_quotes (pdf_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
     ).run(pdfId, userId, quote, pageNumber || null);
+
+    // 2. AUTOMATIC STATUS LOGIC
+    if (pageNumber) {
+      // Get the total page count of the book
+      const book = db
+        .prepare("SELECT page_count FROM pdfs WHERE id = ?")
+        .get(pdfId);
+      const pageCount = book ? book.page_count : 0;
+
+      // Ensure an interaction row exists for this user before updating
+      db.prepare(
+        `INSERT OR IGNORE INTO user_pdf_interactions (user_id, pdf_id) VALUES (?, ?)`,
+      ).run(userId, pdfId);
+
+      // Rule 1: Always remove from "Want to Read" (shelved) if they are making progress
+      let updateQuery = "UPDATE user_pdf_interactions SET shelved = 0";
+
+      // Rule 2: If progress is less than 100%, set read to false.
+      // (If it is 100%, you could optionally set read = 1 here too!)
+      if (pageNumber < pageCount) {
+        updateQuery += ", read = 0";
+      }
+
+      updateQuery += " WHERE user_id = ? AND pdf_id = ?";
+      db.prepare(updateQuery).run(userId, pdfId);
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -888,6 +967,121 @@ app.get("/api/screensavers", (req, res) => {
     res.status(500).json({ error: "Failed to load screensavers" });
   }
 });
+
+// ============================================================================
+// DOMAIN: USER PROFILE
+// ============================================================================
+
+app.get("/api/profile/me", authenticateToken, (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const userInfo = db
+      .prepare(
+        `
+      SELECT username, role, email, avatar_url, is_email_public
+      FROM users WHERE id = ?
+    `,
+      )
+      .get(userId);
+
+    const interactedBookRows = db
+      .prepare(
+        `
+      SELECT DISTINCT p.* FROM pdfs p
+      LEFT JOIN user_pdf_interactions i ON p.id = i.pdf_id AND i.user_id = ?
+      LEFT JOIN pdf_quotes q ON p.id = q.pdf_id AND q.user_id = ?
+      WHERE i.user_id IS NOT NULL OR q.user_id IS NOT NULL
+    `,
+      )
+      .all(userId, userId);
+
+    const processedBooks = interactedBookRows
+      .map((row) => getWorkWithRelations(row, userId))
+      .map(processWork);
+
+    const reading = processedBooks.filter((b) => b.current_page > 0 && !b.read);
+    const shelved = processedBooks.filter((b) => b.shelved);
+    const favorites = processedBooks.filter((b) => b.liked);
+
+    const rawQuotes = db
+      .prepare(
+        `
+      SELECT * FROM pdf_quotes
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+    `,
+      )
+      .all(userId);
+
+    const richQuotes = rawQuotes.map((quote) => {
+      const matchingBook = processedBooks.find((b) => b.id === quote.pdf_id);
+      return {
+        ...quote,
+        work: matchingBook || null,
+      };
+    });
+
+    res.json({
+      userInfo,
+      reading,
+      shelved,
+      favorites,
+      richQuotes,
+    });
+  } catch (error) {
+    console.error("Profile Fetch Error:", error);
+    res.status(500).json({ error: "Failed to load profile data." });
+  }
+});
+
+app.put("/api/profile/me", authenticateToken, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { email, is_email_public } = req.body;
+
+    const isPublic = is_email_public ? 1 : 0;
+
+    db.prepare(
+      `
+      UPDATE users
+      SET email = ?, is_email_public = ?
+      WHERE id = ?
+    `,
+    ).run(email || null, isPublic, userId);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Profile Update Error:", error);
+    res.status(500).json({ error: "Failed to update profile settings" });
+  }
+});
+
+app.post(
+  "/api/profile/avatar",
+  authenticateToken,
+  upload.single("avatar"),
+  (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No image provided" });
+      }
+
+      // The file is already saved by Multer into public.noindex/imgs/users/avatars/
+      const avatarUrl = `/imgs/users/avatars/${req.file.filename}`;
+
+      db.prepare("UPDATE users SET avatar_url = ? WHERE id = ?").run(
+        avatarUrl,
+        req.user.id,
+      );
+
+      res.json({ success: true, avatar_url: avatarUrl });
+    } catch (error) {
+      console.error("Avatar Upload Error:", error);
+      res.status(500).json({ error: "Failed to upload avatar" });
+    }
+  },
+);
 
 // ============================================================================
 // CATCH-ALL ROUTE (MUST BE LAST)

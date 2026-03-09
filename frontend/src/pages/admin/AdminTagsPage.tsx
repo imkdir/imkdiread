@@ -27,11 +27,11 @@ export class AdminTagsPage extends React.Component<{}, State> {
     request(`/api/tags`)
       .then((res) => res.json())
       .then((data) => {
-        this.setState({ ...this.state, tags: data, loading: false });
+        this.setState({ tags: data, loading: false });
       })
       .catch((err) => {
         console.error("Failed to fetch tags", err);
-        this.setState({ ...this.state, loading: false });
+        this.setState({ loading: false });
       });
   };
 
@@ -49,7 +49,7 @@ export class AdminTagsPage extends React.Component<{}, State> {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          this.setState({ ...this.state, tags: data.tags, newTagInput: "" });
+          this.setState({ tags: data.tags, newTagInput: "" });
         }
       });
   };
@@ -69,7 +69,7 @@ export class AdminTagsPage extends React.Component<{}, State> {
       .then((data) => {
         if (data.success) {
           this.fetchTags(); // Re-fetch to guarantee sync
-          this.setState({ ...this.state, editingTag: null });
+          this.setState({ editingTag: null });
         }
       });
   };
@@ -111,9 +111,7 @@ export class AdminTagsPage extends React.Component<{}, State> {
             type="text"
             placeholder={`Add a new tag...`}
             value={newTagInput}
-            onChange={(e) =>
-              this.setState({ ...this.state, newTagInput: e.target.value })
-            }
+            onChange={(e) => this.setState({ newTagInput: e.target.value })}
             style={styles.input}
           />
           <button type="submit" style={styles.addBtn}>
@@ -213,9 +211,7 @@ export class AdminTagsPage extends React.Component<{}, State> {
                 <div style={styles.buttonRow}>
                   <button
                     type="button"
-                    onClick={() =>
-                      this.setState({ ...this.state, editingTag: null })
-                    }
+                    onClick={() => this.setState({ editingTag: null })}
                     style={styles.cancelBtn}
                   >
                     Cancel

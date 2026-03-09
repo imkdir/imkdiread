@@ -25,7 +25,7 @@ export class AuthorsPage extends React.Component<{}, PageState> {
       })
       .catch((err) => {
         console.error("Failed to fetch explore data", err);
-        this.setState({ ...this.state, loading: false });
+        this.setState({ loading: false });
       });
   }
 

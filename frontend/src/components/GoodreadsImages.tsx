@@ -38,7 +38,7 @@ export class GoodreadsAuthorAvatar extends React.Component<
     }
   }
 
-  handleError = () => this.setState({ ...this.state, hasError: true });
+  handleError = () => this.setState({ hasError: true });
 
   render() {
     const { author, style } = this.props;
@@ -77,11 +77,11 @@ export class GoodreadsCover extends React.Component<CoverProps, ImgState> {
 
   componentDidUpdate(prevProps: CoverProps) {
     if (prevProps.work.cover_img_url !== this.props.work.cover_img_url) {
-      this.setState({ ...this.state, hasError: false, isLoaded: false });
+      this.setState({ hasError: false, isLoaded: false });
     }
   }
 
-  handleLoad = () => this.setState({ ...this.state, isLoaded: true });
+  handleLoad = () => this.setState({ isLoaded: true });
 
   render() {
     const { work, disabled, style, in_transition } = this.props;
