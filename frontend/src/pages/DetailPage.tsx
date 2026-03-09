@@ -3,6 +3,7 @@ import { useParams, Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Masonry from "react-masonry-css";
 import type { Work, Quote } from "../types";
+import { request } from "../utils/APIClient";
 
 import eyeIcon from "../assets/imgs/eye.svg";
 import eyeFilledIcon from "../assets/imgs/eye-filled.svg";
@@ -123,7 +124,7 @@ class DetailPage extends React.Component<Props, State> {
       this.setState({ ...this.state, loading: true });
     }
 
-    fetch(`/api/works/${encodeURIComponent(workId)}`)
+    request(`/api/works/${encodeURIComponent(workId)}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
@@ -159,9 +160,8 @@ class DetailPage extends React.Component<Props, State> {
       (prevState) => ({ ...prevState, [action]: newValue }) as State,
     );
 
-    fetch(`/api/works/${encodeURIComponent(this.props.workId)}`, {
+    request(`/api/works/${encodeURIComponent(this.props.workId)}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, value: newValue }),
     }).catch((err) => console.error("Failed to update action:", err));
   };
@@ -186,9 +186,8 @@ class DetailPage extends React.Component<Props, State> {
     const newRating = this.state.hoverRating;
     this.setState({ ...this.state, rating: newRating });
 
-    fetch(`/api/works/${encodeURIComponent(this.props.workId)}`, {
+    request(`/api/works/${encodeURIComponent(this.props.workId)}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "rating", value: newRating }),
     }).catch((err) => console.error("Failed to update rating:", err));
   };
@@ -244,9 +243,8 @@ class DetailPage extends React.Component<Props, State> {
   submitQuoteToDB = () => {
     const { quote, pageNumber } = this.state.editingForm;
 
-    fetch(`/api/works/${encodeURIComponent(this.props.workId)}/quotes`, {
+    request(`/api/works/${encodeURIComponent(this.props.workId)}/quotes`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         quote: quote.trim(),
         pageNumber: Number(pageNumber),
@@ -712,17 +710,60 @@ class DetailPage extends React.Component<Props, State> {
                         gap: "12px",
                       }}
                     >
-                      <h3
-                        style={{
-                          margin: "0 0 8px 0",
-                          color: "#2c2825",
-                          fontSize: "16px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.05em",
-                        }}
-                      >
-                        {isEditProgress ? "Update Progress" : "Add Quote"}
-                      </h3>
+                      {isEditProgress ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          <h3
+                            style={{
+                              margin: "0",
+                              flex: 1,
+                              color: "#2c2825",
+                              fontSize: "16px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            {"Update Progress"}
+                          </h3>
+
+                          <input
+                            name="pageNumber"
+                            value={editingForm.pageNumber}
+                            placeholder={
+                              work.current_page ? String(work.current_page) : ""
+                            }
+                            onChange={this.handleQuoteInputChange}
+                            style={{
+                              ...styles.input,
+                              width: "60px",
+                              padding: "6px",
+                              textAlign: "right",
+                            }}
+                            autoFocus
+                          />
+
+                          <label style={styles.secondaryLabel}>
+                            {`/ ${work.page_count}`}
+                          </label>
+                        </div>
+                      ) : (
+                        <h3
+                          style={{
+                            margin: "0 0 8px 0",
+                            color: "#2c2825",
+                            fontSize: "16px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          {"Add Quote"}
+                        </h3>
+                      )}
 
                       <textarea
                         name="quote"
@@ -739,7 +780,7 @@ class DetailPage extends React.Component<Props, State> {
                             ? "Type your notes here..."
                             : "Type your quote here..."
                         }
-                        autoFocus
+                        autoFocus={!isEditProgress}
                       />
 
                       <div
@@ -749,25 +790,27 @@ class DetailPage extends React.Component<Props, State> {
                           alignItems: "center",
                         }}
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                          }}
-                        >
-                          <label style={styles.label}>Pg.</label>
-                          <input
-                            name="pageNumber"
-                            value={editingForm.pageNumber}
-                            onChange={this.handleQuoteInputChange}
+                        {isEditProgress || (
+                          <div
                             style={{
-                              ...styles.input,
-                              width: "60px",
-                              padding: "6px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
                             }}
-                          />
-                        </div>
+                          >
+                            <label style={styles.label}>Pg.</label>
+                            <input
+                              name="pageNumber"
+                              value={editingForm.pageNumber}
+                              onChange={this.handleQuoteInputChange}
+                              style={{
+                                ...styles.input,
+                                width: "60px",
+                                padding: "6px",
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
 
                       <div
@@ -968,6 +1011,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: "bold",
     textTransform: "uppercase",
     letterSpacing: "0.05em",
+  },
+  secondaryLabel: {
+    fontSize: "14px",
+    fontFamily: "inherit",
+    color: "var(--goodreads-dark)",
   },
   cancelBtn: {
     flex: 1,

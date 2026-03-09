@@ -1,11 +1,17 @@
 import React from "react";
 import { Link, Outlet } from "react-router-dom";
+import { useAuth } from "../components/AuthContext";
+
+import { SignOutButtonWrapper } from "./SignOutButton";
+
 import homeIcon from "../assets/imgs/home.svg";
 import searchIcon from "../assets/imgs/search.svg";
 import exploreIcon from "../assets/imgs/compass.svg";
 import settingsIcon from "../assets/imgs/settings.svg";
 
 export const SidebarLayout: React.FC = () => {
+  const auth = useAuth();
+
   return (
     <div className="layout-container">
       {/* 1. The Fixed Sidebar */}
@@ -17,23 +23,26 @@ export const SidebarLayout: React.FC = () => {
 
         {/* Navigation Links */}
         <div className="nav-menu">
-          <Link to={"/search"} className="sidebar-link">
+          <Link to={"/search"} title="Search PDFs" className="sidebar-link">
             <img src={searchIcon} alt={"search"} />
           </Link>
-          <Link to={"/explore"} className="sidebar-link">
+          <Link to={"/explore"} title="Explore PDFs" className="sidebar-link">
             <img src={exploreIcon} alt={"explore"} />
           </Link>
         </div>
 
         {/* Bottom "More" or Settings area */}
         <div className="bottom-menu">
-          <Link
-            to="/admin/works"
-            className="sidebar-link"
-            title="Admin Dashboard"
-          >
-            <img src={settingsIcon} alt={"admin"} />
-          </Link>
+          <SignOutButtonWrapper />
+          {auth.user && auth.user.role === "admin" && (
+            <Link
+              to="/admin/works"
+              className="sidebar-link"
+              title="Admin Dashboard"
+            >
+              <img src={settingsIcon} alt={"admin"} />
+            </Link>
+          )}
         </div>
       </nav>
 

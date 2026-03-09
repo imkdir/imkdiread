@@ -1,6 +1,7 @@
 import React from "react";
 import { type Author } from "../types";
 import { AuthorCard } from "../components/AuthorCard";
+import { request } from "../utils/APIClient";
 
 interface PageState {
   authors: Author[];
@@ -14,7 +15,7 @@ export class AuthorsPage extends React.Component<{}, PageState> {
   };
 
   componentDidMount() {
-    fetch("/api/authors")
+    request("/api/authors")
       .then((res) => res.json())
       .then((data: Author[]) => {
         this.setState({

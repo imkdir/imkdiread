@@ -1,6 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import Masonry from "react-masonry-css";
+import { request } from "../utils/APIClient";
+
 import { type Author, type Work } from "../types";
 import {
   GoodreadsAuthorAvatar,
@@ -21,7 +23,7 @@ export class ExplorePage extends React.Component<{}, PageState> {
   };
 
   componentDidMount() {
-    fetch("/api/explore")
+    request("/api/explore")
       .then((res) => res.json())
       .then((data: { works: Work[]; authors: Author[] }) => {
         this.setState({

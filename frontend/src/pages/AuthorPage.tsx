@@ -1,4 +1,5 @@
 import React from "react";
+import { useParams } from "react-router-dom";
 import { type Work, type Author } from "../types";
 import {
   GoodreadsAuthorAvatar,
@@ -6,7 +7,7 @@ import {
 } from "../components/GoodreadsImages";
 import { GoodreadsButton } from "../components/GoodreadsButton";
 import { SegmentedControl } from "../components/SegmentedControl";
-import { useParams } from "react-router-dom";
+import { request } from "../utils/APIClient";
 
 interface State {
   works: Work[];
@@ -51,7 +52,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
   fetchData = () => {
     const keyword = encodeURIComponent(this.props.keyword);
 
-    fetch(`/api/collection/${keyword}`)
+    request(`/api/collection/${keyword}`)
       .then((res) => res.json())
       .then((data: { works: Work[]; profile: Author | null }) => {
         this.setState({
@@ -78,9 +79,8 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
     // Instantly update UI
     this.setState({ ...this.state, optimisticFollow: newFollowState });
 
-    fetch(`/api/authors/${encodeURIComponent(profile.name)}`, {
+    request(`/api/authors/${encodeURIComponent(profile.name)}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...profile, followed: newFollowState }),
     }).catch((err) => console.error("Failed to update follow status", err));
   };

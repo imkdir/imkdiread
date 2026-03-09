@@ -246,6 +246,41 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 // ============================================================================
+// GLOBAL API PROTECTION
+// ============================================================================
+
+// 1. Guests must be logged in to read ANY data from the /api/
+app.use("/api", (req, res, next) => {
+  // Skip auth for the login and register routes!
+  if (
+    req.path === "/auth/login" ||
+    req.path === "/auth/register" ||
+    req.path === "/screensavers"
+  ) {
+    return next();
+  }
+
+  // For all other /api/ routes, force token authentication
+  authenticateToken(req, res, next);
+});
+
+// 2. ONLY Admins are allowed to modify data (POST, PUT, PATCH, DELETE)
+app.use("/api", (req, res, next) => {
+  // Skip auth routes
+  if (req.path === "/auth/login" || req.path === "/auth/register") {
+    return next();
+  }
+
+  // If the request is trying to change data (not just GETting it)
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    // Force admin check
+    return requireAdmin(req, res, next);
+  }
+
+  next(); // If it's just a GET request, let the Guest through!
+});
+
+// ============================================================================
 // DOMAIN: TAGS & SERIES
 // ============================================================================
 

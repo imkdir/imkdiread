@@ -1,4 +1,6 @@
 import React from "react";
+import { request } from "../../utils/APIClient";
+
 import editIcon from "../../assets/imgs/edit.svg";
 import trashIcon from "../../assets/imgs/trash.svg";
 
@@ -22,7 +24,7 @@ export class AdminTagsPage extends React.Component<{}, State> {
   }
 
   fetchTags = () => {
-    fetch(`/api/tags`)
+    request(`/api/tags`)
       .then((res) => res.json())
       .then((data) => {
         this.setState({ ...this.state, tags: data, loading: false });
@@ -38,9 +40,8 @@ export class AdminTagsPage extends React.Component<{}, State> {
     const { newTagInput } = this.state;
     if (!newTagInput.trim()) return;
 
-    fetch("/api/tags", {
+    request("/api/tags", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         newTag: newTagInput.trim().toLowerCase(),
       }),
@@ -58,9 +59,8 @@ export class AdminTagsPage extends React.Component<{}, State> {
     const { editingTag } = this.state;
     if (!editingTag || !editingTag.newName.trim()) return;
 
-    fetch(`/api/tags/${encodeURIComponent(editingTag.oldName)}`, {
+    request(`/api/tags/${encodeURIComponent(editingTag.oldName)}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         newName: editingTag.newName.trim().toLowerCase(),
       }),
@@ -82,7 +82,7 @@ export class AdminTagsPage extends React.Component<{}, State> {
     )
       return;
 
-    fetch(`/api/tags/${encodeURIComponent(tagName)}`, {
+    request(`/api/tags/${encodeURIComponent(tagName)}`, {
       method: "DELETE",
     })
       .then((res) => res.json())

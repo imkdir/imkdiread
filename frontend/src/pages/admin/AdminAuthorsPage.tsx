@@ -1,4 +1,6 @@
 import React from "react";
+import { request } from "../../utils/APIClient";
+
 import editIcon from "../../assets/imgs/edit.svg";
 import searchIcon from "../../assets/imgs/search.svg";
 
@@ -41,7 +43,7 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
   }
 
   fetchAuthors = () => {
-    fetch("/api/authors")
+    request("/api/authors")
       .then((res) => res.json())
       .then((data: AdminAuthor[]) =>
         this.setState({ ...this.state, authors: data, loading: false }),
@@ -136,9 +138,8 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
         isModalOpen: false,
       }));
 
-      fetch("/api/authors", {
+      request("/api/authors", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedAuthor),
       })
         .then((res) => res.json())
@@ -158,9 +159,8 @@ export class AdminAuthorsPage extends React.Component<{}, State> {
         isModalOpen: false,
       }));
 
-      fetch(`/api/authors/${encodeURIComponent(originalEditingName)}`, {
+      request(`/api/authors/${encodeURIComponent(originalEditingName)}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedAuthor),
       })
         .then((res) => res.json())

@@ -1,6 +1,8 @@
 import React from "react";
 import Masonry from "react-masonry-css";
 import { type Work } from "../types";
+import { request } from "../utils/APIClient";
+
 import { GoodreadsCover } from "../components/GoodreadsImages";
 import searchIcon from "../assets/imgs/search.svg";
 
@@ -66,7 +68,7 @@ export class SearchPage extends React.Component<{}, State> {
       return;
     }
 
-    fetch(`/api/search?q=${encodeURIComponent(q)}`)
+    request(`/api/search?q=${encodeURIComponent(q)}`)
       .then((res) => res.json())
       .then((data) => {
         this.setState({
@@ -82,7 +84,7 @@ export class SearchPage extends React.Component<{}, State> {
   };
 
   fetchSeries() {
-    fetch("/api/series")
+    request("/api/series")
       .then((res) => res.json())
       .then((data: Series[]) => {
         this.setState({ ...this.state, series: data });
@@ -131,9 +133,8 @@ export class SearchPage extends React.Component<{}, State> {
       .map((t) => t.trim().toLowerCase())
       .filter((t) => t);
 
-    fetch("/api/works/bulk-tags", {
+    request("/api/works/bulk-tags", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         workIds: selectedIds,
         tags: newTags,

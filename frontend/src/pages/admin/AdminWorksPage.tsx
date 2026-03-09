@@ -1,9 +1,11 @@
 import React from "react";
+import Papa from "papaparse";
+import { request } from "../../utils/APIClient";
+import type { Work } from "../../types";
+
 import editIcon from "../../assets/imgs/edit.svg";
 import trashIcon from "../../assets/imgs/trash.svg";
 import searchIcon from "../../assets/imgs/search.svg";
-import type { Work } from "../../types";
-import Papa from "papaparse";
 
 interface EditFormState {
   id: string;
@@ -42,7 +44,7 @@ export class AdminWorksPage extends React.Component<{}, State> {
   }
 
   fetchWorks = () => {
-    fetch("/api/works")
+    request("/api/works")
       .then((res) => res.json())
       .then((data: Work[]) =>
         this.setState({ ...this.state, works: data, loading: false }),
@@ -120,7 +122,7 @@ export class AdminWorksPage extends React.Component<{}, State> {
     )
       return;
 
-    fetch(`/api/works/${encodeURIComponent(workId)}`, { method: "DELETE" })
+    request(`/api/works/${encodeURIComponent(workId)}`, { method: "DELETE" })
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
@@ -182,9 +184,8 @@ export class AdminWorksPage extends React.Component<{}, State> {
         }));
 
         // Send the reconstructed JSON to the backend
-        fetch("/api/works/bulk-import", {
+        request("/api/works/bulk-import", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(importedWorks),
         })
           .then((res) => res.json())
@@ -241,9 +242,8 @@ export class AdminWorksPage extends React.Component<{}, State> {
       ? "/api/works"
       : `/api/works/${encodeURIComponent(originalEditingId!)}`;
 
-    fetch(url, {
+    request(url, {
       method,
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedWork),
     })
       .then((res) => res.json())

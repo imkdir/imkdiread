@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import type { Quote } from "../types";
+import { request } from "../utils/APIClient";
 
 interface Props {
   quote: Quote;
@@ -70,9 +71,8 @@ export class QuoteCard extends React.Component<Props, State> {
     e.preventDefault();
     this.setState({ isSaving: true });
 
-    fetch(`/api/quotes/${this.props.quote.id}`, {
+    request(`/api/quotes/${this.props.quote.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         quote: this.state.editQuote.trim(),
         pageNumber: Number(this.state.editPageNum) || null,
@@ -90,7 +90,7 @@ export class QuoteCard extends React.Component<Props, State> {
   handleDelete = () => {
     if (!window.confirm("Permanently delete this quote?")) return;
 
-    fetch(`/api/quotes/${this.props.quote.id}`, { method: "DELETE" })
+    request(`/api/quotes/${this.props.quote.id}`, { method: "DELETE" })
       .then((res) => res.json())
       .then((data) => {
         if (data.success) this.props.onRefresh();
