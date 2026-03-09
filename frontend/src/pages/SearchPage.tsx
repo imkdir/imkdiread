@@ -1,16 +1,11 @@
 import React from "react";
 import Masonry from "react-masonry-css";
-import { type Work } from "../types";
+import type { User, Work, Series } from "../types";
 import { request } from "../utils/APIClient";
+import { useAuth } from "../components/AuthContext";
 
 import { GoodreadsCover } from "../components/GoodreadsImages";
 import searchIcon from "../assets/imgs/search.svg";
-
-interface Series {
-  id: string;
-  text: string;
-  img_url: string;
-}
 
 // --- Custom Debounce Utility ---
 function debounce<T extends (...args: any[]) => void>(
@@ -24,6 +19,11 @@ function debounce<T extends (...args: any[]) => void>(
   } as T;
 }
 
+// 1. Define Props to include the injected user
+interface Props {
+  user: User | null;
+}
+
 interface State {
   query: string;
   series: Series[];
@@ -34,7 +34,8 @@ interface State {
   bulkTagInput: string;
 }
 
-export class SearchPage extends React.Component<{}, State> {
+// 2. Rename to SearchPageClass
+class SearchPageClass extends React.Component<Props, State> {
   state: State = {
     query: "",
     series: [],
@@ -57,7 +58,7 @@ export class SearchPage extends React.Component<{}, State> {
     }
   }
 
-  // Set the debounce delay to 400ms
+  // Set the debounce delay to 1000ms (as it was in your code)
   debouncedSearch = debounce((q: string) => {
     this.performSearch(q);
   }, 1000);
@@ -169,6 +170,8 @@ export class SearchPage extends React.Component<{}, State> {
       bulkTagInput,
     } = this.state;
 
+    // 3. Determine if the user is an admin
+    const isAdmin = this.props.user?.role === "admin";
     const isTagBtnDisabled = selectedIds.length === 0 || !bulkTagInput.trim();
 
     return (
@@ -176,7 +179,8 @@ export class SearchPage extends React.Component<{}, State> {
         <div
           style={{ ...styles.header, top: window.innerWidth <= 768 ? 60 : 0 }}
         >
-          {isEditMode ? (
+          {/* Only render Edit Mode UI if they are an Admin and edit mode is active */}
+          {isEditMode && isAdmin ? (
             <div style={styles.searchBarWrapper}>
               <input
                 type="text"
@@ -245,7 +249,8 @@ export class SearchPage extends React.Component<{}, State> {
                 )}
                 <span style={styles.divider}>|</span>
 
-                {searchResults.length ? (
+                {/* Only show the "Select" button if they are an Admin AND have results */}
+                {isAdmin && searchResults.length ? (
                   <button
                     onClick={this.toggleEditMode}
                     style={styles.primaryBtn}
@@ -288,12 +293,16 @@ export class SearchPage extends React.Component<{}, State> {
                         key={work.id}
                         style={{
                           ...styles.workCard,
-                          ...(isSelected ? styles.selectedCard : {}),
+                          ...(isSelected && isEditMode
+                            ? styles.selectedCard
+                            : {}),
                         }}
                       >
                         <div
                           onClick={() =>
-                            isEditMode && this.toggleSelection(work.id)
+                            isEditMode &&
+                            isAdmin &&
+                            this.toggleSelection(work.id)
                           }
                         >
                           <GoodreadsCover
@@ -302,7 +311,8 @@ export class SearchPage extends React.Component<{}, State> {
                             in_transition={true}
                             style={{ display: "block", borderRadius: "8px" }}
                           />
-                          {isEditMode && (
+                          {/* Only show checkboxes if Admin and Edit Mode is active */}
+                          {isEditMode && isAdmin && (
                             <div
                               style={
                                 isSelected
@@ -357,6 +367,12 @@ export class SearchPage extends React.Component<{}, State> {
     );
   }
 }
+
+// 4. Create the Functional Wrapper to export
+export const SearchPage = (props: any) => {
+  const { user } = useAuth();
+  return <SearchPageClass {...props} user={user} />;
+};
 
 const styles: { [key: string]: React.CSSProperties } = {
   page: {

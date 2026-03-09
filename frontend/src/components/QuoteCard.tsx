@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import type { Quote } from "../types";
+import type { Quote, User } from "../types";
 import { request } from "../utils/APIClient";
 import { useAuth } from "./AuthContext";
 
@@ -8,7 +8,7 @@ interface Props {
   quote: Quote;
   workId: string;
   onRefresh: () => void;
-  user: { id: string; username: string; role: string } | null;
+  user: User | null;
 }
 
 interface State {

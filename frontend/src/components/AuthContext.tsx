@@ -1,10 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
-
-type User = {
-  id: string;
-  username: string;
-  role: "admin" | "guest";
-};
+import type { User } from "../types";
 
 type AuthContextType = {
   user: User | null;

@@ -1,6 +1,7 @@
 export interface Quote {
   id: number;
   work_id: number;
+  user_id?: string | null;
   quote: string;
   page_number?: number | null;
   created_at: string;
@@ -34,4 +35,16 @@ export interface Author {
   followed?: boolean;
   avatar_img_url?: string | null;
   works_count: number;
+}
+
+export interface Series {
+  id: string;
+  text: string;
+  img_url: string;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  role: "admin" | "guest";
 }
