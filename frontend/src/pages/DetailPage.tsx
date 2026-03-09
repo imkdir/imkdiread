@@ -273,7 +273,9 @@ class DetailPage extends React.Component<Props, State> {
   submitQuoteToDB = () => {
     const { quote: rawQuote, pageNumber } = this.state.editingForm;
     const quote = rawQuote.trim();
-    const parsedPageNumber = pageNumber.trim().length ? Number(pageNumber) : null;
+    const parsedPageNumber = pageNumber.trim().length
+      ? Number(pageNumber)
+      : null;
 
     request(`/api/works/${encodeURIComponent(this.props.workId)}/quotes`, {
       method: "POST",
@@ -448,13 +450,14 @@ class DetailPage extends React.Component<Props, State> {
                     ))}
 
                     {work.tags.map((tag) => (
-                      <span
+                      <Link
                         key={tag}
+                        to={`/search?q=${encodeURIComponent(tag)}`}
                         className="pill-button"
                         style={styles.tag}
                       >
                         {tag}
-                      </span>
+                      </Link>
                     ))}
 
                     {!work.file_url || (

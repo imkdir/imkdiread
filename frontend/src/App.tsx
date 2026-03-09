@@ -5,6 +5,7 @@ import { AuthorPageWrapper } from "./pages/AuthorPage";
 import { AuthorsPage } from "./pages/AuthorsPage";
 import { SearchPage } from "./pages/SearchPage";
 import { ExplorePage } from "./pages/ExplorePage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { DetailPageWrapper } from "./pages/DetailPage";
 import { AdminWorksPage } from "./pages/admin/AdminWorksPage";
 import { SplashPage } from "./components/SplashPage";
@@ -41,6 +42,7 @@ export default class App extends React.Component<Record<string, never>> {
               <Route path="/" element={<SplashPage />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/explore" element={<ExplorePage />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route
                 path="/collection/:keyword"
                 element={<AuthorPageWrapper />}

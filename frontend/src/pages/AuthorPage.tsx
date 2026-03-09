@@ -125,18 +125,12 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
   renderQuoteCard = (entry: AuthorQuote) => {
     return (
       <div key={`${entry.work.id}-${entry.id}`} style={styles.quoteCard}>
-        <div style={styles.quoteMetaTop}>
-          <span style={styles.quoteWorkTitle}>{entry.work.title}</span>
+        <p style={styles.quoteText}>{entry.quote}</p>
+        <div style={styles.quoteMetaBottom}>
           {typeof entry.page_number === "number" && (
             <span style={styles.quotePage}>p. {entry.page_number}</span>
           )}
-        </div>
-        <p style={styles.quoteText}>“{entry.quote}”</p>
-        <div style={styles.quoteMetaBottom}>
-          <span>
-            {entry.work.authors?.join(", ") || this.state.profile?.name}
-          </span>
-          <span>{new Date(entry.created_at).toLocaleDateString()}</span>
+          <span style={styles.quoteWorkTitle}>{entry.work.title}</span>
         </div>
       </div>
     );
@@ -343,13 +337,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     flexDirection: "column",
     gap: "12px",
-  },
-  quoteMetaTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    fontSize: "12px",
-    color: "#b3b3b3",
   },
   quoteWorkTitle: {
     fontWeight: 700,

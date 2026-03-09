@@ -5,6 +5,7 @@ export interface Quote {
   quote: string;
   page_number?: number | null;
   created_at: string;
+  work?: Work | null;
 }
 
 export interface Work {
@@ -48,4 +49,5 @@ export interface User {
   role: "admin" | "guest";
   email?: string | null;
   is_email_public?: boolean | null;
+  avatar_url?: string | null;
 }

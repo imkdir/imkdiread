@@ -2,9 +2,8 @@ import React from "react";
 import { Link, Outlet } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
 
-import { SignOutButtonWrapper } from "./SignOutButton";
-
 import homeIcon from "../assets/imgs/home.svg";
+import userIcon from "../assets/imgs/users.svg";
 import searchIcon from "../assets/imgs/search.svg";
 import exploreIcon from "../assets/imgs/compass.svg";
 import settingsIcon from "../assets/imgs/settings.svg";
@@ -33,7 +32,11 @@ export const SidebarLayout: React.FC = () => {
 
         {/* Bottom "More" or Settings area */}
         <div className="bottom-menu">
-          <SignOutButtonWrapper />
+          {auth.user && (
+            <Link to="/profile" className="sidebar-link" title="Profile">
+              <img src={userIcon} alt={"profile"} />
+            </Link>
+          )}
           {auth.user && auth.user.role === "admin" && (
             <Link
               to="/admin/works"
