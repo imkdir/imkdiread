@@ -103,11 +103,11 @@ function createApp(options = {}) {
 
   const syncAuthors = (workId, authors) => {
     if (!authors || !Array.isArray(authors)) return;
-    db.prepare("DELETE FROM pdf_authors WHERE pdf_id = ?").run(workId);
+    db.prepare("DELETE FROM work_authors WHERE work_id = ?").run(workId);
     for (const author of authors) {
       db.prepare("INSERT OR IGNORE INTO authors (name) VALUES (?)").run(author);
       db.prepare(
-        "INSERT OR IGNORE INTO pdf_authors (pdf_id, author_name) VALUES (?, ?)",
+        "INSERT OR IGNORE INTO work_authors (work_id, author_name) VALUES (?, ?)",
       ).run(workId, author);
     }
   };
@@ -180,13 +180,13 @@ function createApp(options = {}) {
 
   function getWorkWithRelations(workRow, userId = null) {
     const authors = db
-      .prepare("SELECT author_name FROM pdf_authors WHERE pdf_id = ?")
+      .prepare("SELECT author_name FROM work_authors WHERE work_id = ?")
       .all(workRow.id)
       .map((r) => r.author_name);
 
     const tags = db
       .prepare(
-        "SELECT tags.name FROM pdf_tags JOIN tags ON pdf_tags.tag_id = tags.id WHERE pdf_id = ?",
+        "SELECT tags.name FROM work_tags JOIN tags ON work_tags.tag_id = tags.id WHERE work_id = ?",
       )
       .all(workRow.id)
       .map((r) => r.name);
@@ -195,12 +195,12 @@ function createApp(options = {}) {
     const quotes = userId
       ? db
           .prepare(
-            "SELECT * FROM pdf_quotes WHERE pdf_id = ? AND user_id = ? ORDER BY created_at DESC",
+            "SELECT * FROM work_quotes WHERE work_id = ? AND user_id = ? ORDER BY created_at DESC",
           )
           .all(workRow.id, userId)
       : db
           .prepare(
-            "SELECT * FROM pdf_quotes WHERE pdf_id = ? ORDER BY created_at DESC",
+            "SELECT * FROM work_quotes WHERE work_id = ? ORDER BY created_at DESC",
           )
           .all(workRow.id);
 
@@ -209,7 +209,7 @@ function createApp(options = {}) {
     if (userId) {
       const stats = db
         .prepare(
-          "SELECT read, liked, shelved, rating FROM user_pdf_interactions WHERE user_id = ? AND pdf_id = ?",
+          "SELECT read, liked, shelved, rating FROM user_work_interactions WHERE user_id = ? AND work_id = ?",
         )
         .get(userId, workRow.id);
       if (stats) userStats = stats;
@@ -224,7 +224,7 @@ function createApp(options = {}) {
 
     const count = db
       .prepare(
-        "SELECT COUNT(*) as count FROM pdf_authors WHERE author_name = ?",
+        "SELECT COUNT(*) as count FROM work_authors WHERE author_name = ?",
       )
       .get(authorRow.name).count;
 
@@ -252,22 +252,22 @@ function createApp(options = {}) {
     return trimmed ? `@notes:${trimmed}` : "";
   }
 
-  function ensureUserWorkInteraction(userId, pdfId) {
+  function ensureUserWorkInteraction(userId, workId) {
     db.prepare(
-      `INSERT OR IGNORE INTO user_pdf_interactions (user_id, pdf_id) VALUES (?, ?)`,
-    ).run(userId, pdfId);
+      `INSERT OR IGNORE INTO user_work_interactions (user_id, work_id) VALUES (?, ?)`,
+    ).run(userId, workId);
   }
 
   function recordProgressUpdate(
-    pdfId,
+    workId,
     userId,
     pageNumber,
     note = "",
     options = {},
   ) {
     const work = db
-      .prepare("SELECT page_count FROM pdfs WHERE id = ?")
-      .get(pdfId);
+      .prepare("SELECT page_count FROM works WHERE id = ?")
+      .get(workId);
     if (!work) {
       const error = new Error("Work not found");
       error.statusCode = 404;
@@ -288,19 +288,19 @@ function createApp(options = {}) {
 
     db.transaction(() => {
       db.prepare(
-        "INSERT INTO pdf_quotes (pdf_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
-      ).run(pdfId, userId, progressQuote, safePageNumber);
+        "INSERT INTO work_quotes (work_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
+      ).run(workId, userId, progressQuote, safePageNumber);
 
-      ensureUserWorkInteraction(userId, pdfId);
+      ensureUserWorkInteraction(userId, workId);
 
       const isFinished =
         markFinished || (totalPages > 0 && safePageNumber >= totalPages);
 
       db.prepare(
-        `UPDATE user_pdf_interactions
+        `UPDATE user_work_interactions
        SET shelved = 0, read = ?
-       WHERE user_id = ? AND pdf_id = ?`,
-      ).run(isFinished ? 1 : 0, userId, pdfId);
+       WHERE user_id = ? AND work_id = ?`,
+      ).run(isFinished ? 1 : 0, userId, workId);
     })();
 
     return {
@@ -563,13 +563,13 @@ function createApp(options = {}) {
 
         // Migrate relationships to the new ID, then delete the old one
         for (const w of db
-          .prepare("SELECT pdf_id FROM pdf_tags WHERE tag_id = ?")
+          .prepare("SELECT work_id FROM work_tags WHERE tag_id = ?")
           .all(oldTag.id)) {
           db.prepare(
-            "INSERT OR IGNORE INTO pdf_tags (pdf_id, tag_id) VALUES (?, ?)",
-          ).run(w.pdf_id, newTagId);
+            "INSERT OR IGNORE INTO work_tags (work_id, tag_id) VALUES (?, ?)",
+          ).run(w.work_id, newTagId);
         }
-        db.prepare("DELETE FROM pdf_tags WHERE tag_id = ?").run(oldTag.id);
+        db.prepare("DELETE FROM work_tags WHERE tag_id = ?").run(oldTag.id);
 
         db.prepare("DELETE FROM tags WHERE id = ?").run(oldTag.id);
       })();
@@ -719,15 +719,15 @@ function createApp(options = {}) {
   app.get("/api/explore", authenticateToken, (req, res) => {
     try {
       const works = db
-        .prepare("SELECT * FROM pdfs ORDER BY RANDOM() LIMIT 12")
+        .prepare("SELECT * FROM works ORDER BY RANDOM() LIMIT 12")
         .all()
         .map((row) => getWorkWithRelations(row, req.user?.id))
         .map(processWork);
       const authors = db
         .prepare(
           `
-      SELECT authors.*, COUNT(pdf_authors.pdf_id) as works_count
-      FROM authors LEFT JOIN pdf_authors ON authors.name = pdf_authors.author_name
+      SELECT authors.*, COUNT(work_authors.work_id) as works_count
+      FROM authors LEFT JOIN work_authors ON authors.name = work_authors.author_name
       GROUP BY authors.name ORDER BY RANDOM() LIMIT 6
     `,
         )
@@ -749,12 +749,12 @@ function createApp(options = {}) {
       const works = db
         .prepare(
           `
-      SELECT DISTINCT pdfs.* FROM pdfs
-      LEFT JOIN pdf_tags ON pdfs.id = pdf_tags.pdf_id
-      LEFT JOIN tags ON pdf_tags.tag_id = tags.id
-      LEFT JOIN pdf_authors ON pdfs.id = pdf_authors.pdf_id
-      WHERE pdfs.id LIKE ? COLLATE NOCASE OR pdfs.title LIKE ? COLLATE NOCASE OR tags.name LIKE ? COLLATE NOCASE OR pdf_authors.author_name LIKE ? COLLATE NOCASE
-      ORDER BY pdfs.id ASC LIMIT 100
+      SELECT DISTINCT works.* FROM works
+      LEFT JOIN work_tags ON works.id = work_tags.work_id
+      LEFT JOIN tags ON work_tags.tag_id = tags.id
+      LEFT JOIN work_authors ON works.id = work_authors.work_id
+      WHERE works.id LIKE ? COLLATE NOCASE OR works.title LIKE ? COLLATE NOCASE OR tags.name LIKE ? COLLATE NOCASE OR work_authors.author_name LIKE ? COLLATE NOCASE
+      ORDER BY works.id ASC LIMIT 100
     `,
         )
         .all(term, term, term, term)
@@ -784,7 +784,7 @@ function createApp(options = {}) {
         matchedRows = db
           .prepare(
             `
-        SELECT pdfs.* FROM pdfs JOIN pdf_authors ON pdfs.id = pdf_authors.pdf_id WHERE pdf_authors.author_name = ?
+        SELECT works.* FROM works JOIN work_authors ON works.id = work_authors.work_id WHERE work_authors.author_name = ?
       `,
           )
           .all(keyword);
@@ -792,7 +792,7 @@ function createApp(options = {}) {
         matchedRows = db
           .prepare(
             `
-        SELECT pdfs.* FROM pdfs JOIN pdf_tags ON pdfs.id = pdf_tags.pdf_id JOIN tags ON pdf_tags.tag_id = tags.id WHERE tags.name = ?
+        SELECT works.* FROM works JOIN work_tags ON works.id = work_tags.work_id JOIN tags ON work_tags.tag_id = tags.id WHERE tags.name = ?
       `,
           )
           .all(keyword);
@@ -813,7 +813,7 @@ function createApp(options = {}) {
     try {
       res.json(
         db
-          .prepare("SELECT * FROM pdfs")
+          .prepare("SELECT * FROM works")
           .all()
           .map((row) => getWorkWithRelations(row, req.user?.id))
           .map(processWork),
@@ -826,7 +826,7 @@ function createApp(options = {}) {
   app.get("/api/works/:id", authenticateToken, (req, res) => {
     try {
       const workRow = db
-        .prepare("SELECT * FROM pdfs WHERE id = ?")
+        .prepare("SELECT * FROM works WHERE id = ?")
         .get(req.params.id);
       if (!workRow) return res.status(404).json({ error: "Work not found" });
 
@@ -846,7 +846,7 @@ function createApp(options = {}) {
       db.transaction(() => {
         db.prepare(
           `
-        INSERT INTO pdfs (id, title, goodreads_id, page_count, dropbox_link, amazon_asin)
+        INSERT INTO works (id, title, goodreads_id, page_count, dropbox_link, amazon_asin)
         VALUES (?, ?, ?, ?, ?, ?)
       `,
         ).run(
@@ -859,7 +859,7 @@ function createApp(options = {}) {
         );
 
         syncAuthors(work.id, work.authors);
-        syncTags(work.id, work.tags, "pdf_tags", "pdf_id");
+        syncTags(work.id, work.tags, "work_tags", "work_id");
       })();
       res.json({ success: true });
     } catch (error) {
@@ -878,7 +878,7 @@ function createApp(options = {}) {
         if (work.id !== id) {
           db.prepare("PRAGMA foreign_keys=OFF;").run();
           db.prepare(
-            `UPDATE pdfs SET id = ?, title = ?, goodreads_id = ?, page_count = ?, dropbox_link = ?, amazon_asin = ? WHERE id = ?`,
+            `UPDATE works SET id = ?, title = ?, goodreads_id = ?, page_count = ?, dropbox_link = ?, amazon_asin = ? WHERE id = ?`,
           ).run(
             work.id,
             work.title || null,
@@ -889,22 +889,22 @@ function createApp(options = {}) {
             id,
           );
 
-          db.prepare("UPDATE pdf_authors SET pdf_id = ? WHERE pdf_id = ?").run(
+          db.prepare("UPDATE work_authors SET work_id = ? WHERE work_id = ?").run(
             work.id,
             id,
           );
-          db.prepare("UPDATE pdf_tags SET pdf_id = ? WHERE pdf_id = ?").run(
+          db.prepare("UPDATE work_tags SET work_id = ? WHERE work_id = ?").run(
             work.id,
             id,
           );
-          db.prepare("UPDATE pdf_quotes SET pdf_id = ? WHERE pdf_id = ?").run(
+          db.prepare("UPDATE work_quotes SET work_id = ? WHERE work_id = ?").run(
             work.id,
             id,
           );
           db.prepare("PRAGMA foreign_keys=ON;").run();
         } else {
           db.prepare(
-            `UPDATE pdfs SET title = ?, goodreads_id = ?, page_count = ?, dropbox_link = ?, amazon_asin = ? WHERE id = ?`,
+            `UPDATE works SET title = ?, goodreads_id = ?, page_count = ?, dropbox_link = ?, amazon_asin = ? WHERE id = ?`,
           ).run(
             work.title || null,
             work.goodreads_id || null,
@@ -916,7 +916,7 @@ function createApp(options = {}) {
         }
 
         syncAuthors(work.id, work.authors);
-        syncTags(work.id, work.tags, "pdf_tags", "pdf_id");
+        syncTags(work.id, work.tags, "work_tags", "work_id");
       })();
       res.json({ success: true });
     } catch (error) {
@@ -927,7 +927,7 @@ function createApp(options = {}) {
   // Handle User Interactions (Like, Read, Shelve, Rating)
   app.post("/api/works/:id", authenticateToken, (req, res) => {
     try {
-      const pdfId = req.params.id;
+      const workId = req.params.id;
       const userId = req.user.id; // Guaranteed to exist because of authenticateToken middleware
       const { action, value } = req.body;
 
@@ -959,11 +959,11 @@ function createApp(options = {}) {
 
       db.prepare(
         `
-      INSERT INTO user_pdf_interactions (user_id, pdf_id, ${action})
+      INSERT INTO user_work_interactions (user_id, work_id, ${action})
       VALUES (?, ?, ?)
-      ON CONFLICT(user_id, pdf_id) DO UPDATE SET ${action} = excluded.${action}
+      ON CONFLICT(user_id, work_id) DO UPDATE SET ${action} = excluded.${action}
     `,
-      ).run(userId, pdfId, safeValue);
+      ).run(userId, workId, safeValue);
 
       res.json({ success: true });
     } catch (error) {
@@ -976,10 +976,10 @@ function createApp(options = {}) {
     try {
       const id = req.params.id;
       db.transaction(() => {
-        db.prepare("DELETE FROM pdf_authors WHERE pdf_id = ?").run(id);
-        db.prepare("DELETE FROM pdf_tags WHERE pdf_id = ?").run(id);
-        db.prepare("DELETE FROM pdf_quotes WHERE pdf_id = ?").run(id);
-        db.prepare("DELETE FROM pdfs WHERE id = ?").run(id);
+        db.prepare("DELETE FROM work_authors WHERE work_id = ?").run(id);
+        db.prepare("DELETE FROM work_tags WHERE work_id = ?").run(id);
+        db.prepare("DELETE FROM work_quotes WHERE work_id = ?").run(id);
+        db.prepare("DELETE FROM works WHERE id = ?").run(id);
       })();
       res.json({ success: true });
     } catch (error) {
@@ -1006,9 +1006,9 @@ function createApp(options = {}) {
 
         db.transaction(() => {
           for (const work of parsedWorks) {
-            if (!db.prepare("SELECT id FROM pdfs WHERE id = ?").get(work.id)) {
+            if (!db.prepare("SELECT id FROM works WHERE id = ?").get(work.id)) {
               db.prepare(
-                "INSERT INTO pdfs (id, title, goodreads_id, page_count) VALUES (?, ?, ?, ?)",
+                "INSERT INTO works (id, title, goodreads_id, page_count) VALUES (?, ?, ?, ?)",
               ).run(
                 work.id,
                 work.title,
@@ -1017,7 +1017,7 @@ function createApp(options = {}) {
               );
             } else {
               db.prepare(
-                "UPDATE pdfs SET title = ?, goodreads_id = ?, page_count = ? WHERE id = ?",
+                "UPDATE works SET title = ?, goodreads_id = ?, page_count = ? WHERE id = ?",
               ).run(
                 work.title || null,
                 work.goodreads_id || null,
@@ -1026,7 +1026,7 @@ function createApp(options = {}) {
               );
             }
             syncAuthors(work.id, work.authors);
-            syncTags(work.id, work.tags, "pdf_tags", "pdf_id");
+            syncTags(work.id, work.tags, "work_tags", "work_id");
           }
         })();
         res.json({
@@ -1059,7 +1059,7 @@ function createApp(options = {}) {
 
         db.transaction(() => {
           for (const workId of normalizedWorkIds) {
-            if (db.prepare("SELECT id FROM pdfs WHERE id = ?").get(workId)) {
+            if (db.prepare("SELECT id FROM works WHERE id = ?").get(workId)) {
               // Instead of overriding existing tags, bulk-tagging usually appends.
               for (const tag of normalizedTags) {
                 db.prepare("INSERT OR IGNORE INTO tags (name) VALUES (?)").run(
@@ -1069,7 +1069,7 @@ function createApp(options = {}) {
                   .prepare("SELECT id FROM tags WHERE name = ?")
                   .get(tag).id;
                 db.prepare(
-                  "INSERT OR IGNORE INTO pdf_tags (pdf_id, tag_id) VALUES (?, ?)",
+                  "INSERT OR IGNORE INTO work_tags (work_id, tag_id) VALUES (?, ?)",
                 ).run(workId, tagId);
               }
             }
@@ -1084,7 +1084,7 @@ function createApp(options = {}) {
 
   app.post("/api/works/:id/quotes", authenticateToken, (req, res) => {
     try {
-      const pdfId = req.params.id;
+      const workId = req.params.id;
       const userId = req.user.id;
       const quote =
         typeof req.body.quote === "string" ? req.body.quote.trim() : "";
@@ -1102,8 +1102,8 @@ function createApp(options = {}) {
       }
 
       db.prepare(
-        "INSERT INTO pdf_quotes (pdf_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
-      ).run(pdfId, userId, quote, pageNumber);
+        "INSERT INTO work_quotes (work_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
+      ).run(workId, userId, quote, pageNumber);
 
       res.json({ success: true });
     } catch (error) {
@@ -1178,12 +1178,12 @@ function createApp(options = {}) {
       const result = isAdmin
         ? db
             .prepare(
-              "UPDATE pdf_quotes SET quote = ?, page_number = ? WHERE id = ?",
+              "UPDATE work_quotes SET quote = ?, page_number = ? WHERE id = ?",
             )
             .run(quote, pageNumber, quoteId)
         : db
             .prepare(
-              "UPDATE pdf_quotes SET quote = ?, page_number = ? WHERE id = ? AND user_id = ?",
+              "UPDATE work_quotes SET quote = ?, page_number = ? WHERE id = ? AND user_id = ?",
             )
             .run(quote, pageNumber, quoteId, userId);
 
@@ -1208,9 +1208,9 @@ function createApp(options = {}) {
 
       // Admins delete anything, Guests delete only their own
       const result = isAdmin
-        ? db.prepare("DELETE FROM pdf_quotes WHERE id = ?").run(quoteId)
+        ? db.prepare("DELETE FROM work_quotes WHERE id = ?").run(quoteId)
         : db
-            .prepare("DELETE FROM pdf_quotes WHERE id = ? AND user_id = ?")
+            .prepare("DELETE FROM work_quotes WHERE id = ? AND user_id = ?")
             .run(quoteId, userId);
 
       if (result.changes === 0) {
@@ -1269,9 +1269,9 @@ function createApp(options = {}) {
       const interactedBookRows = db
         .prepare(
           `
-      SELECT DISTINCT p.* FROM pdfs p
-      LEFT JOIN user_pdf_interactions i ON p.id = i.pdf_id AND i.user_id = ?
-      LEFT JOIN pdf_quotes q ON p.id = q.pdf_id AND q.user_id = ?
+      SELECT DISTINCT p.* FROM works p
+      LEFT JOIN user_work_interactions i ON p.id = i.work_id AND i.user_id = ?
+      LEFT JOIN work_quotes q ON p.id = q.work_id AND q.user_id = ?
       WHERE i.user_id IS NOT NULL OR q.user_id IS NOT NULL
     `,
         )
@@ -1290,7 +1290,7 @@ function createApp(options = {}) {
       const rawQuotes = db
         .prepare(
           `
-      SELECT * FROM pdf_quotes
+      SELECT * FROM work_quotes
       WHERE user_id = ?
       ORDER BY created_at DESC
     `,
@@ -1301,7 +1301,7 @@ function createApp(options = {}) {
         .filter((r) => r.quote.length && !r.quote.startsWith("@notes:"))
         .map((quote) => {
           const matchingBook = processedBooks.find(
-            (b) => b.id === quote.pdf_id,
+            (b) => b.id === quote.work_id,
           );
           return {
             ...quote,

@@ -33,7 +33,7 @@ function seedTestDb(targetDbPath) {
       name TEXT PRIMARY KEY,
       goodreads_id TEXT
     );
-    CREATE TABLE pdfs (
+    CREATE TABLE works (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       page_count INTEGER DEFAULT 0,
@@ -50,16 +50,16 @@ function seedTestDb(targetDbPath) {
       avatar_url TEXT,
       is_email_public BOOLEAN DEFAULT 0
     );
-    CREATE TABLE user_pdf_interactions (
+    CREATE TABLE user_work_interactions (
       user_id TEXT,
-      pdf_id TEXT,
+      work_id TEXT,
       read BOOLEAN DEFAULT 0,
       liked BOOLEAN DEFAULT 0,
       shelved BOOLEAN DEFAULT 0,
       rating INTEGER DEFAULT 0,
-      PRIMARY KEY (user_id, pdf_id),
+      PRIMARY KEY (user_id, work_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (pdf_id) REFERENCES pdfs(id) ON DELETE CASCADE
+      FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE
     );
     CREATE TABLE user_author_interactions (
       user_id TEXT,
@@ -69,28 +69,28 @@ function seedTestDb(targetDbPath) {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (author_name) REFERENCES authors(name) ON DELETE CASCADE
     );
-    CREATE TABLE pdf_tags (
-      pdf_id TEXT,
+    CREATE TABLE work_tags (
+      work_id TEXT,
       tag_id INTEGER,
-      FOREIGN KEY(pdf_id) REFERENCES pdfs(id) ON DELETE CASCADE,
+      FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE,
       FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE,
-      UNIQUE(pdf_id, tag_id)
+      UNIQUE(work_id, tag_id)
     );
-    CREATE TABLE pdf_authors (
-      pdf_id TEXT,
+    CREATE TABLE work_authors (
+      work_id TEXT,
       author_name TEXT,
-      FOREIGN KEY(pdf_id) REFERENCES pdfs(id) ON DELETE CASCADE,
+      FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE,
       FOREIGN KEY(author_name) REFERENCES authors(name) ON DELETE CASCADE,
-      UNIQUE(pdf_id, author_name)
+      UNIQUE(work_id, author_name)
     );
-    CREATE TABLE pdf_quotes (
+    CREATE TABLE work_quotes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      pdf_id TEXT NOT NULL,
+      work_id TEXT NOT NULL,
       quote TEXT NOT NULL,
       page_number INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY(pdf_id) REFERENCES pdfs(id) ON DELETE CASCADE
+      FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE
     );
   `);
 
@@ -100,12 +100,12 @@ function seedTestDb(targetDbPath) {
     "author-1",
   );
   db.prepare(
-    "INSERT INTO pdfs (id, title, page_count, goodreads_id, dropbox_link, amazon_asin) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT INTO works (id, title, page_count, goodreads_id, dropbox_link, amazon_asin) VALUES (?, ?, ?, ?, ?, ?)",
   ).run("W1", "Nicomachean Ethics", 100, "book-1", null, null);
 
   const tagId = db.prepare("SELECT id FROM tags WHERE name = ?").get("philosophy").id;
-  db.prepare("INSERT INTO pdf_tags (pdf_id, tag_id) VALUES (?, ?)").run("W1", tagId);
-  db.prepare("INSERT INTO pdf_authors (pdf_id, author_name) VALUES (?, ?)").run(
+  db.prepare("INSERT INTO work_tags (work_id, tag_id) VALUES (?, ?)").run("W1", tagId);
+  db.prepare("INSERT INTO work_authors (work_id, author_name) VALUES (?, ?)").run(
     "W1",
     "Aristotle",
   );

@@ -21,38 +21,38 @@ try {
 
   // 2. Create the new interactions table
   db.exec(`
-    CREATE TABLE IF NOT EXISTS user_pdf_interactions (
+    CREATE TABLE IF NOT EXISTS user_work_interactions (
       user_id TEXT,
-      pdf_id TEXT,
+      work_id TEXT,
       read BOOLEAN DEFAULT 0,
       liked BOOLEAN DEFAULT 0,
       shelved BOOLEAN DEFAULT 0,
       rating INTEGER DEFAULT 0,
-      PRIMARY KEY (user_id, pdf_id),
+      PRIMARY KEY (user_id, work_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (pdf_id) REFERENCES pdfs(id) ON DELETE CASCADE
+      FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE
     );
   `);
 
-  // 3. Move existing PDF stats into the interactions table for the Admin
+  // 3. Move existing Work stats into the interactions table for the Admin
   console.log("Moving book statuses to Admin account...");
-  const oldPdfs = db.prepare("SELECT * FROM pdfs").all();
+  const oldWorks = db.prepare("SELECT * FROM works").all();
 
   const insertInteraction = db.prepare(`
-    INSERT OR IGNORE INTO user_pdf_interactions
-    (user_id, pdf_id, read, liked, shelved, rating)
+    INSERT OR IGNORE INTO user_work_interactions
+    (user_id, work_id, read, liked, shelved, rating)
     VALUES (?, ?, ?, ?, ?, ?)
   `);
 
-  for (const pdf of oldPdfs) {
-    if (pdf.read || pdf.liked || pdf.shelved || pdf.rating > 0) {
+  for (const work of oldWorks) {
+    if (work.read || work.liked || work.shelved || work.rating > 0) {
       insertInteraction.run(
         adminId,
-        pdf.id,
-        pdf.read || 0,
-        pdf.liked || 0,
-        pdf.shelved || 0,
-        pdf.rating || 0,
+        work.id,
+        work.read || 0,
+        work.liked || 0,
+        work.shelved || 0,
+        work.rating || 0,
       );
     }
   }
@@ -61,23 +61,23 @@ try {
   console.log("Updating quotes...");
   try {
     db.exec(
-      `ALTER TABLE pdf_quotes ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE;`,
+      `ALTER TABLE work_quotes ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE;`,
     );
   } catch (e) {
     // Column might already exist
   }
-  db.prepare(`UPDATE pdf_quotes SET user_id = ? WHERE user_id IS NULL`).run(
+  db.prepare(`UPDATE work_quotes SET user_id = ? WHERE user_id IS NULL`).run(
     adminId,
   );
 
-  // 5. Safely rebuild the PDFs table without triggering cascades
-  console.log("Cleaning up PDFs table...");
+  // 5. Safely rebuild the Works table without triggering cascades
+  console.log("Cleaning up Works table...");
 
   // Begin a transaction so it's all or nothing
   db.exec("BEGIN TRANSACTION;");
 
   db.exec(`
-    CREATE TABLE pdfs_new (
+    CREATE TABLE works_new (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         page_count INTEGER DEFAULT 0,
@@ -85,11 +85,11 @@ try {
         dropbox_link TEXT,
         amazon_asin TEXT
     );
-    INSERT INTO pdfs_new (id, title, page_count, goodreads_id, dropbox_link, amazon_asin)
-    SELECT id, title, page_count, goodreads_id, dropbox_link, amazon_asin FROM pdfs;
+    INSERT INTO works_new (id, title, page_count, goodreads_id, dropbox_link, amazon_asin)
+    SELECT id, title, page_count, goodreads_id, dropbox_link, amazon_asin FROM works;
 
-    DROP TABLE pdfs; -- Because PRAGMA foreign_keys = OFF, this is now safe!
-    ALTER TABLE pdfs_new RENAME TO pdfs;
+    DROP TABLE works; -- Because PRAGMA foreign_keys = OFF, this is now safe!
+    ALTER TABLE works_new RENAME TO works;
   `);
 
   db.exec("COMMIT;");

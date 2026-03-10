@@ -11,27 +11,27 @@ CREATE TABLE series (
 CREATE TABLE authors (
     name TEXT PRIMARY KEY,
     goodreads_id TEXT);
-CREATE TABLE IF NOT EXISTS "pdf_tags" (
-        pdf_id TEXT,
+CREATE TABLE IF NOT EXISTS "work_tags" (
+        work_id TEXT,
         tag_id INTEGER,
-        FOREIGN KEY(pdf_id) REFERENCES pdfs(id) ON DELETE CASCADE,
+        FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE,
         FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE,
-        UNIQUE(pdf_id, tag_id)
+        UNIQUE(work_id, tag_id)
     );
-CREATE TABLE IF NOT EXISTS "pdf_quotes" (
+CREATE TABLE IF NOT EXISTS "work_quotes" (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        pdf_id TEXT NOT NULL,
+        work_id TEXT NOT NULL,
         quote TEXT NOT NULL,
         page_number INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP, user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY(pdf_id) REFERENCES pdfs(id) ON DELETE CASCADE
+        FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE
     );
-CREATE TABLE IF NOT EXISTS "pdf_authors" (
-        pdf_id TEXT,
+CREATE TABLE IF NOT EXISTS "work_authors" (
+        work_id TEXT,
         author_name TEXT,
-        FOREIGN KEY(pdf_id) REFERENCES pdfs(id) ON DELETE CASCADE,
+        FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE,
         FOREIGN KEY(author_name) REFERENCES authors(name) ON DELETE CASCADE,
-        UNIQUE(pdf_id, author_name)
+        UNIQUE(work_id, author_name)
     );
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
@@ -39,18 +39,18 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'guest'
   , email TEXT, avatar_url TEXT, is_email_public BOOLEAN DEFAULT 0);
-CREATE TABLE user_pdf_interactions (
+CREATE TABLE user_work_interactions (
       user_id TEXT,
-      pdf_id TEXT,
+      work_id TEXT,
       read BOOLEAN DEFAULT 0,
       liked BOOLEAN DEFAULT 0,
       shelved BOOLEAN DEFAULT 0,
       rating INTEGER DEFAULT 0,
-      PRIMARY KEY (user_id, pdf_id),
+      PRIMARY KEY (user_id, work_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (pdf_id) REFERENCES pdfs(id) ON DELETE CASCADE
+      FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE
     );
-CREATE TABLE IF NOT EXISTS "pdfs" (
+CREATE TABLE IF NOT EXISTS "works" (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         page_count INTEGER DEFAULT 0,
