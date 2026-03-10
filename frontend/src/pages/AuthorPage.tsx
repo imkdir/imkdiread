@@ -1,4 +1,6 @@
 import React from "react";
+import Masonry from "react-masonry-css";
+
 import { useParams } from "react-router-dom";
 import { type Work, type Author, type Quote } from "../types";
 import {
@@ -237,9 +239,13 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
                 </div>
               )
             ) : authorQuotes.length ? (
-              <div style={styles.quotesList}>
+              <Masonry
+                breakpointCols={{ default: 3, 900: 2, 600: 1 }}
+                className="my-masonry-grid"
+                columnClassName="my-masonry-grid_column"
+              >
                 {authorQuotes.map(this.renderQuoteCard)}
-              </div>
+              </Masonry>
             ) : (
               <div style={styles.emptyState}>
                 <div style={styles.emptyIcon}>✍️</div>

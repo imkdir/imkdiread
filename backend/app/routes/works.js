@@ -27,7 +27,8 @@ function createWorksRouter({ db, workService }) {
 
     const authors =
       rawWork.authors === undefined ? [] : asStringArray(rawWork.authors);
-    if (authors === null) return { error: "authors must be an array of strings." };
+    if (authors === null)
+      return { error: "authors must be an array of strings." };
 
     const tags = rawWork.tags === undefined ? [] : asStringArray(rawWork.tags);
     if (tags === null) return { error: "tags must be an array of strings." };
@@ -174,9 +175,11 @@ function createWorksRouter({ db, workService }) {
         .get(req.params.id);
       if (!workRow) return res.status(404).json({ error: "Work not found" });
 
-      res.json(workService.processWork(
-        workService.getWorkWithRelations(workRow, req.user?.id),
-      ));
+      res.json(
+        workService.processWork(
+          workService.getWorkWithRelations(workRow, req.user?.id),
+        ),
+      );
     } catch (error) {
       res.status(500).json({ error: "Failed to load work" });
     }
@@ -219,9 +222,8 @@ function createWorksRouter({ db, workService }) {
       if (parsed.error) return jsonError(res, 400, parsed.error);
       const work = parsed.work;
 
-      db.transaction(() => {
+      const executeWorkUpdate = () => {
         if (work.id !== id) {
-          db.prepare("PRAGMA foreign_keys=OFF;").run();
           db.prepare(
             `UPDATE works SET id = ?, title = ?, goodreads_id = ?, page_count = ?, dropbox_link = ?, amazon_asin = ? WHERE id = ?`,
           ).run(
@@ -234,19 +236,19 @@ function createWorksRouter({ db, workService }) {
             id,
           );
 
-          db.prepare("UPDATE work_authors SET work_id = ? WHERE work_id = ?").run(
-            work.id,
-            id,
-          );
+          db.prepare(
+            "UPDATE work_authors SET work_id = ? WHERE work_id = ?",
+          ).run(work.id, id);
           db.prepare("UPDATE work_tags SET work_id = ? WHERE work_id = ?").run(
             work.id,
             id,
           );
-          db.prepare("UPDATE work_quotes SET work_id = ? WHERE work_id = ?").run(
-            work.id,
-            id,
-          );
-          db.prepare("PRAGMA foreign_keys=ON;").run();
+          db.prepare(
+            "UPDATE work_quotes SET work_id = ? WHERE work_id = ?",
+          ).run(work.id, id);
+          db.prepare(
+            "UPDATE user_work_interactions SET work_id = ? WHERE work_id = ?",
+          ).run(work.id, id);
         } else {
           db.prepare(
             `UPDATE works SET title = ?, goodreads_id = ?, page_count = ?, dropbox_link = ?, amazon_asin = ? WHERE id = ?`,
@@ -262,9 +264,21 @@ function createWorksRouter({ db, workService }) {
 
         workService.syncAuthors(work.id, work.authors);
         workService.syncTags(work.id, work.tags, "work_tags", "work_id");
-      })();
+      };
+
+      if (work.id !== id) {
+        db.prepare("PRAGMA foreign_keys=OFF;").run();
+        try {
+          db.transaction(executeWorkUpdate)();
+        } finally {
+          db.prepare("PRAGMA foreign_keys=ON;").run();
+        }
+      } else {
+        db.transaction(executeWorkUpdate)();
+      }
       res.json({ success: true });
     } catch (error) {
+      console.error(error);
       jsonError(res, 500, "Failed to update work");
     }
   });
@@ -281,8 +295,16 @@ function createWorksRouter({ db, workService }) {
       let safeValue = value;
       if (action === "rating") {
         const numericValue = Number(value);
-        if (!Number.isInteger(numericValue) || numericValue < 0 || numericValue > 10) {
-          return jsonError(res, 400, "rating must be an integer between 0 and 10.");
+        if (
+          !Number.isInteger(numericValue) ||
+          numericValue < 0 ||
+          numericValue > 10
+        ) {
+          return jsonError(
+            res,
+            400,
+            "rating must be an integer between 0 and 10.",
+          );
         }
         safeValue = numericValue;
       } else {
@@ -307,107 +329,126 @@ function createWorksRouter({ db, workService }) {
     }
   });
 
-  router.delete("/api/works/:id", authenticateToken, requireAdmin, (req, res) => {
-    try {
-      const id = req.params.id;
-      db.transaction(() => {
-        db.prepare("DELETE FROM work_authors WHERE work_id = ?").run(id);
-        db.prepare("DELETE FROM work_tags WHERE work_id = ?").run(id);
-        db.prepare("DELETE FROM work_quotes WHERE work_id = ?").run(id);
-        db.prepare("DELETE FROM works WHERE id = ?").run(id);
-      })();
-      res.json({ success: true });
-    } catch (error) {
-      jsonError(res, 500, "Failed to delete work");
-    }
-  });
-
-  router.post("/api/works/bulk-import", authenticateToken, requireAdmin, (req, res) => {
-    try {
-      const works = req.body;
-      if (!Array.isArray(works)) return jsonError(res, 400, "Expected an array");
-
-      const parsedWorks = [];
-      for (const rawWork of works) {
-        const parsed = parseWorkPayload(rawWork);
-        if (parsed.error) return jsonError(res, 400, parsed.error);
-        parsedWorks.push(parsed.work);
+  router.delete(
+    "/api/works/:id",
+    authenticateToken,
+    requireAdmin,
+    (req, res) => {
+      try {
+        const id = req.params.id;
+        db.transaction(() => {
+          db.prepare("DELETE FROM work_authors WHERE work_id = ?").run(id);
+          db.prepare("DELETE FROM work_tags WHERE work_id = ?").run(id);
+          db.prepare("DELETE FROM work_quotes WHERE work_id = ?").run(id);
+          db.prepare("DELETE FROM works WHERE id = ?").run(id);
+        })();
+        res.json({ success: true });
+      } catch (error) {
+        jsonError(res, 500, "Failed to delete work");
       }
+    },
+  );
 
-      db.transaction(() => {
-        for (const work of parsedWorks) {
-          if (!db.prepare("SELECT id FROM works WHERE id = ?").get(work.id)) {
-            db.prepare(
-              "INSERT INTO works (id, title, goodreads_id, page_count) VALUES (?, ?, ?, ?)",
-            ).run(
-              work.id,
-              work.title,
-              work.goodreads_id || null,
-              work.page_count,
-            );
-          } else {
-            db.prepare(
-              "UPDATE works SET title = ?, goodreads_id = ?, page_count = ? WHERE id = ?",
-            ).run(
-              work.title || null,
-              work.goodreads_id || null,
-              work.page_count,
-              work.id,
-            );
-          }
-          workService.syncAuthors(work.id, work.authors);
-          workService.syncTags(work.id, work.tags, "work_tags", "work_id");
+  router.post(
+    "/api/works/bulk-import",
+    authenticateToken,
+    requireAdmin,
+    (req, res) => {
+      try {
+        const works = req.body;
+        if (!Array.isArray(works))
+          return jsonError(res, 400, "Expected an array");
+
+        const parsedWorks = [];
+        for (const rawWork of works) {
+          const parsed = parseWorkPayload(rawWork);
+          if (parsed.error) return jsonError(res, 400, parsed.error);
+          parsedWorks.push(parsed.work);
         }
-      })();
-      res.json({
-        success: true,
-        message: `Imported ${parsedWorks.length} works successfully`,
-      });
-    } catch (error) {
-      jsonError(res, 500, "Failed to bulk import works");
-    }
-  });
 
-  router.post("/api/works/bulk-tags", authenticateToken, requireAdmin, (req, res) => {
-    try {
-      const { workIds, tags } = req.body;
-      const normalizedWorkIds = asStringArray(workIds);
-      const normalizedTags = asStringArray(tags);
-      if (
-        !normalizedWorkIds ||
-        !normalizedTags ||
-        !normalizedWorkIds.length ||
-        !normalizedTags.length
-      ) {
-        return jsonError(res, 400, "Invalid payload.");
-      }
-
-      db.transaction(() => {
-        for (const workId of normalizedWorkIds) {
-          if (db.prepare("SELECT id FROM works WHERE id = ?").get(workId)) {
-            for (const tag of normalizedTags) {
-              db.prepare("INSERT OR IGNORE INTO tags (name) VALUES (?)").run(tag);
-              const tagId = db
-                .prepare("SELECT id FROM tags WHERE name = ?")
-                .get(tag).id;
+        db.transaction(() => {
+          for (const work of parsedWorks) {
+            if (!db.prepare("SELECT id FROM works WHERE id = ?").get(work.id)) {
               db.prepare(
-                "INSERT OR IGNORE INTO work_tags (work_id, tag_id) VALUES (?, ?)",
-              ).run(workId, tagId);
+                "INSERT INTO works (id, title, goodreads_id, page_count) VALUES (?, ?, ?, ?)",
+              ).run(
+                work.id,
+                work.title,
+                work.goodreads_id || null,
+                work.page_count,
+              );
+            } else {
+              db.prepare(
+                "UPDATE works SET title = ?, goodreads_id = ?, page_count = ? WHERE id = ?",
+              ).run(
+                work.title || null,
+                work.goodreads_id || null,
+                work.page_count,
+                work.id,
+              );
+            }
+            workService.syncAuthors(work.id, work.authors);
+            workService.syncTags(work.id, work.tags, "work_tags", "work_id");
+          }
+        })();
+        res.json({
+          success: true,
+          message: `Imported ${parsedWorks.length} works successfully`,
+        });
+      } catch (error) {
+        jsonError(res, 500, "Failed to bulk import works");
+      }
+    },
+  );
+
+  router.post(
+    "/api/works/bulk-tags",
+    authenticateToken,
+    requireAdmin,
+    (req, res) => {
+      try {
+        const { workIds, tags } = req.body;
+        const normalizedWorkIds = asStringArray(workIds);
+        const normalizedTags = asStringArray(tags);
+        if (
+          !normalizedWorkIds ||
+          !normalizedTags ||
+          !normalizedWorkIds.length ||
+          !normalizedTags.length
+        ) {
+          return jsonError(res, 400, "Invalid payload.");
+        }
+
+        db.transaction(() => {
+          for (const workId of normalizedWorkIds) {
+            if (db.prepare("SELECT id FROM works WHERE id = ?").get(workId)) {
+              for (const tag of normalizedTags) {
+                db.prepare("INSERT OR IGNORE INTO tags (name) VALUES (?)").run(
+                  tag,
+                );
+                const tagId = db
+                  .prepare("SELECT id FROM tags WHERE name = ?")
+                  .get(tag).id;
+                db.prepare(
+                  "INSERT OR IGNORE INTO work_tags (work_id, tag_id) VALUES (?, ?)",
+                ).run(workId, tagId);
+              }
             }
           }
-        }
-      })();
-      res.json({ success: true });
-    } catch (error) {
-      jsonError(res, 500, "Failed to bulk update tags.");
-    }
-  });
+        })();
+        res.json({ success: true });
+      } catch (error) {
+        jsonError(res, 500, "Failed to bulk update tags.");
+      }
+    },
+  );
 
   router.post("/api/works/:id/quotes", authenticateToken, (req, res) => {
     try {
       const workId = req.params.id;
       const userId = req.user.id;
-      const quote = typeof req.body.quote === "string" ? req.body.quote.trim() : "";
+      const quote =
+        typeof req.body.quote === "string" ? req.body.quote.trim() : "";
       const pageNumber = workService.normalizePageNumber(req.body.pageNumber);
       const hasExplicitPageNumber =
         req.body.pageNumber !== undefined &&
@@ -451,23 +492,27 @@ function createWorksRouter({ db, workService }) {
     }
   });
 
-  router.post("/api/works/:id/progress/finish", authenticateToken, (req, res) => {
-    try {
-      const result = workService.recordProgressUpdate(
-        req.params.id,
-        req.user.id,
-        null,
-        req.body.note || "",
-        { markFinished: true },
-      );
-      res.json({ success: true, ...result });
-    } catch (error) {
-      console.error("Failed to finish work:", error);
-      res.status(error.statusCode || 500).json({
-        error: error.message || "Failed to finish work",
-      });
-    }
-  });
+  router.post(
+    "/api/works/:id/progress/finish",
+    authenticateToken,
+    (req, res) => {
+      try {
+        const result = workService.recordProgressUpdate(
+          req.params.id,
+          req.user.id,
+          null,
+          req.body.note || "",
+          { markFinished: true },
+        );
+        res.json({ success: true, ...result });
+      } catch (error) {
+        console.error("Failed to finish work:", error);
+        res.status(error.statusCode || 500).json({
+          error: error.message || "Failed to finish work",
+        });
+      }
+    },
+  );
 
   router.put("/api/quotes/:id", authenticateToken, (req, res) => {
     try {
@@ -493,7 +538,9 @@ function createWorksRouter({ db, workService }) {
       const isAdmin = req.user.role === "admin";
       const result = isAdmin
         ? db
-            .prepare("UPDATE work_quotes SET quote = ?, page_number = ? WHERE id = ?")
+            .prepare(
+              "UPDATE work_quotes SET quote = ?, page_number = ? WHERE id = ?",
+            )
             .run(quote, pageNumber, quoteId)
         : db
             .prepare(
@@ -502,7 +549,9 @@ function createWorksRouter({ db, workService }) {
             .run(quote, pageNumber, quoteId, userId);
 
       if (result.changes === 0) {
-        return res.status(403).json({ error: "Unauthorized or quote not found" });
+        return res
+          .status(403)
+          .json({ error: "Unauthorized or quote not found" });
       }
 
       res.json({ success: true });
@@ -524,7 +573,9 @@ function createWorksRouter({ db, workService }) {
             .run(quoteId, userId);
 
       if (result.changes === 0) {
-        return res.status(403).json({ error: "Unauthorized or quote not found" });
+        return res
+          .status(403)
+          .json({ error: "Unauthorized or quote not found" });
       }
 
       res.json({ success: true });

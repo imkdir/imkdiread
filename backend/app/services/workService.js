@@ -41,14 +41,14 @@ function createWorkService({ db, BACKEND_URL }) {
   }
 
   function processWork(work) {
-    const coverFilename = work.goodreads_id ? `${work.goodreads_id}.png` : null;
-    const fileFilename = `${work.id}.pdf`;
-
     return {
       ...work,
       current_page: getProgressWithWork(work),
-      cover_img_url: getStaticUrlIfItExists(["imgs", "covers"], coverFilename),
-      file_url: getStaticUrlIfItExists(["files"], fileFilename),
+      cover_img_url: getStaticUrlIfItExists(
+        ["imgs", "covers"],
+        `${work.id}.png`,
+      ),
+      file_url: getStaticUrlIfItExists(["files"], `${work.id}.pdf`),
     };
   }
 
@@ -130,7 +130,9 @@ function createWorkService({ db, BACKEND_URL }) {
     if (!authorRow) return null;
 
     const count = db
-      .prepare("SELECT COUNT(*) as count FROM work_authors WHERE author_name = ?")
+      .prepare(
+        "SELECT COUNT(*) as count FROM work_authors WHERE author_name = ?",
+      )
       .get(authorRow.name).count;
 
     let followed = false;
@@ -170,7 +172,9 @@ function createWorkService({ db, BACKEND_URL }) {
     note = "",
     options = {},
   ) {
-    const work = db.prepare("SELECT page_count FROM works WHERE id = ?").get(workId);
+    const work = db
+      .prepare("SELECT page_count FROM works WHERE id = ?")
+      .get(workId);
     if (!work) {
       const error = new Error("Work not found");
       error.statusCode = 404;
