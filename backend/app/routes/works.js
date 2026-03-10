@@ -283,6 +283,101 @@ function createWorksRouter({ db, workService }) {
     }
   });
 
+  router.post(
+    "/api/works/bulk-import",
+    authenticateToken,
+    requireAdmin,
+    (req, res) => {
+      try {
+        const works = req.body;
+        if (!Array.isArray(works))
+          return jsonError(res, 400, "Expected an array");
+
+        const parsedWorks = [];
+        for (const rawWork of works) {
+          const parsed = parseWorkPayload(rawWork);
+          if (parsed.error) return jsonError(res, 400, parsed.error);
+          parsedWorks.push(parsed.work);
+        }
+
+        db.transaction(() => {
+          for (const work of parsedWorks) {
+            if (!db.prepare("SELECT id FROM works WHERE id = ?").get(work.id)) {
+              db.prepare(
+                "INSERT INTO works (id, title, goodreads_id, page_count) VALUES (?, ?, ?, ?)",
+              ).run(
+                work.id,
+                work.title,
+                work.goodreads_id || null,
+                work.page_count,
+              );
+            } else {
+              db.prepare(
+                "UPDATE works SET title = ?, goodreads_id = ?, page_count = ? WHERE id = ?",
+              ).run(
+                work.title || null,
+                work.goodreads_id || null,
+                work.page_count,
+                work.id,
+              );
+            }
+            workService.syncAuthors(work.id, work.authors);
+            workService.syncTags(work.id, work.tags, "work_tags", "work_id");
+          }
+        })();
+        res.json({
+          success: true,
+          message: `Imported ${parsedWorks.length} works successfully`,
+        });
+      } catch (error) {
+        console.error(error);
+        jsonError(res, 500, "Failed to bulk import works");
+      }
+    },
+  );
+
+  router.post(
+    "/api/works/bulk-tags",
+    authenticateToken,
+    requireAdmin,
+    (req, res) => {
+      try {
+        const { workIds, tags } = req.body;
+        const normalizedWorkIds = asStringArray(workIds);
+        const normalizedTags = asStringArray(tags);
+        if (
+          !normalizedWorkIds ||
+          !normalizedTags ||
+          !normalizedWorkIds.length ||
+          !normalizedTags.length
+        ) {
+          return jsonError(res, 400, "Invalid payload.");
+        }
+
+        db.transaction(() => {
+          for (const workId of normalizedWorkIds) {
+            if (db.prepare("SELECT id FROM works WHERE id = ?").get(workId)) {
+              for (const tag of normalizedTags) {
+                db.prepare("INSERT OR IGNORE INTO tags (name) VALUES (?)").run(
+                  tag,
+                );
+                const tagId = db
+                  .prepare("SELECT id FROM tags WHERE name = ?")
+                  .get(tag).id;
+                db.prepare(
+                  "INSERT OR IGNORE INTO work_tags (work_id, tag_id) VALUES (?, ?)",
+                ).run(workId, tagId);
+              }
+            }
+          }
+        })();
+        res.json({ success: true });
+      } catch (error) {
+        jsonError(res, 500, "Failed to bulk update tags.");
+      }
+    },
+  );
+
   router.post("/api/works/:id", authenticateToken, (req, res) => {
     try {
       const workId = req.params.id;
@@ -345,100 +440,6 @@ function createWorksRouter({ db, workService }) {
         res.json({ success: true });
       } catch (error) {
         jsonError(res, 500, "Failed to delete work");
-      }
-    },
-  );
-
-  router.post(
-    "/api/works/bulk-import",
-    authenticateToken,
-    requireAdmin,
-    (req, res) => {
-      try {
-        const works = req.body;
-        if (!Array.isArray(works))
-          return jsonError(res, 400, "Expected an array");
-
-        const parsedWorks = [];
-        for (const rawWork of works) {
-          const parsed = parseWorkPayload(rawWork);
-          if (parsed.error) return jsonError(res, 400, parsed.error);
-          parsedWorks.push(parsed.work);
-        }
-
-        db.transaction(() => {
-          for (const work of parsedWorks) {
-            if (!db.prepare("SELECT id FROM works WHERE id = ?").get(work.id)) {
-              db.prepare(
-                "INSERT INTO works (id, title, goodreads_id, page_count) VALUES (?, ?, ?, ?)",
-              ).run(
-                work.id,
-                work.title,
-                work.goodreads_id || null,
-                work.page_count,
-              );
-            } else {
-              db.prepare(
-                "UPDATE works SET title = ?, goodreads_id = ?, page_count = ? WHERE id = ?",
-              ).run(
-                work.title || null,
-                work.goodreads_id || null,
-                work.page_count,
-                work.id,
-              );
-            }
-            workService.syncAuthors(work.id, work.authors);
-            workService.syncTags(work.id, work.tags, "work_tags", "work_id");
-          }
-        })();
-        res.json({
-          success: true,
-          message: `Imported ${parsedWorks.length} works successfully`,
-        });
-      } catch (error) {
-        jsonError(res, 500, "Failed to bulk import works");
-      }
-    },
-  );
-
-  router.post(
-    "/api/works/bulk-tags",
-    authenticateToken,
-    requireAdmin,
-    (req, res) => {
-      try {
-        const { workIds, tags } = req.body;
-        const normalizedWorkIds = asStringArray(workIds);
-        const normalizedTags = asStringArray(tags);
-        if (
-          !normalizedWorkIds ||
-          !normalizedTags ||
-          !normalizedWorkIds.length ||
-          !normalizedTags.length
-        ) {
-          return jsonError(res, 400, "Invalid payload.");
-        }
-
-        db.transaction(() => {
-          for (const workId of normalizedWorkIds) {
-            if (db.prepare("SELECT id FROM works WHERE id = ?").get(workId)) {
-              for (const tag of normalizedTags) {
-                db.prepare("INSERT OR IGNORE INTO tags (name) VALUES (?)").run(
-                  tag,
-                );
-                const tagId = db
-                  .prepare("SELECT id FROM tags WHERE name = ?")
-                  .get(tag).id;
-                db.prepare(
-                  "INSERT OR IGNORE INTO work_tags (work_id, tag_id) VALUES (?, ?)",
-                ).run(workId, tagId);
-              }
-            }
-          }
-        })();
-        res.json({ success: true });
-      } catch (error) {
-        jsonError(res, 500, "Failed to bulk update tags.");
       }
     },
   );
