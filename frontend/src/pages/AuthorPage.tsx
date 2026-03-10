@@ -10,6 +10,7 @@ import {
 import { GoodreadsButton } from "../components/GoodreadsButton";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { request } from "../utils/APIClient";
+import { QuoteCard } from "../components/QuoteCard";
 
 interface AuthorQuote extends Quote {
   work: Work;
@@ -124,18 +125,8 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
       });
   };
 
-  renderQuoteCard = (entry: AuthorQuote) => {
-    return (
-      <div key={`${entry.work.id}-${entry.id}`} style={styles.quoteCard}>
-        <p style={styles.quoteText}>{entry.quote}</p>
-        <div style={styles.quoteMetaBottom}>
-          {typeof entry.page_number === "number" && (
-            <span style={styles.quotePage}>p. {entry.page_number}</span>
-          )}
-          <span style={styles.quoteWorkTitle}>{entry.work.title}</span>
-        </div>
-      </div>
-    );
+  renderQuoteCard = (entry: Quote) => {
+    return <QuoteCard quote={entry} meta="source" onRefresh={() => {}} />;
   };
 
   render() {

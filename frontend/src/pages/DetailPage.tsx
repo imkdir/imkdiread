@@ -636,8 +636,6 @@ class DetailPage extends React.Component<Props, State> {
                 style={{ marginTop: isPDFViewerOpen ? "32px" : "48px" }}
               >
                 <Masonry
-                  // THE MAGIC: If PDF is open, force 1 column.
-                  // Otherwise, natively adapt to the screen size!
                   breakpointCols={
                     isPDFViewerOpen
                       ? { default: 1 }
@@ -650,7 +648,7 @@ class DetailPage extends React.Component<Props, State> {
                     <QuoteCard
                       key={quote.id}
                       quote={quote as Quote}
-                      workId={this.props.workId}
+                      meta={"date"}
                       onRefresh={this.fetchData}
                     />
                   ))}
@@ -718,7 +716,7 @@ class DetailPage extends React.Component<Props, State> {
                 >
                   {/* --- FRONT FACE (Quote Preview) --- */}
                   <div
-                    className="quote-face-front quote-card"
+                    className="quote-face-front"
                     style={{
                       /* FIX 2: Dynamic position */
                       position: this.state.isSavingQuote
@@ -738,8 +736,8 @@ class DetailPage extends React.Component<Props, State> {
                     </blockquote>
                     {editingForm.pageNumber && (
                       <div className="quote-meta">
-                        <span className="quote-author">
-                          Page {editingForm.pageNumber}
+                        <span className="quote-number">
+                          P{editingForm.pageNumber}
                         </span>
                       </div>
                     )}
@@ -747,7 +745,7 @@ class DetailPage extends React.Component<Props, State> {
 
                   {/* --- BACK FACE (The Edit Form) --- */}
                   <div
-                    className="quote-face-back quote-card"
+                    className="quote-face-back"
                     style={{
                       /* FIX 3: Dynamic position */
                       position: !this.state.isSavingQuote

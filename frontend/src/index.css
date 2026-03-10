@@ -664,39 +664,8 @@ html {
 }
 
 /* =========================================================
-   8. QUOTES GRID, 3D CARDS & PAPER UI
+   8. QUOTES 3D CARDS & PAPER UI
    ========================================================= */
-.quotes-grid {
-    margin-top: 48px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 16px;
-}
-
-.quotes-grid.pdf-open-grid {
-    margin-top: 32px;
-    grid-template-columns: 1fr;
-    gap: 24px;
-}
-
-.quotes-grid.pdf-open-grid .quote-card {
-    padding: 20px 24px;
-    background-color: #121212;
-    border-color: var(--border-subtle);
-}
-
-.quote-card {
-    position: relative;
-    padding: 24px 32px;
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    background-color: transparent;
-    transition: background-color 0.2s ease;
-}
-
-.quote-card:hover {
-    background-color: rgba(255, 255, 255, 0.03);
-}
 
 /* --- 3D Flipper Structure --- */
 .quote-card-container {
@@ -746,7 +715,8 @@ html {
 
 /* --- Physical Paper Textures --- */
 .quote-face-front {
-    background: linear-gradient(135deg, #fdfbf7 0%, #f3efe6 100%);
+    padding: 24px 32px;
+    background: linear-gradient(135deg, #fdfbf7 0%, #e5d9c3 100%);
     box-shadow:
         2px 6px 15px rgba(0, 0, 0, 0.4),
         inset 0 0 20px rgba(200, 190, 170, 0.15);
@@ -755,6 +725,7 @@ html {
 }
 
 .quote-face-back {
+    padding: 24px 32px;
     background: linear-gradient(135deg, #e6e1d6 0%, #d5cfc0 100%);
     box-shadow: inset 2px 4px 15px rgba(0, 0, 0, 0.08);
     border: 1px solid #ccc5b3;
@@ -773,14 +744,15 @@ html {
 
 .quote-meta {
     display: flex;
-    flex-direction: column;
     gap: 0.3rem;
+    justify-content: space-between;
+    align-items: flex-end;
     margin-top: 2rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--border-subtle);
 }
 
-.quote-author {
+.quote-number {
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 0.85rem;
     color: #d2d2d2;
@@ -789,15 +761,21 @@ html {
 }
 
 .quote-source {
-    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-family: "Libre Baskerville";
     font-size: 0.95rem;
-    color: #9aa0a6;
-    font-style: italic;
+    text-align: right;
+    color: var(--goodreads-dark);
+    text-decoration-line: none;
+}
+
+.quote-date {
+    font-size: 0.85rem;
+    color: var(--goodreads-dark);
 }
 
 /* --- Override Text Colors for the "Paper" Look --- */
 .quote-face-front .quote-text,
-.quote-face-front .quote-author,
+.quote-face-front .quote-number,
 .quote-face-front .quote-meta {
     color: #2c2825 !important;
 }

@@ -1,4 +1,6 @@
 import React from "react";
+import { Link } from "react-router-dom";
+
 import { motion } from "framer-motion";
 import type { Quote, User } from "../types";
 import { request } from "../utils/APIClient";
@@ -6,7 +8,7 @@ import { useAuth } from "./AuthContext";
 
 interface Props {
   quote: Quote;
-  workId: string;
+  meta: "date" | "source";
   onRefresh: () => void;
   user: User | null;
 }
@@ -49,10 +51,8 @@ class QuoteCardClass extends React.Component<Props, State> {
   };
 
   toggleFlip = () => {
-    // 1. Guard check: Don't allow flipping if they don't own it!
     if (!this.canEditOrDelete()) return;
 
-    // Reset state if they flip back without saving
     this.setState(
       {
         isFlipped: !this.state.isFlipped,
@@ -115,10 +115,14 @@ class QuoteCardClass extends React.Component<Props, State> {
   };
 
   render() {
-    const { quote } = this.props;
+    const { quote, meta } = this.props;
     const { isFlipped, editQuote, editPageNum, isSaving } = this.state;
 
     const hasPermission = this.canEditOrDelete();
+    const showQuoteMeta =
+      quote.page_number ||
+      (meta === "source" && quote.work) ||
+      (meta === "date" && Date.parse(quote.created_at));
 
     return (
       <motion.div
@@ -134,7 +138,7 @@ class QuoteCardClass extends React.Component<Props, State> {
           style={{ position: "relative", width: "100%" }}
         >
           <div
-            className="quote-face-front quote-card"
+            className="quote-face-front"
             onClick={hasPermission ? this.toggleFlip : undefined}
             style={{
               position: isFlipped ? "absolute" : "relative",
@@ -142,14 +146,25 @@ class QuoteCardClass extends React.Component<Props, State> {
               left: 0,
               width: "100%",
               pointerEvents: isFlipped ? "none" : "auto",
-              // Override the CSS hover pointer if they don't have permission
               cursor: hasPermission ? "pointer" : "text",
             }}
           >
             <blockquote className="quote-text">{quote.quote}</blockquote>
-            {quote.page_number && (
+            {showQuoteMeta && (
               <div className="quote-meta">
-                <span className="quote-author">Page {quote.page_number}</span>
+                {quote.page_number && (
+                  <span className="quote-number">P{quote.page_number}</span>
+                )}
+                {meta === "source" && quote.work && (
+                  <Link to={`/work/${quote.work.id}`} className="quote-source">
+                    {quote.work.title}
+                  </Link>
+                )}
+                {meta === "date" && Date.parse(quote.created_at) && (
+                  <span className="quote-date">
+                    {new Date(quote.created_at).toLocaleDateString()}
+                  </span>
+                )}
               </div>
             )}
 
@@ -162,7 +177,7 @@ class QuoteCardClass extends React.Component<Props, State> {
           {/* Only render the back face form if they have permission to prevent DOM bloat */}
           {hasPermission && (
             <div
-              className="quote-face-back quote-card"
+              className="quote-face-back"
               style={{
                 position: isFlipped ? "relative" : "absolute",
                 top: 0,
