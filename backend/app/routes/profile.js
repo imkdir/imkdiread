@@ -57,7 +57,9 @@ function createProfileRouter({ db, workService }) {
         .map((row) => workService.getWorkWithRelations(row, userId))
         .map(workService.processWork);
 
-      const reading = processedBooks.filter((b) => b.current_page > 0 && !b.read);
+      const reading = processedBooks.filter(
+        (b) => b.current_page > 0 && !b.read && !b.shelved,
+      );
       const shelved = processedBooks.filter((b) => b.shelved);
       const favorites = processedBooks.filter((b) => b.liked);
 
@@ -74,7 +76,9 @@ function createProfileRouter({ db, workService }) {
       const richQuotes = rawQuotes
         .filter((r) => r.quote.length && !r.quote.startsWith("@notes:"))
         .map((quote) => {
-          const matchingBook = processedBooks.find((b) => b.id === quote.work_id);
+          const matchingBook = processedBooks.find(
+            (b) => b.id === quote.work_id,
+          );
           return {
             ...quote,
             work: matchingBook || null,
@@ -108,7 +112,11 @@ function createProfileRouter({ db, workService }) {
         is_email_public !== null &&
         typeof is_email_public !== "boolean"
       ) {
-        return jsonError(res, 400, "is_email_public must be a boolean when provided.");
+        return jsonError(
+          res,
+          400,
+          "is_email_public must be a boolean when provided.",
+        );
       }
 
       const isPublic = is_email_public ? 1 : 0;

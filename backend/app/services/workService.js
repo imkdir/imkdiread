@@ -31,10 +31,6 @@ function createWorkService({ db, BACKEND_URL }) {
           }
         }
       }
-
-      if (latestProgressTs === -1) {
-        return maxPageOverall;
-      }
     }
 
     return current_page;
