@@ -54,7 +54,6 @@ export class ExplorePage extends React.Component<Record<string, never>, PageStat
                 <GoodreadsCover
                   key={work.id}
                   work={work}
-                  in_transition={true}
                 />
               ))}
             </Masonry>

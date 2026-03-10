@@ -169,6 +169,7 @@ class SearchPageClass extends React.Component<Props, State> {
     // 3. Determine if the user is an admin
     const isAdmin = this.props.user?.role === "admin";
     const isTagBtnDisabled = selectedIds.length === 0 || !bulkTagInput.trim();
+    const showLoadingOnly = loading && query !== "" && searchResults.length === 0;
 
     return (
       <div style={styles.page}>
@@ -266,7 +267,7 @@ class SearchPageClass extends React.Component<Props, State> {
         </div>
 
         <div style={styles.mainContent}>
-          {loading ? (
+          {showLoadingOnly ? (
             <div style={styles.loading}>Searching...</div>
           ) : (
             <div style={styles.resultsContainer}>
@@ -304,7 +305,6 @@ class SearchPageClass extends React.Component<Props, State> {
                           <GoodreadsCover
                             work={work}
                             disabled={isEditMode}
-                            in_transition={true}
                             style={{ display: "block", borderRadius: "8px" }}
                           />
                           {/* Only show checkboxes if Admin and Edit Mode is active */}

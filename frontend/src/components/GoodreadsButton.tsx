@@ -36,6 +36,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "4px 8px 0px 8px",
     borderRadius: "8px",
     backgroundColor: "var(--goodreads-light)",
+    cursor: "pointer",
   },
   icon: {
     height: "16px",

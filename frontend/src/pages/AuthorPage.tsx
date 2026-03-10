@@ -223,7 +223,6 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
                     <GoodreadsCover
                       key={work.id}
                       work={work}
-                      in_transition={true}
                       style={styles.workCover}
                     />
                   ))}

@@ -24,6 +24,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: "none",
     borderRadius: "8px",
     backgroundColor: "#fff",
+    cursor: "pointer",
   },
   icon: {
     display: "block",

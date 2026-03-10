@@ -23,6 +23,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   root: {
     border: "none",
     backgroundColor: "transparent",
+    cursor: "pointer",
   },
   logo: {
     display: "block",

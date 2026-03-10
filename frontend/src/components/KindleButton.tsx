@@ -25,6 +25,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   root: {
     display: "inline",
     borderRadius: "8px",
+    cursor: "pointer",
   },
   icon: {
     display: "block",

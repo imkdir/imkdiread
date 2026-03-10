@@ -1002,6 +1002,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   actionButton: {
     border: "none",
     backgroundColor: "transparent",
+    cursor: "pointer",
   },
   actionLabel: {
     fontSize: "13px",

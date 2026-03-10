@@ -86,10 +86,18 @@ export class GoodreadsCover extends React.Component<CoverProps, ImgState> {
   render() {
     const { work, disabled, style, in_transition } = this.props;
     const { isLoaded } = this.state;
+    const shouldTransition = !!in_transition;
 
     return (
       <div
-        style={{ position: "relative", display: "inline-block", ...style }}
+        style={{
+          position: "relative",
+          display: "block",
+          width: "100%",
+          aspectRatio: "2 / 3",
+          overflow: "hidden",
+          ...style,
+        }}
         className={"work-cover-img"}
       >
         <Link
@@ -97,31 +105,34 @@ export class GoodreadsCover extends React.Component<CoverProps, ImgState> {
           state={{ work }}
           style={{ display: "block", height: "100%", borderRadius: "inherit" }}
         >
-          {isLoaded || (
-            <div
-              className="skeleton-card"
+          {shouldTransition ? (
+            <motion.img
+              layoutId={`work-cover-${work.id}`}
+              src={work.cover_img_url as string}
+              alt={work.title}
               style={{
                 ...styles.image,
-                position: "absolute",
-                top: 0,
-                left: 0,
-                zIndex: 0,
+                position: "relative",
+                zIndex: 1,
+                opacity: isLoaded ? 1 : 0,
+                transition: "opacity 0.5s ease-in-out",
               }}
+              onLoad={this.handleLoad}
+            />
+          ) : (
+            <img
+              src={work.cover_img_url as string}
+              alt={work.title}
+              style={{
+                ...styles.image,
+                position: "relative",
+                zIndex: 1,
+                opacity: isLoaded ? 1 : 0,
+                transition: "opacity 0.5s ease-in-out",
+              }}
+              onLoad={this.handleLoad}
             />
           )}
-          <motion.img
-            layoutId={in_transition ? `work-cover-${work.id}` : undefined}
-            src={work.cover_img_url as string}
-            alt={work.title}
-            style={{
-              ...styles.image,
-              position: "relative",
-              zIndex: 1,
-              opacity: isLoaded ? 1 : 0,
-              transition: "opacity 0.5s ease-in-out",
-            }}
-            onLoad={this.handleLoad}
-          />
         </Link>
       </div>
     );

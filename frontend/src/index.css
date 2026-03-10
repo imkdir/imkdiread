@@ -98,22 +98,6 @@ html {
     cursor: pointer;
 }
 
-@keyframes skeleton-pulse {
-    0% {
-        background-color: var(--bg-elevated);
-    }
-    50% {
-        background-color: var(--border-subtle);
-    }
-    100% {
-        background-color: var(--bg-elevated);
-    }
-}
-
-.skeleton-card {
-    animation: skeleton-pulse 1.5s infinite ease-in-out;
-}
-
 /* --- React Masonry CSS --- */
 .my-masonry-grid {
     display: flex;
