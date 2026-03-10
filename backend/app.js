@@ -889,18 +889,16 @@ function createApp(options = {}) {
             id,
           );
 
-          db.prepare("UPDATE work_authors SET work_id = ? WHERE work_id = ?").run(
-            work.id,
-            id,
-          );
+          db.prepare(
+            "UPDATE work_authors SET work_id = ? WHERE work_id = ?",
+          ).run(work.id, id);
           db.prepare("UPDATE work_tags SET work_id = ? WHERE work_id = ?").run(
             work.id,
             id,
           );
-          db.prepare("UPDATE work_quotes SET work_id = ? WHERE work_id = ?").run(
-            work.id,
-            id,
-          );
+          db.prepare(
+            "UPDATE work_quotes SET work_id = ? WHERE work_id = ?",
+          ).run(work.id, id);
           db.prepare("PRAGMA foreign_keys=ON;").run();
         } else {
           db.prepare(
@@ -1353,9 +1351,20 @@ function createApp(options = {}) {
     `,
       ).run(normalizedEmail, isPublic, userId);
 
-      res.json({ success: true });
+      const updatedUser = db
+        .prepare(
+          "SELECT id, username, email, avatar_url, role, is_email_public FROM users WHERE id = ?",
+        )
+        .get(userId);
+
+      res.json({
+        success: true,
+        user: {
+          ...updatedUser,
+          is_email_public: Boolean(updatedUser?.is_email_public),
+        },
+      });
     } catch (error) {
-      console.error("Profile Update Error:", error);
       res.status(500).json({ error: "Failed to update profile settings" });
     }
   });

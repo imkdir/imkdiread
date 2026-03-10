@@ -22,15 +22,11 @@ interface PageState {
   isEditing: boolean;
 }
 
-interface PageProps {
-  user: User;
-}
-
-export class ProfilePage extends Component<PageProps, PageState> {
+export class ProfilePage extends Component<Record<string, never>, PageState> {
   private fileInputRef = React.createRef<HTMLInputElement>();
   private emailInputRef = React.createRef<HTMLInputElement>();
 
-  constructor(props: PageProps) {
+  constructor(props: Record<string, never>) {
     super(props);
     this.state = {
       user: null,
@@ -125,10 +121,17 @@ export class ProfilePage extends Component<PageProps, PageState> {
       });
 
       const data = await res.json();
-      if (data.success) {
-        alert("Settings saved successfully.");
-        this.setState({ isEditing: false });
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to save settings.");
       }
+
+      alert("Settings saved successfully.");
+      this.setState((prevState) => ({
+        user: data.user || prevState.user,
+        isEditing: false,
+        email: data.user?.email ?? email,
+        isEmailPublic: data.user?.is_email_public ?? is_email_public,
+      }));
     } catch {
       alert("Failed to save settings.");
     }
@@ -260,13 +263,11 @@ export class ProfilePage extends Component<PageProps, PageState> {
             ) : (
               <ul>
                 {favorites.map((work) => (
-                  <Link
-                    key={work.id}
-                    to={`/work/${work.id}`}
-                    style={styles.title}
-                  >
-                    <li>{work.title}</li>
-                  </Link>
+                  <li key={work.id}>
+                    <Link to={`/work/${work.id}`} style={styles.title}>
+                      {work.title}
+                    </Link>
+                  </li>
                 ))}
               </ul>
             )}
@@ -280,13 +281,11 @@ export class ProfilePage extends Component<PageProps, PageState> {
             ) : (
               <ul>
                 {shelved.map((work) => (
-                  <Link
-                    key={work.id}
-                    to={`/work/${work.id}`}
-                    style={styles.title}
-                  >
-                    <li>{work.title}</li>
-                  </Link>
+                  <li key={work.id}>
+                    <Link to={`/work/${work.id}`} style={styles.title}>
+                      {work.title}
+                    </Link>
+                  </li>
                 ))}
               </ul>
             )}
