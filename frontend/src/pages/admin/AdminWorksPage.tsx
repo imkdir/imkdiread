@@ -37,7 +37,10 @@ interface State {
   filterText: string; // <-- NEW: State for the search filter
 }
 
-export class AdminWorksPage extends React.Component<Record<string, never>, State> {
+export class AdminWorksPage extends React.Component<
+  Record<string, never>,
+  State
+> {
   state: State = {
     works: [],
     loading: true,
@@ -167,9 +170,9 @@ export class AdminWorksPage extends React.Component<Record<string, never>, State
       skipEmptyLines: true,
       complete: (results) => {
         const importedWorks = results.data.map((row) => ({
-          id: (row.id || "").trim().toUpperCase(),
+          id: (row.id || "").trim(),
           goodreads_id: row.goodreads_id?.trim() || "",
-          page_count: row.page_count ? parseInt(row.page_count.trim()) : 0,
+          page_count: row.page_count ? parseInt(row.page_count.trim()) : 42,
           title: row.title?.trim() || "",
           authors: row.authors
             ? row.authors
@@ -185,6 +188,8 @@ export class AdminWorksPage extends React.Component<Record<string, never>, State
             : [],
         }));
 
+        console.log(importedWorks);
+
         // Send the reconstructed JSON to the backend
         request("/api/works/bulk-import", {
           method: "POST",
@@ -192,6 +197,7 @@ export class AdminWorksPage extends React.Component<Record<string, never>, State
         })
           .then((res) => res.json())
           .then((data) => {
+            console.log(data);
             if (data.success) {
               alert(data.message);
               this.fetchWorks(); // Reload the UI

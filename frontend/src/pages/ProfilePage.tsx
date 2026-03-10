@@ -50,16 +50,19 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
       const res = await request("/api/profile/me");
       const data = await res.json();
 
-      this.setState({
-        user: data.userInfo,
-        reading: data.reading || [],
-        favorites: data.favorites || [],
-        shelved: data.shelved || [],
-        quotes: data.quotes || [],
-        email: data.userInfo?.email || "",
-        isEmailPublic: Boolean(data.userInfo?.is_email_public),
-        isLoading: false,
-      });
+      this.setState(
+        {
+          user: data.userInfo,
+          reading: data.reading || [],
+          favorites: data.favorites || [],
+          shelved: data.shelved || [],
+          quotes: data.quotes || [],
+          email: data.userInfo?.email || "",
+          isEmailPublic: Boolean(data.userInfo?.is_email_public),
+          isLoading: false,
+        },
+        this.adjustTextInputWidth,
+      );
     } catch (err: unknown) {
       console.error("Failed to load profile", err);
       this.setState({ isLoading: false });
