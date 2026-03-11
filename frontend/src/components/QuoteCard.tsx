@@ -5,16 +5,18 @@ import { motion } from "framer-motion";
 import type { Quote, User } from "../types";
 import { request } from "../utils/APIClient";
 import { useAuth } from "./AuthContext";
+import geminiIcon from "../assets/imgs/gemini.svg";
 
 interface Props {
   quote: Quote;
-  meta: "date" | "source";
+  displaySource?: boolean;
   onRefresh: () => void;
   user: User | null;
 }
 
 interface State {
   isFlipped: boolean;
+  flipMode: "edit" | "explain" | null;
   editQuote: string;
   editPageNum: string;
   isSaving: boolean;
@@ -27,6 +29,7 @@ class QuoteCardClass extends React.Component<Props, State> {
     super(props);
     this.state = {
       isFlipped: false,
+      flipMode: null,
       editQuote: props.quote.quote,
       editPageNum: props.quote.page_number
         ? props.quote.page_number.toString()
@@ -50,19 +53,23 @@ class QuoteCardClass extends React.Component<Props, State> {
     }
   };
 
-  toggleFlip = () => {
-    if (!this.canEditOrDelete()) return;
+  toggleFlip = (mode: "edit" | "explain" = "edit", e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    if (mode === "edit" && !this.canEditOrDelete()) return;
 
     this.setState(
-      {
-        isFlipped: !this.state.isFlipped,
+      (prevState) => ({
+        isFlipped: !prevState.isFlipped,
+        // Preserve the mode while flipping back so the UI doesn't switch mid-animation
+        flipMode: !prevState.isFlipped ? mode : prevState.flipMode,
         editQuote: this.props.quote.quote,
         editPageNum: this.props.quote.page_number
           ? this.props.quote.page_number.toString()
           : "",
-      },
+      }),
       () => {
-        if (this.state.isFlipped) {
+        if (this.state.isFlipped && mode === "edit") {
           setTimeout(this.adjustTextareaHeight, 10);
         }
       },
@@ -115,14 +122,13 @@ class QuoteCardClass extends React.Component<Props, State> {
   };
 
   render() {
-    const { quote, meta } = this.props;
-    const { isFlipped, editQuote, editPageNum, isSaving } = this.state;
+    const { quote, displaySource } = this.props;
+    const { isFlipped, flipMode, editQuote, editPageNum, isSaving } =
+      this.state;
 
     const hasPermission = this.canEditOrDelete();
     const showQuoteMeta =
-      quote.page_number ||
-      (meta === "source" && quote.work) ||
-      (meta === "date" && Date.parse(quote.created_at));
+      quote.page_number || (displaySource && quote.work) || quote.explanation;
 
     return (
       <motion.div
@@ -137,9 +143,14 @@ class QuoteCardClass extends React.Component<Props, State> {
           transition={{ type: "spring", stiffness: 90, damping: 15, mass: 1.2 }}
           style={{ position: "relative", width: "100%" }}
         >
+          {/* ========================================== */}
+          {/* FRONT FACE (Quote Preview)                 */}
+          {/* ========================================== */}
           <div
             className="quote-face-front"
-            onClick={hasPermission ? this.toggleFlip : undefined}
+            onClick={(e) =>
+              hasPermission ? this.toggleFlip("edit", e) : undefined
+            }
             style={{
               position: isFlipped ? "absolute" : "relative",
               top: 0,
@@ -150,32 +161,65 @@ class QuoteCardClass extends React.Component<Props, State> {
             }}
           >
             <blockquote className="quote-text">{quote.quote}</blockquote>
+
             {showQuoteMeta && (
-              <div className="quote-meta">
+              <div
+                className="quote-meta"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                }}
+              >
                 {quote.page_number && (
                   <span className="quote-number">P{quote.page_number}</span>
                 )}
-                {meta === "source" && quote.work && (
-                  <Link to={`/work/${quote.work.id}`} className="quote-source">
+                {displaySource && quote.work ? (
+                  <Link
+                    to={`/work/${quote.work.id}`}
+                    className="quote-source"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {quote.work.title}
                   </Link>
-                )}
-                {meta === "date" && Date.parse(quote.created_at) && (
-                  <span className="quote-date">
-                    {new Date(quote.created_at).toLocaleDateString()}
-                  </span>
+                ) : (
+                  !!quote.explanation && (
+                    <button
+                      onClick={(e) => this.toggleFlip("explain", e)}
+                      style={{
+                        background: "transparent",
+                        border: "1px solid rgba(44, 40, 37, 0.3)",
+                        color: "var(--goodreads-dark)",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "11px",
+                        fontWeight: "bold",
+                        fontFamily: "Fredoka",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        marginLeft: "auto", // Pushes the button to the far right
+                      }}
+                    >
+                      <img src={geminiIcon} alt="Gemini" />
+                      Gemini
+                    </button>
+                  )
                 )}
               </div>
             )}
 
-            {/* Only show the edit hint if they actually have permission to edit it */}
             {hasPermission && (
               <div className="quote-edit-hint">Click to edit</div>
             )}
           </div>
 
-          {/* Only render the back face form if they have permission to prevent DOM bloat */}
-          {hasPermission && (
+          {/* ========================================== */}
+          {/* BACK FACE (Dynamic: Edit Form OR Explanation)*/}
+          {/* ========================================== */}
+          {(hasPermission || quote.explanation) && (
             <div
               className="quote-face-back"
               style={{
@@ -186,73 +230,157 @@ class QuoteCardClass extends React.Component<Props, State> {
                 pointerEvents: !isFlipped ? "none" : "auto",
               }}
             >
-              <form
-                onSubmit={this.handleSave}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "100%",
-                  gap: "12px",
-                }}
-              >
-                <textarea
-                  ref={this.textareaRef}
-                  name="editQuote"
-                  value={editQuote}
-                  onChange={this.handleInputChange}
-                  style={{ ...styles.input, overflow: "hidden" }}
-                  rows={4}
-                />
+              {flipMode === "edit" ? (
+                // --- THE EDIT FORM ---
+                <form
+                  onSubmit={this.handleSave}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
+                    gap: "12px",
+                  }}
+                >
+                  <textarea
+                    ref={this.textareaRef}
+                    name="editQuote"
+                    value={editQuote}
+                    onChange={this.handleInputChange}
+                    style={{ ...styles.input, overflow: "hidden" }}
+                    rows={4}
+                  />
 
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <label style={styles.label}>Pg.</label>
+                      <input
+                        name="editPageNum"
+                        value={editPageNum}
+                        onChange={this.handleInputChange}
+                        style={{
+                          ...styles.input,
+                          width: "60px",
+                          padding: "6px",
+                        }}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={this.handleDelete}
+                      style={styles.deleteBtn}
+                    >
+                      Delete
+                    </button>
+                  </div>
+
+                  <div
+                    style={{ display: "flex", gap: "8px", marginTop: "auto" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => this.toggleFlip("edit", e)}
+                      style={styles.cancelBtn}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      style={styles.saveBtn}
+                    >
+                      {isSaving ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                // --- THE AI EXPLANATION VIEW ---
                 <div
                   style={{
                     display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
+                    flexDirection: "column",
+                    height: "100%",
                   }}
                 >
                   <div
                     style={{
                       display: "flex",
+                      justifyContent: "space-between",
                       alignItems: "center",
-                      gap: "8px",
+                      marginBottom: "12px",
                     }}
                   >
-                    <label style={styles.label}>Pg.</label>
-                    <input
-                      name="editPageNum"
-                      value={editPageNum}
-                      onChange={this.handleInputChange}
-                      style={{ ...styles.input, width: "60px", padding: "6px" }}
-                    />
+                    <label
+                      style={{
+                        ...styles.label,
+                        color: "var(--goodreads-dark)",
+                        margin: 0,
+                      }}
+                    >
+                      Gemini says:
+                    </label>
+
+                    <button
+                      onClick={(e) => this.toggleFlip("explain", e)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--text-muted)",
+                        display: "flex",
+                        padding: "4px",
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={this.handleDelete}
-                    style={styles.deleteBtn}
+                  <div
+                    style={{
+                      flex: 1, // Takes up remaining space
+                      overflowY: "auto", // Automatically scrolls if longer than the quote
+                      paddingRight: "8px",
+                    }}
                   >
-                    Delete
-                  </button>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "16px",
+                        lineHeight: "1.6",
+                        color: "var(--goodreads-dark)",
+                        fontFamily: "Google Sans",
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {quote.explanation}
+                    </p>
+                  </div>
                 </div>
-
-                <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
-                  <button
-                    type="button"
-                    onClick={this.toggleFlip}
-                    style={styles.cancelBtn}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    style={styles.saveBtn}
-                  >
-                    {isSaving ? "Saving..." : "Save"}
-                  </button>
-                </div>
-              </form>
+              )}
             </div>
           )}
         </motion.div>
@@ -262,7 +390,6 @@ class QuoteCardClass extends React.Component<Props, State> {
 }
 
 // --- FUNCTIONAL WRAPPER ---
-// Grabs the Auth hook and feeds the user into the Class Component
 export const QuoteCard = (props: Omit<Props, "user">) => {
   const { user } = useAuth();
   return <QuoteCardClass {...props} user={user} />;

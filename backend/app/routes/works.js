@@ -1,6 +1,7 @@
 const express = require("express");
 const { jsonError } = require("../utils/errorHelpers");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const {
   asNonEmptyString,
   asOptionalString,
@@ -446,10 +447,10 @@ function createWorksRouter({ db, workService }) {
 
   router.post("/api/works/:id/quotes", authenticateToken, (req, res) => {
     try {
+      const { quote: rawQuote, page_number, explanation } = req.body;
       const workId = req.params.id;
       const userId = req.user.id;
-      const quote =
-        typeof req.body.quote === "string" ? req.body.quote.trim() : "";
+      const quote = typeof rawQuote === "string" ? rawQuote.trim() : "";
       const pageNumber = workService.normalizePageNumber(req.body.pageNumber);
       const hasExplicitPageNumber =
         req.body.pageNumber !== undefined &&
@@ -463,9 +464,12 @@ function createWorksRouter({ db, workService }) {
         return jsonError(res, 400, "pageNumber must be a positive integer.");
       }
 
-      db.prepare(
-        "INSERT INTO work_quotes (work_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
-      ).run(workId, userId, quote, pageNumber);
+      // Update the INSERT statement
+      const result = db
+        .prepare(
+          "INSERT INTO work_quotes (work_id, user_id, quote, page_number, explanation) VALUES (?, ?, ?, ?, ?)",
+        )
+        .run(workId, userId, quote, pageNumber, explanation || null);
 
       res.json({ success: true });
     } catch (error) {
@@ -518,6 +522,7 @@ function createWorksRouter({ db, workService }) {
   router.put("/api/quotes/:id", authenticateToken, (req, res) => {
     try {
       const quote = asOptionalString(req.body?.quote);
+      const explanation = asOptionalString(req.body?.explanation);
       const pageNumberRaw = req.body?.pageNumber;
       const pageNumber =
         pageNumberRaw === null ||
@@ -540,14 +545,14 @@ function createWorksRouter({ db, workService }) {
       const result = isAdmin
         ? db
             .prepare(
-              "UPDATE work_quotes SET quote = ?, page_number = ? WHERE id = ?",
+              "UPDATE work_quotes SET quote = ?, page_number = ?, explanation = ? WHERE id = ?",
             )
-            .run(quote, pageNumber, quoteId)
+            .run(quote, pageNumber, quoteId, explanation || null)
         : db
             .prepare(
-              "UPDATE work_quotes SET quote = ?, page_number = ? WHERE id = ? AND user_id = ?",
+              "UPDATE work_quotes SET quote = ?, page_number = ?, explanation = ? WHERE id = ? AND user_id = ?",
             )
-            .run(quote, pageNumber, quoteId, userId);
+            .run(quote, pageNumber, explanation || null, quoteId, userId);
 
       if (result.changes === 0) {
         return res
@@ -584,6 +589,218 @@ function createWorksRouter({ db, workService }) {
       res.status(500).json({ error: "Failed to delete quote" });
     }
   });
+
+  // ============================================================================
+  // DOMAIN: VOCABULARIES
+  // ============================================================================
+
+  // NEW: Smart Contextual Dictionary Lookup (Gemini)
+  router.post(
+    "/api/works/:id/dictionary/lookup",
+    authenticateToken,
+    async (req, res) => {
+      try {
+        const workId = req.params.id;
+        const { word } = req.body;
+
+        if (!word) return res.status(400).json({ error: "Word is required" });
+
+        // 1. Get the book context from your database
+        const work = db
+          .prepare("SELECT title FROM works WHERE id = ?")
+          .get(workId);
+        if (!work) return res.status(404).json({ error: "Work not found" });
+
+        // 2. Initialize Gemini (Using the current active 2.5 Flash model)
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({
+          model: "gemini-2.5-flash",
+          // Modern models support strict JSON output natively!
+          generationConfig: { responseMimeType: "application/json" },
+        });
+
+        const prompt = `
+                You are an expert literary companion. The user is reading the book "${work.title}".
+                They are looking up: "${word}".
+
+                If this is a character, place, historical event, or specific lore from the book, provide a brief encyclopedic explanation of who or what it is in the "lore_note" field.
+                If it is a standard vocabulary word, provide its standard definition.
+
+                You MUST respond with a valid JSON object matching this exact structure:
+                {
+                  "word": "${word}",
+                  "lore_note": "Your encyclopedic explanation of the character/place/lore within the context of the book. (Leave as null if it's just a normal dictionary word).",
+                  "phonetic": "the phonetic spelling (optional)",
+                  "meanings": [
+                    {
+                      "partOfSpeech": "noun/verb/adjective/etc",
+                      "definitions": [
+                        { "definition": "The precise definition of the word." }
+                      ]
+                    }
+                  ]
+                }
+              `;
+
+        // 4. Fetch and Parse
+        const result = await model.generateContent(prompt);
+
+        // Because we used responseMimeType, we can parse it instantly without regex!
+        const dictionaryData = JSON.parse(result.response.text());
+
+        res.json({ success: true, result: dictionaryData });
+      } catch (error) {
+        console.error("Gemini Dictionary Error:", error);
+        res.status(500).json({ error: "Failed to look up word contextually." });
+      }
+    },
+  );
+
+  // NEW: Smart Contextual Passage Explanation (Gemini)
+  router.post(
+    "/api/works/:id/dictionary/explain",
+    authenticateToken,
+    async (req, res) => {
+      try {
+        const workId = req.params.id;
+        const { text } = req.body;
+
+        if (!text) return res.status(400).json({ error: "Text is required" });
+
+        const work = db
+          .prepare("SELECT title FROM works WHERE id = ?")
+          .get(workId);
+        if (!work) return res.status(404).json({ error: "Work not found" });
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({
+          model: "gemini-2.5-flash",
+          generationConfig: { responseMimeType: "application/json" },
+        });
+
+        const prompt = `
+          You are an expert literary analyst. The user is reading "${work.title}".
+          They highlighted the following passage:
+
+          "${text}"
+
+          Provide a concise, insightful explanation of this passage. Decode any complex metaphors, subtext, historical context, or relevance to the broader themes of the book. Keep it under 3 paragraphs.
+
+          You MUST respond with ONLY a valid JSON object matching this structure:
+          {
+            "explanation": "Your detailed explanation here."
+          }
+        `;
+
+        const result = await model.generateContent(prompt);
+        const analysisData = JSON.parse(result.response.text());
+
+        res.json({ success: true, result: analysisData });
+      } catch (error) {
+        console.error("Gemini Explain Error:", error);
+        res.status(500).json({ error: "Failed to explain passage." });
+      }
+    },
+  );
+
+  // 1. GET all vocabularies for a specific work (Community + Personal)
+  router.get("/api/works/:id/vocabularies", authenticateToken, (req, res) => {
+    try {
+      const workId = req.params.id;
+
+      const vocabs = db
+        .prepare(
+          `
+          SELECT v.*, u.username, u.avatar_url
+          FROM vocabularies v
+          JOIN users u ON v.user_id = u.id
+          WHERE v.work_id = ?
+          ORDER BY v.created_at DESC
+        `,
+        )
+        .all(workId);
+
+      // Parse the JSON string back into an object before sending to React
+      const parsedVocabs = vocabs.map((v) => ({
+        ...v,
+        word_data: v.word_data ? JSON.parse(v.word_data) : null,
+      }));
+
+      res.json({ vocabularies: parsedVocabs });
+    } catch (error) {
+      console.error("Failed to fetch vocabularies:", error);
+      res.status(500).json({ error: "Failed to fetch vocabularies" });
+    }
+  });
+
+  // 2. POST (Save) a new vocabulary word
+  router.post("/api/works/:id/vocabularies", authenticateToken, (req, res) => {
+    try {
+      const workId = req.params.id;
+      const userId = req.user.id;
+      const { word, word_data } = req.body;
+
+      if (!word) return res.status(400).json({ error: "Word is required" });
+
+      const wordDataStr =
+        typeof word_data === "object" ? JSON.stringify(word_data) : word_data;
+
+      // ON CONFLICT DO UPDATE allows a user to "overwrite" or re-save a word without crashing
+      db.prepare(
+        `
+          INSERT INTO vocabularies (user_id, work_id, word, word_data)
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(user_id, work_id, word) DO UPDATE SET word_data = excluded.word_data
+        `,
+      ).run(userId, workId, word.toLowerCase(), wordDataStr);
+
+      // Fetch the full record back out to return to the frontend
+      const savedVocab = db
+        .prepare(
+          `
+          SELECT v.*, u.username, u.avatar_url
+          FROM vocabularies v
+          JOIN users u ON v.user_id = u.id
+          WHERE v.user_id = ? AND v.work_id = ? AND v.word = ?
+        `,
+        )
+        .get(userId, workId, word.toLowerCase());
+
+      savedVocab.word_data = JSON.parse(savedVocab.word_data);
+
+      res.json({ success: true, vocabulary: savedVocab });
+    } catch (error) {
+      console.error("Failed to save vocabulary:", error);
+      res.status(500).json({ error: "Failed to save vocabulary" });
+    }
+  });
+
+  // 3. DELETE a vocabulary word
+  router.delete(
+    "/api/works/:workId/vocabularies/:wordId",
+    authenticateToken,
+    (req, res) => {
+      try {
+        const { wordId } = req.params;
+        const userId = req.user.id;
+
+        const result = db
+          .prepare("DELETE FROM vocabularies WHERE id = ? AND user_id = ?")
+          .run(wordId, userId);
+
+        if (result.changes === 0) {
+          return res
+            .status(403)
+            .json({ error: "Unauthorized or word not found" });
+        }
+
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Failed to delete vocabulary:", error);
+        res.status(500).json({ error: "Failed to delete vocabulary" });
+      }
+    },
+  );
 
   return router;
 }

@@ -18,6 +18,8 @@ import starIcon from "../assets/imgs/star.svg";
 import starHalfIcon from "../assets/imgs/star-half.svg";
 import starFilledIcon from "../assets/imgs/star-filled.svg";
 
+import geminiIcon from "../assets/imgs/gemini.svg";
+
 import { GoodreadsButton } from "../components/GoodreadsButton";
 import { DropboxButton } from "../components/DropboxButton";
 import { ProgressBar } from "../components/ProgressBar";
@@ -43,11 +45,14 @@ interface State {
     target: "quote" | "progress";
     quote: string;
     pageNumber: string;
+    explanation: string;
   };
   isSavingQuote: boolean;
   isPDFViewerOpen: boolean;
   viewerInitialUrl: string | null;
   isActionDrawerOpen: boolean;
+  isExplaining: boolean;
+  passageExplanation: string | null;
 }
 
 export function DetailPageWrapper() {
@@ -72,11 +77,14 @@ class DetailPage extends React.Component<Props, State> {
       target: "quote",
       quote: "",
       pageNumber: "",
+      explanation: "",
     },
     isSavingQuote: false,
     isPDFViewerOpen: false,
     viewerInitialUrl: null,
     isActionDrawerOpen: false,
+    isExplaining: false,
+    passageExplanation: null,
   };
 
   componentDidMount() {
@@ -89,30 +97,46 @@ class DetailPage extends React.Component<Props, State> {
   }
 
   handleGlobalPaste = (e: ClipboardEvent) => {
-    // 1. If they are already typing in an input or textarea, let them paste normally!
     const target = e.target as HTMLElement;
-    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-      return;
-    }
-
-    // 2. Prevent the browser's default paste behavior
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
     e.preventDefault();
 
-    // 3. Grab the raw text from the clipboard
-    const pastedText = e.clipboardData?.getData("text/plain");
+    let pastedText = e.clipboardData?.getData("text/plain") || "";
+    pastedText = pastedText.trim();
 
-    if (pastedText && pastedText.trim().length > 0) {
-      // 4. Pop open the quote modal and pre-fill the text!
-      this.setState({
-        ...this.state,
-        isAddQuoteModalOpen: true,
-        isSavingQuote: false,
-        editingForm: {
-          target: "quote",
-          quote: pastedText.trim(),
-          pageNumber: "", // They can type the page number themselves
-        },
-      });
+    if (pastedText.length > 0) {
+      // 1. Fix hyphenated words broken across lines (e.g., "para-\ngraph" -> "paragraph")
+      let cleanedText = pastedText.replace(/-\r?\n/g, "");
+
+      // 2. Preserve paragraphs (double newlines) but replace single newlines with spaces
+      cleanedText = cleanedText
+        .split(/\r?\n\s*\r?\n/)
+        .map((paragraph) => paragraph.replace(/\r?\n/g, " "))
+        .join("\n\n");
+
+      // 3. Clean up any accidental double spaces
+      cleanedText = cleanedText.replace(/ {2,}/g, " ");
+
+      // SMART PASTE ROUTING
+      if (!cleanedText.includes(" ") && cleanedText.length > 0) {
+        // Single Word -> Dictionary
+        window.dispatchEvent(
+          new CustomEvent("open-dictionary", { detail: cleanedText }),
+        );
+      } else {
+        // Paragraph -> Quote Modal
+        this.setState({
+          ...this.state,
+          isAddQuoteModalOpen: true,
+          isSavingQuote: false,
+          editingForm: {
+            target: "quote",
+            quote: cleanedText,
+            pageNumber: "",
+            explanation: "",
+          },
+        });
+      }
     }
   };
 
@@ -202,6 +226,7 @@ class DetailPage extends React.Component<Props, State> {
       target,
       quote: "",
       pageNumber,
+      explanation: "",
     };
   };
 
@@ -271,7 +296,7 @@ class DetailPage extends React.Component<Props, State> {
   };
 
   submitQuoteToDB = () => {
-    const { quote: rawQuote, pageNumber } = this.state.editingForm;
+    const { quote: rawQuote, pageNumber, explanation } = this.state.editingForm;
     const quote = rawQuote.trim();
     const parsedPageNumber = pageNumber.trim().length
       ? Number(pageNumber)
@@ -282,6 +307,7 @@ class DetailPage extends React.Component<Props, State> {
       body: JSON.stringify({
         quote,
         pageNumber: parsedPageNumber,
+        explanation,
       }),
     })
       .then((res) => res.json())
@@ -336,7 +362,43 @@ class DetailPage extends React.Component<Props, State> {
       ...this.state,
       isAddQuoteModalOpen: false,
       editingForm: this.getEditEmptyForm("quote"),
+      passageExplanation: null,
     });
+  };
+
+  handleExplainPassage = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const text = this.state.editingForm.quote;
+    if (!text) return;
+
+    this.setState({ isExplaining: true });
+
+    try {
+      const res = await request(
+        `/api/works/${this.props.workId}/dictionary/explain`,
+        {
+          method: "POST",
+          body: JSON.stringify({ text }),
+        },
+      );
+      const data = await res.json();
+
+      if (data.success) {
+        // Save to the distinct explanation state, leaving the quote untouched
+        this.setState({
+          editingForm: {
+            ...this.state.editingForm,
+            explanation: data.result.explanation,
+          },
+        });
+      } else {
+        alert(data.error || "Failed to analyze passage.");
+      }
+    } catch (err) {
+      alert("Network error while analyzing passage.");
+    } finally {
+      this.setState({ isExplaining: false });
+    }
   };
 
   togglePDFViewer = (source: "local" | "dropbox") => {
@@ -648,7 +710,6 @@ class DetailPage extends React.Component<Props, State> {
                     <QuoteCard
                       key={quote.id}
                       quote={quote as Quote}
-                      meta={"date"}
                       onRefresh={this.fetchData}
                     />
                   ))}
@@ -685,7 +746,7 @@ class DetailPage extends React.Component<Props, State> {
                 style={{
                   perspective: "1200px",
                   width: "100%",
-                  maxWidth: "400px",
+                  maxWidth: "460px",
                 }}
               >
                 <motion.div
@@ -847,6 +908,97 @@ class DetailPage extends React.Component<Props, State> {
                         required={!isEditProgress}
                       />
 
+                      {/* 1. The Explain / Regenerate Button */}
+                      <div style={{ marginTop: "12px", marginBottom: "16px" }}>
+                        <button
+                          onClick={this.handleExplainPassage}
+                          disabled={
+                            this.state.isExplaining ||
+                            !this.state.editingForm.quote
+                          }
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--border-subtle)",
+                            color: "var(--goodreads-dark)", // High contrast dark text
+                            padding: "6px 12px",
+                            borderRadius: "4px",
+                            cursor: this.state.isExplaining
+                              ? "wait"
+                              : "pointer",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            fontFamily: "inherit",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            opacity:
+                              this.state.isExplaining ||
+                              !this.state.editingForm.quote
+                                ? 0.5
+                                : 1,
+                          }}
+                        >
+                          <img
+                            src={geminiIcon}
+                            alt="Gemini"
+                            width="14"
+                            height="14"
+                          />
+                          {this.state.isExplaining
+                            ? "Thinking..."
+                            : this.state.editingForm.explanation
+                              ? "Regenerate Explanation"
+                              : "Explain Passage"}
+                        </button>
+                      </div>
+
+                      {/* 2. The Read-Only Explanation Display with Scroll */}
+                      {this.state.editingForm.explanation && (
+                        <div
+                          style={{
+                            marginBottom: "20px",
+                            padding: "16px",
+                            backgroundColor: "#e5d9c3",
+                            borderRadius: "6px",
+                            display: "flex",
+                            flexDirection: "column",
+                          }}
+                        >
+                          <label
+                            style={{
+                              ...styles.label,
+                              color: "var(--goodreads-dark)",
+                              textTransform: "uppercase",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            Gemini says:
+                          </label>
+
+                          {/* Scrollable Container */}
+                          <div
+                            style={{
+                              maxHeight: "200px", // Keeps the modal from stretching infinitely
+                              overflowY: "auto", // Enables vertical scrolling
+                              paddingRight: "8px", // Small padding so the scrollbar doesn't hug the text
+                            }}
+                          >
+                            <p
+                              style={{
+                                marginTop: 0,
+                                marginBottom: 0,
+                                fontSize: "16px",
+                                lineHeight: "1.6",
+                                color: "var(--goodreads-dark)", // Perfect contrast
+                                fontFamily: "Google Sans",
+                                whiteSpace: "pre-wrap",
+                              }}
+                            >
+                              {this.state.editingForm.explanation}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <div
                         style={{
                           display: "flex",
@@ -944,6 +1096,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     minWidth: "320px",
     maxWidth: "1080px",
     margin: "0 auto",
+    paddingLeft: "72px",
     display: "flex",
     flexDirection: "column",
   },
@@ -1055,7 +1208,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 6000,
+    zIndex: 4500,
   },
 
   input: {

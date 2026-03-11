@@ -191,7 +191,7 @@ function createWorkService({ db, BACKEND_URL }) {
 
     db.transaction(() => {
       db.prepare(
-        "INSERT INTO work_quotes (work_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
+        "INSERT INTO work_quotes (work_id, user_id, quote, page_number) VALUES (?, ?, ?, ?, ?)",
       ).run(workId, userId, progressQuote, safePageNumber);
 
       ensureUserWorkInteraction(userId, workId);

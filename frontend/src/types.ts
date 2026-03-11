@@ -6,6 +6,7 @@ export interface Quote {
   page_number?: number | null;
   created_at: string;
   work?: Work | null;
+  explanation?: string | null;
 }
 
 export interface Work {
