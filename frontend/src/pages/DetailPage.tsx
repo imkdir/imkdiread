@@ -19,6 +19,7 @@ import starHalfIcon from "../assets/imgs/star-half.svg";
 import starFilledIcon from "../assets/imgs/star-filled.svg";
 
 import geminiIcon from "../assets/imgs/gemini.svg";
+import bgImg from "../assets/imgs/bg.png";
 
 import { GoodreadsButton } from "../components/GoodreadsButton";
 import { DropboxButton } from "../components/DropboxButton";
@@ -30,6 +31,11 @@ import { FinderButton } from "../components/FinderButton";
 interface Props {
   workId: string;
   initialWork?: Work;
+}
+
+interface FilePickerOption {
+  url: string;
+  label: string;
 }
 
 interface State {
@@ -50,6 +56,8 @@ interface State {
   isSavingQuote: boolean;
   isPDFViewerOpen: boolean;
   viewerInitialUrl: string | null;
+  isFilePickerOpen: boolean;
+  filePickerOptions: FilePickerOption[];
   isActionDrawerOpen: boolean;
   isExplaining: boolean;
 }
@@ -81,6 +89,8 @@ class DetailPage extends React.Component<Props, State> {
     isSavingQuote: false,
     isPDFViewerOpen: false,
     viewerInitialUrl: null,
+    isFilePickerOpen: false,
+    filePickerOptions: [],
     isActionDrawerOpen: false,
     isExplaining: false,
   };
@@ -370,10 +380,10 @@ class DetailPage extends React.Component<Props, State> {
       const data = await res.json();
 
       if (data.success) {
-        // Save to the distinct explanation state, leaving the quote untouched
         this.setState((prevState) => ({
           editingForm: {
             ...prevState.editingForm,
+            quote: data.result.cleaned_quote || text,
             explanation: data.result.explanation,
           },
         }));
@@ -387,29 +397,101 @@ class DetailPage extends React.Component<Props, State> {
     }
   };
 
-  togglePDFViewer = (source: "local" | "dropbox") => {
+  togglePDFViewer = (source: "dropbox") => {
     const { work, isPDFViewerOpen } = this.state;
 
-    if (isPDFViewerOpen || !work) return;
-
-    let initialUrl = null;
-
-    if (source === "local") {
-      const pdfParams = ["view=FitH"];
-
-      if (work.current_page) {
-        pdfParams.unshift(`page=${work.current_page}`); // unshift puts it at the front!
-      }
-
-      initialUrl = `${work.file_url}#${pdfParams.join("&")}`;
-    } else if (source === "dropbox" && work.dropbox_link) {
-      initialUrl = work.dropbox_link;
+    if (isPDFViewerOpen) {
+      this.closePDFViewer();
+      return;
     }
 
+    if (source === "dropbox" && work?.dropbox_link) {
+      this.openPDFViewer(work.dropbox_link);
+    }
+  };
+
+  openPDFViewer = (initialUrl: string | null) => {
+    if (!initialUrl || initialUrl === this.state.viewerInitialUrl) return;
     this.setState({
       isPDFViewerOpen: true,
       viewerInitialUrl: initialUrl,
     });
+  };
+
+  closePDFViewer = () => {
+    this.setState({ isPDFViewerOpen: false, viewerInitialUrl: null });
+  };
+
+  buildLocalPdfUrl = (fileUrl: string) => {
+    const { work } = this.state;
+    const pdfParams = ["view=FitH"];
+
+    if (work?.current_page) {
+      pdfParams.unshift(`page=${work.current_page}`);
+    }
+
+    return `${fileUrl}#${pdfParams.join("&")}`;
+  };
+
+  openLocalPdfViewer = (fileUrl: string) => {
+    const preparedUrl = this.buildLocalPdfUrl(fileUrl);
+    this.setState({ isFilePickerOpen: false }, () => {
+      this.openPDFViewer(preparedUrl);
+    });
+  };
+
+  closeFilePicker = () => {
+    this.setState({ isFilePickerOpen: false, filePickerOptions: [] });
+  };
+
+  buildFinderLabel = (fileUrl: string, workId: string) => {
+    let filename = fileUrl.split("/").pop() || "";
+
+    filename = filename.replace(/\.[^/.]+$/, "");
+    const lowerFilename = filename.toLowerCase();
+    const lowerPrefix = workId.toLowerCase();
+
+    if (lowerFilename.startsWith(`${lowerPrefix}_`)) {
+      filename = filename.slice(workId.length + 1);
+    } else if (lowerFilename.startsWith(lowerPrefix)) {
+      filename = filename.slice(workId.length);
+    }
+
+    filename = filename.replace(/^_+/, "");
+    const segments = filename.split(/[_\s-]+/).filter(Boolean);
+    const mapped = segments.map((segment) => {
+      const lower = segment.toLowerCase();
+      if (lower === "lec") return "Limited Editions Club";
+      if (lower === "ppp") return "Peter Pauper Press";
+      if (lower === "ml") return "Modern Library";
+      if (lower === "hp") return "Heritage Press";
+      if (/^\d+$/.test(lower)) return `Vol.${Number(segment)}`;
+      return segment;
+    });
+    const label = mapped.join(" ");
+    return label || "Edition";
+  };
+
+  handleFinderButtonClick = () => {
+    const { work } = this.state;
+    if (!work?.file_urls?.length) return;
+
+    if (work.file_urls.length === 1) {
+      this.openLocalPdfViewer(work.file_urls[0]);
+      return;
+    }
+
+    const options = work.file_urls.map((url) => ({
+      url,
+      label: this.buildFinderLabel(url, work.id),
+    }));
+
+    this.setState({ filePickerOptions: options, isFilePickerOpen: true });
+  };
+
+  handleFilePickerSelect = (option: FilePickerOption) => {
+    this.setState({ filePickerOptions: [] });
+    this.openLocalPdfViewer(option.url);
   };
 
   render() {
@@ -425,6 +507,8 @@ class DetailPage extends React.Component<Props, State> {
       editingForm,
       isPDFViewerOpen,
       viewerInitialUrl,
+      isFilePickerOpen,
+      filePickerOptions,
     } = this.state;
 
     if (loading || !work) return <div />;
@@ -436,15 +520,11 @@ class DetailPage extends React.Component<Props, State> {
     const displayQuotes = quotes.filter(
       (q) => q.quote.trim().length > 0 && !q.quote.startsWith("@notes:"),
     );
+    const hasLocalFiles = (work.file_urls?.length ?? 0) > 0;
 
     return (
       <div style={styles.page}>
-        <motion.div
-          className="detail-backdrop-gradient"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.8 }}
-        />
+        <img src={bgImg} style={styles.bgImage} alt="background" />
 
         <div style={styles.splitViewContainer}>
           {/* --- MAIN CONTENT --- */}
@@ -507,10 +587,8 @@ class DetailPage extends React.Component<Props, State> {
                       </Link>
                     ))}
 
-                    {!work.file_url || (
-                      <FinderButton
-                        onClick={() => this.togglePDFViewer("local")}
-                      />
+                    {hasLocalFiles && (
+                      <FinderButton onClick={this.handleFinderButtonClick} />
                     )}
 
                     {!work.dropbox_link || (
@@ -656,11 +734,7 @@ class DetailPage extends React.Component<Props, State> {
                   {!isPDFViewerOpen || (
                     <div style={styles.actionRow}>
                       <button
-                        onClick={() =>
-                          this.setState({
-                            isPDFViewerOpen: false,
-                          })
-                        }
+                        onClick={this.closePDFViewer}
                         style={styles.actionButton}
                       >
                         <span style={styles.actionLabel}>
@@ -893,48 +967,52 @@ class DetailPage extends React.Component<Props, State> {
                       />
 
                       {/* 1. The Explain / Regenerate Button */}
-                      <div style={{ marginTop: "12px", marginBottom: "16px" }}>
-                        <button
-                          onClick={this.handleExplainPassage}
-                          disabled={
-                            this.state.isExplaining ||
-                            !this.state.editingForm.quote
-                          }
-                          style={{
-                            background: "transparent",
-                            border: "1px solid var(--border-subtle)",
-                            color: "var(--goodreads-dark)", // High contrast dark text
-                            padding: "6px 12px",
-                            borderRadius: "4px",
-                            cursor: this.state.isExplaining
-                              ? "wait"
-                              : "pointer",
-                            fontSize: "13px",
-                            fontWeight: "600",
-                            fontFamily: "inherit",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            opacity:
+                      {!isEditProgress && (
+                        <div
+                          style={{ marginTop: "12px", marginBottom: "16px" }}
+                        >
+                          <button
+                            onClick={this.handleExplainPassage}
+                            disabled={
                               this.state.isExplaining ||
                               !this.state.editingForm.quote
-                                ? 0.5
-                                : 1,
-                          }}
-                        >
-                          <img
-                            src={geminiIcon}
-                            alt="Gemini"
-                            width="14"
-                            height="14"
-                          />
-                          {this.state.isExplaining
-                            ? "Thinking..."
-                            : this.state.editingForm.explanation
-                              ? "Regenerate Explanation"
-                              : "Explain Passage"}
-                        </button>
-                      </div>
+                            }
+                            style={{
+                              background: "transparent",
+                              border: "1px solid var(--border-subtle)",
+                              color: "var(--goodreads-dark)", // High contrast dark text
+                              padding: "6px 12px",
+                              borderRadius: "4px",
+                              cursor: this.state.isExplaining
+                                ? "wait"
+                                : "pointer",
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              fontFamily: "inherit",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              opacity:
+                                this.state.isExplaining ||
+                                !this.state.editingForm.quote
+                                  ? 0.5
+                                  : 1,
+                            }}
+                          >
+                            <img
+                              src={geminiIcon}
+                              alt="Gemini"
+                              width="14"
+                              height="14"
+                            />
+                            {this.state.isExplaining
+                              ? "Thinking..."
+                              : this.state.editingForm.explanation
+                                ? "Regenerate Explanation"
+                                : "Explain Passage"}
+                          </button>
+                        </div>
+                      )}
 
                       {/* 2. The Read-Only Explanation Display with Scroll */}
                       {this.state.editingForm.explanation && (
@@ -974,7 +1052,7 @@ class DetailPage extends React.Component<Props, State> {
                                 fontSize: "16px",
                                 lineHeight: "1.6",
                                 color: "var(--goodreads-dark)", // Perfect contrast
-                                fontFamily: "Google Sans",
+                                fontFamily: "var(--font-primary-stack)",
                                 whiteSpace: "pre-wrap",
                               }}
                             >
@@ -1046,6 +1124,44 @@ class DetailPage extends React.Component<Props, State> {
             </motion.div>
           )}
         </AnimatePresence>
+        <AnimatePresence>
+          {isFilePickerOpen && (
+            <motion.div
+              className="file-picker-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="file-picker-card"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+              >
+                <h3>Choose a version</h3>
+                <div className="file-picker-list">
+                  {filePickerOptions.map((option) => (
+                    <button
+                      key={option.url}
+                      type="button"
+                      className="file-picker-option"
+                      onClick={() => this.handleFilePickerSelect(option)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="file-picker-close"
+                  onClick={this.closeFilePicker}
+                >
+                  Cancel
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -1059,6 +1175,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontFamily: "-apple-system, system-ui, sans-serif",
     position: "relative",
     padding: "0 28px",
+  },
+
+  bgImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    opacity: 0.05,
+    filter: "invert()",
   },
 
   splitViewContainer: {

@@ -1,5 +1,6 @@
 const fs = require("fs");
 const { getPublicPath } = require("../utils/paths");
+const path = require("path");
 
 function createWorkService({ db, BACKEND_URL }) {
   const getStaticUrlIfItExists = (subDirs, filename) => {
@@ -36,7 +37,30 @@ function createWorkService({ db, BACKEND_URL }) {
     return current_page;
   }
 
+  function getWorkFileNames(workId) {
+    const filesDir = getPublicPath("files");
+    if (!fs.existsSync(filesDir)) return [];
+    return fs
+      .readdirSync(filesDir)
+      .filter((name) => name.startsWith(workId))
+      .filter((name) => {
+        try {
+          return fs.statSync(path.join(filesDir, name)).isFile();
+        } catch {
+          return false;
+        }
+      })
+      .sort();
+  }
+
+  function getWorkFileUrls(workId) {
+    return getWorkFileNames(workId).map(
+      (filename) => `${BACKEND_URL}/files/${filename}`,
+    );
+  }
+
   function processWork(work) {
+    const fileUrls = getWorkFileUrls(work.id);
     return {
       ...work,
       current_page: getProgressWithWork(work),
@@ -44,7 +68,7 @@ function createWorkService({ db, BACKEND_URL }) {
         ["imgs", "covers"],
         `${work.id}.png`,
       ),
-      file_url: getStaticUrlIfItExists(["files"], `${work.id}.pdf`),
+      file_urls: fileUrls,
     };
   }
 
@@ -191,7 +215,7 @@ function createWorkService({ db, BACKEND_URL }) {
 
     db.transaction(() => {
       db.prepare(
-        "INSERT INTO work_quotes (work_id, user_id, quote, page_number) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO work_quotes (work_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
       ).run(workId, userId, progressQuote, safePageNumber);
 
       ensureUserWorkInteraction(userId, workId);

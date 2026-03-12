@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Kalam:wght@700&family=Shrikhand&family=Space+Grotesk:wght@600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Kalam:wght@700&family=Shrikhand&family=Space+Grotesk:wght@600&family=Inter:wght@400;500;600&display=swap");
 
 /* =========================================================
    1. VARIABLES & DESIGN TOKENS
@@ -31,6 +31,8 @@
     --bg-sidebar: #00000050;
     --hover-sidebar: #1a1a1a;
     --border-sidebar: #1a1a1a;
+    --font-primary-stack:
+        "Inter", "Nunito", "Quicksand", system-ui, -apple-system, sans-serif;
 }
 
 @font-face {
@@ -59,7 +61,7 @@ body,
     min-height: 100vh;
     background-color: var(--goodreads-dark);
     color: var(--text-main);
-    font-family: "Nunito", "Quicksand", sans-serif;
+    font-family: var(--font-primary-stack);
 }
 
 body {
@@ -717,10 +719,16 @@ html {
     transition: opacity 0.2s;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: right;
 }
 
 .quote-face-front:hover {
-    cursor: pointer;
+    cursor: text;
 }
 
 .quote-face-front:hover .quote-edit-hint {
@@ -742,10 +750,71 @@ html {
 .quote-text {
     position: relative;
     font-family: "Libre Baskerville", ui-serif, Georgia, serif;
-    font-size: 1.2rem;
+    font-size: 1rem;
     line-height: 1.65;
     color: var(--goodreads-light);
     margin: 0;
+    white-space: pre-line;
+}
+
+.file-picker-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 7000;
+}
+
+.file-picker-card {
+    color: var(--goodreads-dark);
+    border-radius: 14px;
+    background: #e5d9c3;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    padding: 32px 28px 20px 28px;
+    width: min(90vw, 320px);
+    text-align: center;
+}
+
+.file-picker-card h3 {
+    margin: 0 0 16px;
+    font-size: 1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.file-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.file-picker-option {
+    border: none;
+    box-shadow: 2px 2px rgba(56, 33, 16, 0.2);
+    background: #e6e1d6;
+    border-radius: 8px;
+    padding: 10px 14px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-family: "Libre Baskerville";
+    color: var(--goodreads-dark);
+}
+
+.file-picker-option:hover {
+    border-color: rgba(44, 40, 37, 0.7);
+}
+
+.file-picker-close {
+    background: transparent;
+    padding-top: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--goodreads-dark);
 }
 
 .quote-meta {

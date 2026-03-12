@@ -24,10 +24,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: "#ffffff20",
     border: "1px solid var(--border-subtle)",
     borderRadius: "12px",
-    padding: "24px 16px",
+    padding: "24px 0",
     textDecoration: "none",
     flex: "1 0 160px",
-    maxWidth: "220px",
   },
   avatar: {
     width: "90px",
@@ -44,11 +43,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   name: {
     color: "#f5f5f5",
     fontSize: "13px",
-    fontWeight: "600",
     textAlign: "center",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    maxWidth: "100px",
+    maxWidth: "80%",
   },
 };

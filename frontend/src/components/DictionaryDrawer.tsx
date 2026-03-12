@@ -111,7 +111,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
   return (
     <div className="sidebar-drawer-panel">
       <div style={styles.drawerHeader}>
-        <h2 style={styles.drawerTitle}>Gemini</h2>
+        <h2 style={styles.drawerTitle}>Ask Gemini</h2>
         <button onClick={onClose} style={styles.closeBtn}>
           <img src={closeIcon} alt={"close"} />
         </button>
@@ -165,7 +165,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
             <button onClick={handleSaveVocab} style={styles.saveBtn}>
               Save to Vocabulary
             </button>
-            <button onClick={onClose} style={styles.saveBtn}>
+            <button onClick={() => setDictResult(null)} style={styles.saveBtn}>
               Clear
             </button>
           </div>
@@ -207,7 +207,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   drawerTitle: {
     margin: 0,
-    fontSize: "24px",
+    fontSize: "28px",
+    fontFamily: "Fredoka",
   },
   closeBtn: {
     background: "none",

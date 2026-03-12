@@ -159,16 +159,12 @@ class QuoteCardClass extends React.Component<Props, State> {
           {/* ========================================== */}
           <div
             className="quote-face-front"
-            onClick={(e) =>
-              hasPermission ? this.toggleFlip("edit", e) : undefined
-            }
             style={{
               position: isFlipped ? "absolute" : "relative",
               top: 0,
               left: 0,
               width: "100%",
               pointerEvents: isFlipped ? "none" : "auto",
-              cursor: hasPermission ? "pointer" : "text",
             }}
           >
             <blockquote className="quote-text">{quote.quote}</blockquote>
@@ -223,7 +219,13 @@ class QuoteCardClass extends React.Component<Props, State> {
             )}
 
             {hasPermission && (
-              <div className="quote-edit-hint">Click to edit</div>
+              <button
+                type="button"
+                className="quote-edit-hint"
+                onClick={(e) => this.toggleFlip("edit", e)}
+              >
+                Tap to edit
+              </button>
             )}
           </div>
 

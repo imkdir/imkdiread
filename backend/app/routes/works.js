@@ -65,7 +65,8 @@ function createWorksRouter({ db, workService }) {
   router.get("/api/explore", authenticateToken, (req, res) => {
     try {
       const works = db
-        .prepare("SELECT * FROM works ORDER BY RANDOM() LIMIT 12")
+        // .prepare("SELECT * FROM works ORDER BY RANDOM() LIMIT 12")
+        .prepare("SELECT * FROM works")
         .all()
         .map((row) => workService.getWorkWithRelations(row, req.user?.id))
         .map(workService.processWork);
@@ -547,7 +548,7 @@ function createWorksRouter({ db, workService }) {
             .prepare(
               "UPDATE work_quotes SET quote = ?, page_number = ?, explanation = ? WHERE id = ?",
             )
-            .run(quote, pageNumber, quoteId, explanation || null)
+            .run(quote, pageNumber, explanation || null, quoteId)
         : db
             .prepare(
               "UPDATE work_quotes SET quote = ?, page_number = ?, explanation = ? WHERE id = ? AND user_id = ?",
@@ -679,18 +680,20 @@ function createWorksRouter({ db, workService }) {
         });
 
         const prompt = `
-          You are an expert literary analyst. The user is reading "${work.title}".
-          They highlighted the following passage:
+                You are an expert literary analyst. The user is reading "${work.title}".
+                They copied the following passage from a PDF, which likely contains broken formatting, hyphenated line-breaks, or awkward spacing:
 
-          "${text}"
+                "${text}"
 
-          Provide a concise, insightful explanation of this passage. Decode any complex metaphors, subtext, historical context, or relevance to the broader themes of the book. Keep it under 3 paragraphs.
+                Task 1: Clean up the text. Remove broken PDF line breaks, fix hyphenated words, and restore the proper paragraph flow. Do NOT alter the author's actual words or punctuation, just fix the extraction errors.
+                Task 2: Provide a concise, insightful explanation of this passage. Decode any complex metaphors, subtext, historical context, or relevance to the broader themes of the book. Keep it under 3 paragraphs.
 
-          You MUST respond with ONLY a valid JSON object matching this structure:
-          {
-            "explanation": "Your detailed explanation here."
-          }
-        `;
+                You MUST respond with ONLY a valid JSON object matching this strict structure:
+                {
+                  "cleaned_quote": "The perfectly formatted original text.",
+                  "explanation": "Your detailed analysis here."
+                }
+              `;
 
         const result = await model.generateContent(prompt);
         const analysisData = JSON.parse(result.response.text());

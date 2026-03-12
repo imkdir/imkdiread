@@ -8,7 +8,10 @@ interface PageState {
   loading: boolean;
 }
 
-export class AuthorsPage extends React.Component<Record<string, never>, PageState> {
+export class AuthorsPage extends React.Component<
+  Record<string, never>,
+  PageState
+> {
   state: PageState = {
     authors: [],
     loading: true,
@@ -62,7 +65,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   container: {
     padding: "40px 20px",
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
     gap: "20px",
     maxWidth: "1200px",
     margin: "0 auto",
