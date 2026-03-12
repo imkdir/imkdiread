@@ -52,7 +52,6 @@ interface State {
   viewerInitialUrl: string | null;
   isActionDrawerOpen: boolean;
   isExplaining: boolean;
-  passageExplanation: string | null;
 }
 
 export function DetailPageWrapper() {
@@ -84,7 +83,6 @@ class DetailPage extends React.Component<Props, State> {
     viewerInitialUrl: null,
     isActionDrawerOpen: false,
     isExplaining: false,
-    passageExplanation: null,
   };
 
   componentDidMount() {
@@ -126,7 +124,6 @@ class DetailPage extends React.Component<Props, State> {
       } else {
         // Paragraph -> Quote Modal
         this.setState({
-          ...this.state,
           isAddQuoteModalOpen: true,
           isSavingQuote: false,
           editingForm: {
@@ -155,7 +152,6 @@ class DetailPage extends React.Component<Props, State> {
           this.setState({ work: null, loading: false });
         } else {
           this.setState({
-            ...this.state,
             work: data,
             loading: false,
             read: !!data.read,
@@ -172,17 +168,14 @@ class DetailPage extends React.Component<Props, State> {
   };
 
   toggleActionDrawer = () => {
-    this.setState({
-      ...this.state,
-      isActionDrawerOpen: !this.state.isActionDrawerOpen,
-    });
+    this.setState((prevState) => ({
+      isActionDrawerOpen: !prevState.isActionDrawerOpen,
+    }));
   };
 
   toggleAction = (action: "read" | "liked" | "shelved") => {
     const newValue = !this.state[action];
-    this.setState(
-      (prevState) => ({ ...prevState, [action]: newValue }) as State,
-    );
+    this.setState({ [action]: newValue } as Pick<State, typeof action>);
 
     request(`/api/works/${encodeURIComponent(this.props.workId)}`, {
       method: "POST",
@@ -232,7 +225,6 @@ class DetailPage extends React.Component<Props, State> {
 
   openEditFormModal = (target: "quote" | "progress") => {
     this.setState({
-      ...this.state,
       isAddQuoteModalOpen: true,
       editingForm: this.getEditEmptyForm(target),
       isSavingQuote: false,
@@ -245,7 +237,6 @@ class DetailPage extends React.Component<Props, State> {
     const { name, value } = e.target;
 
     this.setState((prevState) => ({
-      ...this.state,
       editingForm: {
         ...prevState.editingForm,
         [name]: value,
@@ -281,7 +272,6 @@ class DetailPage extends React.Component<Props, State> {
       .then((data) => {
         if (data.success) {
           this.setState({
-            ...this.state,
             read: true,
             shelved: false,
             editingForm: this.getEditEmptyForm("quote"),
@@ -314,7 +304,6 @@ class DetailPage extends React.Component<Props, State> {
       .then((data) => {
         if (data.success) {
           this.setState({
-            ...this.state,
             editingForm: this.getEditEmptyForm("quote"),
             isAddQuoteModalOpen: false,
             isSavingQuote: false,
@@ -343,7 +332,6 @@ class DetailPage extends React.Component<Props, State> {
       .then((data) => {
         if (data.success) {
           this.setState({
-            ...this.state,
             read: !!data.read,
             shelved: false,
             editingForm: this.getEditEmptyForm("quote"),
@@ -357,12 +345,10 @@ class DetailPage extends React.Component<Props, State> {
       });
   };
 
-  closeaddQuoteModal = () => {
+  closeAddQuoteModal = () => {
     this.setState({
-      ...this.state,
       isAddQuoteModalOpen: false,
       editingForm: this.getEditEmptyForm("quote"),
-      passageExplanation: null,
     });
   };
 
@@ -385,12 +371,12 @@ class DetailPage extends React.Component<Props, State> {
 
       if (data.success) {
         // Save to the distinct explanation state, leaving the quote untouched
-        this.setState({
+        this.setState((prevState) => ({
           editingForm: {
-            ...this.state.editingForm,
+            ...prevState.editingForm,
             explanation: data.result.explanation,
           },
-        });
+        }));
       } else {
         alert(data.error || "Failed to analyze passage.");
       }
@@ -421,7 +407,6 @@ class DetailPage extends React.Component<Props, State> {
     }
 
     this.setState({
-      ...this.state,
       isPDFViewerOpen: true,
       viewerInitialUrl: initialUrl,
     });
@@ -673,7 +658,6 @@ class DetailPage extends React.Component<Props, State> {
                       <button
                         onClick={() =>
                           this.setState({
-                            ...this.state,
                             isPDFViewerOpen: false,
                           })
                         }
@@ -1038,7 +1022,7 @@ class DetailPage extends React.Component<Props, State> {
                       >
                         <button
                           type="button"
-                          onClick={this.closeaddQuoteModal}
+                          onClick={this.closeAddQuoteModal}
                           style={styles.cancelBtn}
                         >
                           Cancel

@@ -122,12 +122,6 @@ html {
     min-height: 100vh;
 }
 
-.content-area {
-    flex-grow: 1;
-    margin-left: 72px;
-    width: calc(100% - 72px);
-}
-
 .sidebar {
     position: fixed;
     top: 0;
@@ -218,11 +212,6 @@ html {
         padding: 0 20px;
         justify-content: space-between;
         background-color: rgba(255, 255, 255, 0.05);
-    }
-    .content-area {
-        margin-left: 0;
-        margin-top: 60px;
-        width: 100%;
     }
     .nav-menu {
         flex-direction: row;
@@ -556,7 +545,7 @@ html {
         margin-top: 0;
     }
     .detail-right-col {
-        width: 100%;
+        width: 50%;
     }
 }
 
@@ -581,14 +570,11 @@ html {
 /* Force Right Column to Wrap when PDF Viewer is side-by-side */
 .detail-content-wrapper.pdf-open-wrap {
     flex-wrap: wrap;
+    z-index: 4000;
 }
 
 .detail-content-wrapper.pdf-open-wrap .detail-middle-col {
     width: calc(100% - 270px);
-}
-
-.detail-content-wrapper.pdf-open-wrap {
-    z-index: 4000;
 }
 
 /* Morph Right Column into Sliding Drawer */
@@ -714,6 +700,11 @@ html {
     background-color: #1a1a1a;
     display: flex;
     flex-direction: column;
+    padding: 24px 32px;
+    background: linear-gradient(135deg, #e6e1d6 0%, #d5cfc0 100%);
+    box-shadow: inset 2px 4px 15px rgba(0, 0, 0, 0.08);
+    border: 1px solid #ccc5b3;
+    border-radius: 2px;
 }
 
 .quote-edit-hint {
@@ -744,14 +735,6 @@ html {
         2px 6px 15px rgba(0, 0, 0, 0.4),
         inset 0 0 20px rgba(200, 190, 170, 0.15);
     border: 1px solid #e2dcd0;
-    border-radius: 2px;
-}
-
-.quote-face-back {
-    padding: 24px 32px;
-    background: linear-gradient(135deg, #e6e1d6 0%, #d5cfc0 100%);
-    box-shadow: inset 2px 4px 15px rgba(0, 0, 0, 0.08);
-    border: 1px solid #ccc5b3;
     border-radius: 2px;
 }
 

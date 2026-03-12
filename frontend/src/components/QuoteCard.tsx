@@ -5,7 +5,9 @@ import { motion } from "framer-motion";
 import type { Quote, User } from "../types";
 import { request } from "../utils/APIClient";
 import { useAuth } from "./AuthContext";
+
 import geminiIcon from "../assets/imgs/gemini.svg";
+import closeIcon from "../assets/imgs/close.svg";
 
 interface Props {
   quote: Quote;
@@ -21,6 +23,8 @@ interface State {
   editPageNum: string;
   isSaving: boolean;
 }
+
+const TEXTAREA_RESIZE_DELAY_MS = 10;
 
 class QuoteCardClass extends React.Component<Props, State> {
   private textareaRef = React.createRef<HTMLTextAreaElement>();
@@ -70,7 +74,7 @@ class QuoteCardClass extends React.Component<Props, State> {
       }),
       () => {
         if (this.state.isFlipped && mode === "edit") {
-          setTimeout(this.adjustTextareaHeight, 10);
+          setTimeout(this.adjustTextareaHeight, TEXTAREA_RESIZE_DELAY_MS);
         }
       },
     );
@@ -88,7 +92,7 @@ class QuoteCardClass extends React.Component<Props, State> {
     const { name, value } = e.target;
     if (name === "editQuote") {
       this.setState({ editQuote: value }, () => {
-        setTimeout(this.adjustTextareaHeight, 10);
+        setTimeout(this.adjustTextareaHeight, TEXTAREA_RESIZE_DELAY_MS);
       });
       return;
     }
@@ -350,19 +354,11 @@ class QuoteCardClass extends React.Component<Props, State> {
                         padding: "4px",
                       }}
                     >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                      </svg>
+                      <img
+                        src={closeIcon}
+                        alt="Close"
+                        style={{ width: "16px", filter: "invert(1)" }}
+                      />
                     </button>
                   </div>
 
