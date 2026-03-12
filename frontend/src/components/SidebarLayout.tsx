@@ -132,6 +132,7 @@ export const SidebarLayout: React.FC = () => {
         display: "flex",
         width: "100%",
         height: "100vh",
+        overflow: "hidden",
       }}
     >
       {/* --- THE SIDEBAR --- */}
@@ -340,7 +341,17 @@ export const SidebarLayout: React.FC = () => {
       )}
 
       {/* --- THE MAIN PAGE CONTENT --- */}
-      <main className="content" style={{ flexGrow: 1, overflowY: "auto" }}>
+      <main
+        className="content"
+        style={{
+          flexGrow: 1,
+          minHeight: 0,
+          minWidth: 0,
+          overflowY: "auto",
+          overscrollBehaviorY: "contain",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
         <Outlet />
       </main>
     </div>

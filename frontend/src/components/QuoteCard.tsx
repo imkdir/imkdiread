@@ -76,6 +76,12 @@ class QuoteCardClass extends React.Component<Props, State> {
     );
   };
 
+  handleFlipAnimationComplete = () => {
+    if (!this.state.isFlipped && this.state.flipMode !== null) {
+      this.setState({ flipMode: null });
+    }
+  };
+
   handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -141,6 +147,7 @@ class QuoteCardClass extends React.Component<Props, State> {
           initial={false}
           animate={{ rotateY: isFlipped ? 180 : 0 }}
           transition={{ type: "spring", stiffness: 90, damping: 15, mass: 1.2 }}
+          onAnimationComplete={this.handleFlipAnimationComplete}
           style={{ position: "relative", width: "100%" }}
         >
           {/* ========================================== */}
@@ -219,7 +226,7 @@ class QuoteCardClass extends React.Component<Props, State> {
           {/* ========================================== */}
           {/* BACK FACE (Dynamic: Edit Form OR Explanation)*/}
           {/* ========================================== */}
-          {(hasPermission || quote.explanation) && (
+          {(hasPermission || quote.explanation) && flipMode && (
             <div
               className="quote-face-back"
               style={{
@@ -311,7 +318,7 @@ class QuoteCardClass extends React.Component<Props, State> {
                   style={{
                     display: "flex",
                     flexDirection: "column",
-                    height: "100%",
+                    gap: "12px",
                   }}
                 >
                   <div
@@ -361,9 +368,7 @@ class QuoteCardClass extends React.Component<Props, State> {
 
                   <div
                     style={{
-                      flex: 1, // Takes up remaining space
-                      overflowY: "auto", // Automatically scrolls if longer than the quote
-                      paddingRight: "8px",
+                      paddingRight: "4px",
                     }}
                   >
                     <p
