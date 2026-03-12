@@ -1,0 +1,401 @@
+.detail-page {
+    min-height: 100vh;
+    background-color: var(--goodreads-dark);
+    color: var(--goodreads-light);
+    font-family: -apple-system, system-ui, sans-serif;
+    position: relative;
+    padding: 0 28px;
+    position: relative;
+}
+
+/* 2. The Background Image Layer */
+.detail-page::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    /* Move all your border-image logic here */
+    border-style: solid;
+    border-color: transparent;
+    border-image-source: url("../assets/imgs/bg.png");
+    border-image-slice: 450 580 450 580 fill;
+    border-image-width: 150px 193px 150px 193px;
+    border-image-repeat: repeat repeat;
+
+    /* 3. Apply your filters here! */
+    /* Now it ONLY affects the background border image */
+    filter: drop-shadow(16px 16px 20px #fb4343) invert() brightness(25%);
+}
+
+.detail-split-view-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 40px;
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 80px 0;
+}
+
+.detail-main-content-pane {
+    flex: 1 1 500px;
+    min-width: 320px;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-left: 72px;
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-metadata {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    max-width: 800px;
+}
+
+.detail-author-pill {
+    background-color: var(--goodreads-light);
+    color: var(--goodreads-dark);
+}
+
+.detail-tag-pill {
+    background-color: transparent;
+    color: var(--goodreads-light);
+    border: 1px solid var(--goodreads-light);
+}
+
+.drawer-handle-arrow {
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.detail-action-panel {
+    background-color: var(--goodreads-dark);
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.detail-action-icons-row {
+    display: flex;
+    gap: 24px;
+    padding: 24px;
+}
+
+.detail-action-icon-col {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    gap: 6px;
+}
+
+.detail-action-icon {
+    width: 26px;
+    height: 26px;
+}
+
+.detail-action-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+}
+
+.detail-action-button {
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+}
+
+.detail-action-label {
+    font-size: 13px;
+    font-family: -apple-system, system-ui;
+    color: var(--goodreads-light);
+    font-weight: 500;
+}
+
+.detail-divider {
+    margin: 0;
+    border: none;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.detail-rating-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+}
+
+.detail-stars-row {
+    display: flex;
+    gap: 4px;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.detail-star-icon {
+    width: 24px;
+    height: 24px;
+    transition: all 0.1s;
+}
+
+.detail-star-icon--active {
+    filter: invert(58%) sepia(87%) saturate(1512%) hue-rotate(167deg)
+        brightness(101%) contrast(92%);
+    opacity: 1;
+}
+
+.detail-star-icon--inactive {
+    filter: none;
+    opacity: 0.3;
+}
+
+.detail-quotes-section {
+    margin-top: 48px;
+}
+
+.detail-quotes-section--pdf-open {
+    margin-top: 32px;
+}
+
+.detail-pdf-frame-wrapper {
+    flex: 1;
+}
+
+.detail-pdf-iframe {
+    border: none;
+}
+
+.detail-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 4500;
+}
+
+.detail-quote-modal-shell {
+    perspective: 1200px;
+    width: 100%;
+    max-width: 460px;
+}
+
+.detail-quote-modal-flipper {
+    position: relative;
+    width: 100%;
+}
+
+.detail-modal-quote-face {
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-modal-quote-face--absolute {
+    position: absolute;
+}
+
+.detail-modal-quote-face--relative {
+    position: relative;
+}
+
+.detail-quote-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.detail-progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.detail-progress-inline {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.detail-label {
+    color: rgba(44, 40, 37, 0.7);
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.detail-label--explanation {
+    color: var(--goodreads-dark);
+    margin-bottom: 8px;
+}
+
+.detail-secondary-label {
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--goodreads-dark);
+}
+
+.detail-finished-btn {
+    border: none;
+    background-color: transparent;
+    text-decoration-line: underline;
+    font-size: 14px;
+    font-family: Fredoka;
+    color: #01635d;
+    cursor: pointer;
+}
+
+.detail-modal-title {
+    margin: 0 0 8px;
+    color: #2c2825;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.detail-input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 2px;
+    border: 1px solid rgba(44, 40, 37, 0.3);
+    background-color: rgba(255, 255, 255, 0.5);
+    color: #2c2825;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.detail-input--quote {
+    flex: 1;
+    min-height: 120px;
+    resize: none;
+}
+
+.detail-input--page-inline {
+    width: 36px;
+    padding: 2px 4px;
+}
+
+.detail-input--page {
+    width: 60px;
+    padding: 6px;
+}
+
+.detail-explain-row {
+    margin-top: 12px;
+    margin-bottom: 16px;
+}
+
+.detail-explain-btn {
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    color: var(--goodreads-dark);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.detail-explain-btn:disabled {
+    cursor: wait;
+    opacity: 0.5;
+}
+
+.detail-explanation-panel {
+    margin-bottom: 20px;
+    padding: 16px;
+    background-color: #e5d9c3;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-explanation-scroll {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.detail-explanation-text {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--goodreads-dark);
+    font-family: var(--font-primary-stack);
+    white-space: pre-wrap;
+}
+
+.detail-quote-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detail-page-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.detail-btn {
+    flex: 1;
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.detail-btn--cancel {
+    background-color: transparent;
+    border: 1px solid rgba(44, 40, 37, 0.4);
+    color: #2c2825;
+}
+
+.detail-btn--save {
+    background-color: #2c2825;
+    border: none;
+    color: #fdfbf7;
+    font-weight: bold;
+}
+
+@media (max-width: 900px) {
+    .detail-main-content-pane {
+        padding-left: 24px;
+    }
+}
+
+@media (max-width: 700px) {
+    .detail-main-content-pane {
+        padding-left: 0;
+    }
+}

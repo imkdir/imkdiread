@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
 
@@ -19,12 +19,9 @@ export const SidebarLayout: React.FC = () => {
   const workId = workMatch ? workMatch[1] : null;
 
   // 2. Drawer State
-  const [isDictOpen, setIsDictOpen] = useState(false);
-
-  // 3. Auto-close if user navigates away from the book
-  useEffect(() => {
-    if (!workId) setIsDictOpen(false);
-  }, [workId]);
+  const [openDictionaryForWorkId, setOpenDictionaryForWorkId] = useState<
+    string | null
+  >(null);
 
   return (
     <div
@@ -48,7 +45,11 @@ export const SidebarLayout: React.FC = () => {
           {/* THE CONTEXTUAL DICTIONARY TRIGGER */}
           {workId && (
             <div
-              onClick={() => setIsDictOpen(!isDictOpen)}
+              onClick={() =>
+                setOpenDictionaryForWorkId((current) =>
+                  current === workId ? null : workId,
+                )
+              }
               title="Dictionary"
               className="sidebar-link"
               style={{ cursor: "pointer" }}
@@ -79,8 +80,8 @@ export const SidebarLayout: React.FC = () => {
       {/* --- THE GLASSMORPHIC DICTIONARY DRAWER --- */}
       <DictionaryDrawer
         workId={workId || ""}
-        isOpen={isDictOpen && Boolean(workId)}
-        onClose={() => setIsDictOpen(false)}
+        isOpen={Boolean(workId) && openDictionaryForWorkId === workId}
+        onClose={() => setOpenDictionaryForWorkId(null)}
       />
 
       {/* --- THE MAIN PAGE CONTENT --- */}

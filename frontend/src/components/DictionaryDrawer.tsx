@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { request } from "../utils/APIClient";
 import closeIcon from "../assets/imgs/close.svg";
 
@@ -35,7 +35,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
   const [dictResult, setDictResult] = useState<DictResult | null>(null);
   const [savedVocabs, setSavedVocabs] = useState<SavedVocab[]>([]);
 
-  const fetchVocabularies = async () => {
+  const fetchVocabularies = useCallback(async () => {
     try {
       const res = await request(`/api/works/${workId}/vocabularies`);
       const data = await res.json();
@@ -45,13 +45,13 @@ export const DictionaryDrawer: React.FC<Props> = ({
     } catch (err) {
       console.error("Failed to load vocabularies", err);
     }
-  };
+  }, [workId]);
 
   useEffect(() => {
     if (isOpen && workId) {
-      fetchVocabularies();
+      void fetchVocabularies();
     }
-  }, [isOpen, workId]);
+  }, [fetchVocabularies, isOpen, workId]);
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -73,8 +73,10 @@ export const DictionaryDrawer: React.FC<Props> = ({
       }
 
       setDictResult(data.result);
-    } catch (err: any) {
-      alert(err.message || "Word not found in dictionary.");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Word not found in dictionary.";
+      alert(message);
     } finally {
       setIsSearching(false);
     }
@@ -101,7 +103,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
         setDictResult(null);
         setSearchQuery("");
       }
-    } catch (err) {
+    } catch {
       alert("Failed to save vocabulary.");
     }
   };
