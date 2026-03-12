@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
 
 import homeIcon from "../assets/imgs/home.svg";
@@ -9,25 +9,70 @@ import exploreIcon from "../assets/imgs/compass.svg";
 import settingsIcon from "../assets/imgs/settings.svg";
 import dictionaryIcon from "../assets/imgs/dictionary.svg";
 import { DictionaryDrawer } from "./DictionaryDrawer";
+import { ThemeEditorDrawer } from "./ThemeEditorDrawer"; // <-- Import the new component
 
 export const SidebarLayout: React.FC = () => {
   const auth = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // 1. Contextual Routing Check: Are we reading a specific work?
+  // 1. Contextual Routing Check
   const workMatch = location.pathname.match(/^\/work\/([^/]+)/);
   const workId = workMatch ? workMatch[1] : null;
 
-  // 2. Drawer State
+  // 2. Drawer States
   const [openDictionaryForWorkId, setOpenDictionaryForWorkId] = useState<
     string | null
   >(null);
+  const [isThemeOpen, setIsThemeOpen] = useState(false); // <-- Theme Drawer State
+
+  const isDictOpen = Boolean(workId) && openDictionaryForWorkId === workId;
+
+  // 3. Global Shortcuts (Escape to close modals / Cmd+K to search)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K -> Global Search
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        navigate("/search");
+        setTimeout(
+          () => document.getElementById("global-search-input")?.focus(),
+          100,
+        );
+        return;
+      }
+
+      // Escape -> Smart Back / Close UI
+      if (e.key === "Escape") {
+        if (isDictOpen) {
+          setOpenDictionaryForWorkId(null);
+          return;
+        }
+        if (isThemeOpen) {
+          setIsThemeOpen(false);
+          return;
+        }
+
+        if (
+          ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "")
+        ) {
+          (document.activeElement as HTMLElement).blur();
+          return;
+        }
+
+        if (document.fullscreenElement) return;
+        if (document.querySelector(".video-modal-wrap")) return;
+
+        navigate(-1);
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [navigate, isDictOpen, isThemeOpen]);
 
   return (
-    <div
-      className="layout-container"
-      style={styles.layoutContainer}
-    >
+    <div className="layout-container" style={styles.layoutContainer}>
       {/* --- THE SIDEBAR --- */}
       <nav className="sidebar" style={{ zIndex: 6002 }}>
         <Link to={"/"} className="logo-link">
@@ -45,11 +90,12 @@ export const SidebarLayout: React.FC = () => {
           {/* THE CONTEXTUAL DICTIONARY TRIGGER */}
           {workId && (
             <div
-              onClick={() =>
+              onClick={() => {
                 setOpenDictionaryForWorkId((current) =>
                   current === workId ? null : workId,
-                )
-              }
+                );
+                setIsThemeOpen(false); // Close theme if opening dictionary
+              }}
               title="Dictionary"
               className="sidebar-link"
               style={{ cursor: "pointer" }}
@@ -57,6 +103,19 @@ export const SidebarLayout: React.FC = () => {
               <img src={dictionaryIcon} alt={"dictionary"} />
             </div>
           )}
+
+          {/* THE THEME EDITOR TRIGGER */}
+          <div
+            className="sidebar-link"
+            style={{ cursor: "pointer", fontSize: "20px" }}
+            onClick={() => {
+              setIsThemeOpen(!isThemeOpen);
+              setOpenDictionaryForWorkId(null); // Close dictionary if opening theme
+            }}
+            title="Theme Editor"
+          >
+            🎨
+          </div>
         </div>
 
         <div className="bottom-menu">
@@ -77,18 +136,20 @@ export const SidebarLayout: React.FC = () => {
         </div>
       </nav>
 
-      {/* --- THE GLASSMORPHIC DICTIONARY DRAWER --- */}
+      {/* --- THE GLASSMORPHIC DRAWERS --- */}
       <DictionaryDrawer
         workId={workId || ""}
-        isOpen={Boolean(workId) && openDictionaryForWorkId === workId}
+        isOpen={isDictOpen}
         onClose={() => setOpenDictionaryForWorkId(null)}
       />
 
+      <ThemeEditorDrawer
+        isOpen={isThemeOpen}
+        onClose={() => setIsThemeOpen(false)}
+      />
+
       {/* --- THE MAIN PAGE CONTENT --- */}
-      <main
-        className="content"
-        style={styles.mainContent}
-      >
+      <main className="content" style={styles.mainContent}>
         <Outlet />
       </main>
     </div>
