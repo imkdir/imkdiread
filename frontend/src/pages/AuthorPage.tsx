@@ -126,13 +126,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
   };
 
   renderQuoteCard = (entry: Quote) => {
-    return (
-      <QuoteCard
-        quote={entry}
-        displaySource
-        onRefresh={() => {}}
-      />
-    );
+    return <QuoteCard quote={entry} displaySource onRefresh={() => {}} />;
   };
 
   render() {
@@ -165,13 +159,14 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
               <GoodreadsAuthorAvatar
                 author={profile}
                 className="author-page__avatar"
-                placeholderClassName="author-page__avatar-placeholder"
               />
               {!profile.goodreads_id || (
                 <GoodreadsButton
                   category="author"
                   goodreadsId={profile.goodreads_id}
-                  style={{ backgroundColor: "var(--author-page-goodreads-button-bg)" }}
+                  style={{
+                    backgroundColor: "var(--author-page-goodreads-button-bg)",
+                  }}
                   className="author-page__goodreads-button"
                 />
               )}

@@ -136,7 +136,7 @@ class LoginPage extends Component<PageProps, PageState> {
         )}
         <form onSubmit={this.handleSubmit} className="login-page__form">
           <input
-            className="auth-input login-page__input"
+            className="simple-input login-page__input"
             type="text"
             name="username"
             placeholder="Username"
@@ -145,7 +145,7 @@ class LoginPage extends Component<PageProps, PageState> {
             required
           />
           <input
-            className="auth-input login-page__input"
+            className="simple-input login-page__input"
             name="password"
             type="password"
             placeholder="Password"
@@ -156,7 +156,7 @@ class LoginPage extends Component<PageProps, PageState> {
 
           {!isSignup || (
             <input
-              className="auth-input login-page__input"
+              className="simple-input login-page__input"
               name="inviteCode"
               type="text"
               placeholder="Invite code"

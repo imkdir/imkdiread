@@ -3,7 +3,6 @@
     --authors-page-card-border: var(--color-border-default);
     --authors-page-card-avatar-bg: var(--color-bg-card-base);
     --authors-page-card-avatar-text: var(--color-text-page-secondary);
-    --authors-page-card-avatar-placeholder-bg: var(--color-bg-avatar-placeholder);
     --authors-page-card-name: var(--color-text-page-inverse);
 
     min-height: 100vh;

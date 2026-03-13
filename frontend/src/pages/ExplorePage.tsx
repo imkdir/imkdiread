@@ -76,7 +76,6 @@ export class ExplorePage extends React.Component<
                     <GoodreadsAuthorAvatar
                       author={author}
                       className="explore-page__avatar"
-                      placeholderClassName="explore-page__avatar-placeholder"
                     />
                     {/* Middle: Text Stack */}
                     <Link

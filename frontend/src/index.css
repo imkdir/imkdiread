@@ -73,9 +73,6 @@
     --theme-explore-sidebar-footer: var(--color-text-muted-strong);
     --theme-explore-sidebar-avatar-bg: var(--color-bg-card-base);
     --theme-explore-sidebar-avatar-border: var(--color-border-default);
-    --theme-explore-sidebar-avatar-placeholder: var(
-        --color-bg-avatar-placeholder
-    );
 
     --text-main: var(--theme-page-text); /* Primary page text */
     --text-muted: #9aa0a6; /* Gray icons and secondary text */
@@ -134,7 +131,6 @@
     --color-bg-panel-admin: #1e1e1e;
     --color-bg-panel-admin-alt: #2a2a2a;
     --color-bg-panel-paper: var(--paper-cream-warm);
-    --color-bg-avatar-placeholder: #333;
     --color-bg-danger: #d32f2f;
     --color-bg-input-dark: var(--overlay-black-30);
     --color-bg-input-soft: var(--overlay-white-50);
@@ -512,28 +508,28 @@ html {
    ========================================================= */
 
 /* 1. Remove the default browser blue focus ring */
-.auth-input:focus {
+.simple-input:focus {
     outline: none;
     /* Optional: You can change the border color subtly when clicked instead */
     /* border-color: var(--text-muted); */
 }
 
 /* 2. Change the placeholder text color */
-.auth-input::placeholder {
+.simple-input::placeholder {
     color: var(--text-main); /* Change this to whatever color you want! */
     opacity: 0.7; /* This is required! Firefox makes placeholders semi-transparent by default */
 }
 
 /* Fallbacks for older browsers */
-.auth-input::-webkit-input-placeholder {
+.simple-input::-webkit-input-placeholder {
     color: var(--text-main);
     opacity: 0.7;
 }
-.auth-input::-moz-placeholder {
+.simple-input::-moz-placeholder {
     color: var(--text-main);
     opacity: 0.7;
 }
-.auth-input:-ms-input-placeholder {
+.simple-input:-ms-input-placeholder {
     color: var(--text-main);
     opacity: 0.7;
 }
