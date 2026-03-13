@@ -1,12 +1,69 @@
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
 const { jsonError } = require("../utils/errorHelpers");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { getPublicPath } = require("../utils/paths");
 const {
   asNonEmptyString,
   asOptionalString,
   asStringArray,
 } = require("../utils/validators");
+
+const workFilesDir = getPublicPath("files");
+if (!fs.existsSync(workFilesDir)) {
+  fs.mkdirSync(workFilesDir, { recursive: true });
+}
+
+const workCoversDir = getPublicPath("imgs", "covers");
+if (!fs.existsSync(workCoversDir)) {
+  fs.mkdirSync(workCoversDir, { recursive: true });
+}
+
+const workFileStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, workFilesDir),
+  filename: (req, file, cb) => {
+    const rawId = req.params?.id;
+    const extension = path.extname(file.originalname);
+
+    if (!rawId || extension !== ".pdf") return;
+
+    cb(null, `${rawId}${extension}`);
+  },
+});
+
+const workFileUpload = multer({
+  storage: workFileStorage,
+  limits: { fileSize: 200 * 1024 * 1024 },
+});
+
+const workCoverStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, workCoversDir),
+  filename: (req, _file, cb) => {
+    const rawId = req.params?.id;
+
+    if (!rawId) {
+      cb(new Error("Work ID is required."));
+      return;
+    }
+
+    cb(null, `${rawId}.png`);
+  },
+});
+
+const workCoverUpload = multer({
+  storage: workCoverStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const isPng =
+      file.mimetype === "image/png" ||
+      path.extname(file.originalname).toLowerCase() === ".png";
+
+    cb(null, isPng);
+  },
+});
 
 function createWorksRouter({ db, workService }) {
   const router = express.Router();
@@ -284,6 +341,96 @@ function createWorksRouter({ db, workService }) {
       jsonError(res, 500, "Failed to update work");
     }
   });
+
+  router.post(
+    "/api/works/:id/dropbox-link",
+    authenticateToken,
+    requireAdmin,
+    (req, res) => {
+      try {
+        const workId = req.params.id;
+        const link = asOptionalString(req.body?.link);
+        if (!link) {
+          return jsonError(res, 400, "Dropbox link is required.");
+        }
+
+        const workRow = db
+          .prepare("SELECT id FROM works WHERE id = ?")
+          .get(workId);
+        if (!workRow) {
+          return jsonError(res, 404, "Work not found.");
+        }
+
+        db.prepare("UPDATE works SET dropbox_link = ? WHERE id = ?").run(
+          link,
+          workId,
+        );
+
+        res.json({ success: true, dropbox_link: link });
+      } catch (error) {
+        console.error("Failed to save Dropbox link:", error);
+        jsonError(res, 500, "Failed to save Dropbox link.");
+      }
+    },
+  );
+
+  router.post(
+    "/api/works/:id/cover",
+    authenticateToken,
+    requireAdmin,
+    workCoverUpload.single("file"),
+    (req, res) => {
+      try {
+        const workId = req.params.id;
+
+        const workRow = db
+          .prepare("SELECT id FROM works WHERE id = ?")
+          .get(workId);
+        if (!workRow) {
+          return jsonError(res, 404, "Work not found.");
+        }
+
+        if (!req.file) {
+          return jsonError(res, 400, "A PNG cover image is required.");
+        }
+
+        const fileUrl = `/imgs/covers/${req.file.filename}`;
+        res.json({ success: true, url: fileUrl });
+      } catch (error) {
+        console.error("Failed to upload work cover:", error);
+        jsonError(res, 500, "Failed to upload cover.");
+      }
+    },
+  );
+
+  router.post(
+    "/api/works/:id/files",
+    authenticateToken,
+    requireAdmin,
+    workFileUpload.single("file"),
+    (req, res) => {
+      try {
+        const workId = req.params.id;
+
+        const workRow = db
+          .prepare("SELECT id FROM works WHERE id = ?")
+          .get(workId);
+        if (!workRow) {
+          return jsonError(res, 404, "Work not found.");
+        }
+
+        if (!req.file) {
+          return jsonError(res, 400, "File is required.");
+        }
+
+        const fileUrl = `/files/${req.file.filename}`;
+        res.json({ success: true, url: fileUrl });
+      } catch (error) {
+        console.error("Failed to upload work file:", error);
+        jsonError(res, 500, "Failed to upload file.");
+      }
+    },
+  );
 
   router.post(
     "/api/works/bulk-import",

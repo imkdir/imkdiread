@@ -158,3 +158,62 @@ export function buildFinderLabel(fileUrl: string, workId: string): string {
 
   return mapped.join(" ") || "Edition";
 }
+
+interface DropboxLinkResponse extends ApiSuccessResponse {
+  dropbox_link?: string;
+}
+
+interface WorkFileUploadResponse extends ApiSuccessResponse {
+  url?: string;
+}
+
+export async function saveDropboxLink(
+  workId: string,
+  link: string,
+): Promise<DropboxLinkResponse> {
+  const res = await request(
+    `/api/works/${encodeURIComponent(workId)}/dropbox-link`,
+    {
+      method: "POST",
+      body: JSON.stringify({ link }),
+    },
+  );
+
+  return (await res.json()) as DropboxLinkResponse;
+}
+
+export async function uploadWorkFile(
+  workId: string,
+  file: File,
+): Promise<WorkFileUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await request(
+    `/api/works/${encodeURIComponent(workId)}/files`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+
+  return (await res.json()) as WorkFileUploadResponse;
+}
+
+export async function uploadWorkCover(
+  workId: string,
+  file: File,
+): Promise<WorkFileUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await request(
+    `/api/works/${encodeURIComponent(workId)}/cover`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+
+  return (await res.json()) as WorkFileUploadResponse;
+}

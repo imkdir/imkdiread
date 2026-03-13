@@ -1,10 +1,45 @@
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
 const { jsonError } = require("../utils/errorHelpers");
 const { asNonEmptyString, asOptionalString } = require("../utils/validators");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
+const { getPublicPath } = require("../utils/paths");
+
+const authorAvatarsDir = getPublicPath("imgs", "avatars");
+if (!fs.existsSync(authorAvatarsDir)) {
+  fs.mkdirSync(authorAvatarsDir, { recursive: true });
+}
 
 function createAuthorsRouter({ db, workService }) {
   const router = express.Router();
+  const authorAvatarUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, authorAvatarsDir),
+      filename: (req, _file, cb) => {
+        const authorName = req.params?.name;
+        const author = db
+          .prepare("SELECT goodreads_id FROM authors WHERE name = ?")
+          .get(authorName);
+
+        if (!author?.goodreads_id) {
+          cb(new Error("Author Goodreads ID is required."));
+          return;
+        }
+
+        cb(null, `${author.goodreads_id}.png`);
+      },
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const isPng =
+        file.mimetype === "image/png" ||
+        path.extname(file.originalname).toLowerCase() === ".png";
+
+      cb(null, isPng);
+    },
+  });
 
   router.get("/api/authors", authenticateToken, requireAdmin, (req, res) => {
     try {
@@ -39,6 +74,41 @@ function createAuthorsRouter({ db, workService }) {
       jsonError(res, 500, "Failed to add author");
     }
   });
+
+  router.post(
+    "/api/authors/:name/avatar",
+    authenticateToken,
+    requireAdmin,
+    authorAvatarUpload.single("file"),
+    (req, res) => {
+      try {
+        const authorName = req.params.name;
+        const author = db
+          .prepare("SELECT goodreads_id FROM authors WHERE name = ?")
+          .get(authorName);
+
+        if (!author) {
+          return jsonError(res, 404, "Author not found.");
+        }
+
+        if (!author.goodreads_id) {
+          return jsonError(res, 400, "Author Goodreads ID is required.");
+        }
+
+        if (!req.file) {
+          return jsonError(res, 400, "A PNG avatar image is required.");
+        }
+
+        res.json({
+          success: true,
+          avatar_img_url: `/imgs/avatars/${req.file.filename}`,
+        });
+      } catch (error) {
+        console.error("Failed to upload author avatar:", error);
+        jsonError(res, 500, "Failed to upload author avatar.");
+      }
+    },
+  );
 
   router.post(
     "/api/authors/:name/follow",

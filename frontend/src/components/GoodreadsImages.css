@@ -21,6 +21,19 @@
     font-size: 2em;
 }
 
+.goodreads-author-avatar__upload-error {
+    position: absolute;
+    left: 50%;
+    bottom: -22px;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 220px;
+    color: var(--color-text-danger, #b91c1c);
+    font-size: 11px;
+    line-height: 1.2;
+    text-align: center;
+}
+
 .goodreads-cover {
     position: relative;
     display: block;

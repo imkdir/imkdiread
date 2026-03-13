@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { useLocation, useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import Masonry from "react-masonry-css";
@@ -12,7 +13,11 @@ import { FinderButton } from "../components/FinderButton";
 import { DetailActionPanel } from "../components/detail/DetailActionPanel";
 import { DetailQuoteModal } from "../components/detail/DetailQuoteModal";
 import { DetailFilePickerModal } from "../components/detail/DetailFilePickerModal";
+import { DetailDropboxLinkModal } from "../components/detail/DetailDropboxLinkModal";
+import { DetailFileUploadModal } from "../components/detail/DetailFileUploadModal";
+import { useAuth } from "../components/AuthContext";
 import { useDetailPage } from "../hooks/useDetailPage";
+import { uploadWorkCover } from "../services/detailPageService";
 
 import noCover from "../assets/imgs/no_cover.png";
 
@@ -32,7 +37,11 @@ export function DetailPageWrapper() {
 }
 
 function DetailPage({ workId, initialWork }: Props) {
+  const { user } = useAuth();
   const detail = useDetailPage({ workId, initialWork });
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
 
   const {
     work,
@@ -68,7 +77,47 @@ function DetailPage({ workId, initialWork }: Props) {
     handleFinderButtonClick,
     handleFilePickerSelect,
     closeFilePicker,
+    isDropboxLinkModalOpen,
+    dropboxLinkDraft,
+    dropboxLinkError,
+    isDropboxSaving,
+    handleDropboxLinkChange,
+    handleDropboxLinkSubmit,
+    closeDropboxLinkModal,
+    isUploadModalOpen,
+    uploadModalVersion,
+    uploadError,
+    isUploadingFile,
+    closeUploadModal,
+    handleWorkFileUpload,
   } = detail;
+
+  const handleCoverUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    setCoverUploadError(null);
+    setIsUploadingCover(true);
+
+    try {
+      const result = await uploadWorkCover(workId, file);
+      if (!result.success) {
+        setCoverUploadError(result.error || "Failed to upload cover.");
+        return;
+      }
+
+      await fetchData();
+    } catch (error) {
+      console.error("Failed to upload cover:", error);
+      setCoverUploadError("Failed to upload cover.");
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
 
   if (loading || !work) return null;
 
@@ -80,13 +129,52 @@ function DetailPage({ workId, initialWork }: Props) {
             className={`detail-content-wrapper ${isPDFViewerOpen ? "pdf-open-wrap" : ""}`}
           >
             <aside className="detail-left-col">
-              <motion.img
-                layoutId={`work-cover-${work.id}`}
-                src={work.cover_img_url as string}
-                alt={work.id}
-                className="goodreads-cover"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              />
+              {work.cover_img_url ? (
+                <motion.img
+                  layoutId={`work-cover-${work.id}`}
+                  src={work.cover_img_url as string}
+                  alt={work.id}
+                  className="goodreads-cover"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+              ) : (
+                <div className="detail-cover-upload">
+                  {user?.role === "admin" ? (
+                    <>
+                      <button
+                        type="button"
+                        className="detail-cover-upload-trigger"
+                        onClick={() => coverInputRef.current?.click()}
+                        disabled={isUploadingCover}
+                      >
+                        <img
+                          src={noCover}
+                          alt={work.id}
+                          className="goodreads-cover"
+                        />
+                      </button>
+                      <input
+                        ref={coverInputRef}
+                        type="file"
+                        accept="image/png"
+                        hidden
+                        onChange={handleCoverUpload}
+                      />
+                    </>
+                  ) : (
+                    <img
+                      src={noCover}
+                      alt={work.id}
+                      className="goodreads-cover"
+                    />
+                  )}
+                  {coverUploadError && (
+                    <p className="detail-cover-upload-error">
+                      {coverUploadError}
+                    </p>
+                  )}
+                </div>
+              )}
             </aside>
 
             <motion.main
@@ -225,6 +313,23 @@ function DetailPage({ workId, initialWork }: Props) {
         options={filePickerOptions}
         onSelect={handleFilePickerSelect}
         onClose={closeFilePicker}
+      />
+      <DetailDropboxLinkModal
+        isOpen={isDropboxLinkModalOpen}
+        value={dropboxLinkDraft}
+        error={dropboxLinkError}
+        isSaving={isDropboxSaving}
+        onClose={closeDropboxLinkModal}
+        onChange={handleDropboxLinkChange}
+        onSubmit={handleDropboxLinkSubmit}
+      />
+      <DetailFileUploadModal
+        key={uploadModalVersion}
+        isOpen={isUploadModalOpen}
+        isUploading={isUploadingFile}
+        error={uploadError}
+        onUpload={handleWorkFileUpload}
+        onClose={closeUploadModal}
       />
     </div>
   );

@@ -10,6 +10,8 @@ import {
   finishWorkProgress,
   saveProgress,
   saveQuote,
+  saveDropboxLink,
+  uploadWorkFile,
   updateWorkAction,
   updateWorkRating,
   type DetailToggleAction,
@@ -36,6 +38,22 @@ function createEmptyForm(
   };
 }
 
+function normalizeDropboxLink(rawLink: string): string {
+  const trimmed = rawLink.trim();
+  try {
+    const url = new URL(trimmed);
+    if (!url.hostname.includes("dropbox.com")) {
+      return trimmed;
+    }
+    url.searchParams.delete("dl");
+    url.searchParams.delete("raw");
+    url.searchParams.set("raw", "1");
+    return url.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
 export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const [work, setWork] = useState<Work | null>(initialWork || null);
   const [loading, setLoading] = useState(!initialWork);
@@ -57,6 +75,14 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   >([]);
   const [isActionDrawerOpen, setIsActionDrawerOpen] = useState(false);
   const [isExplaining, setIsExplaining] = useState(false);
+  const [isDropboxLinkModalOpen, setIsDropboxLinkModalOpen] = useState(false);
+  const [dropboxLinkDraft, setDropboxLinkDraft] = useState("");
+  const [dropboxLinkError, setDropboxLinkError] = useState<string | null>(null);
+  const [isDropboxSaving, setIsDropboxSaving] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadModalVersion, setUploadModalVersion] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   const workRef = useRef(work);
   const editingFormRef = useRef(editingForm);
@@ -343,6 +369,51 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     setViewerInitialUrl(null);
   }, []);
 
+  const openDropboxLinkModal = useCallback(() => {
+    setDropboxLinkDraft(work?.dropbox_link || "");
+    setDropboxLinkError(null);
+    setIsDropboxLinkModalOpen(true);
+  }, [work?.dropbox_link]);
+
+  const closeDropboxLinkModal = useCallback(() => {
+    setIsDropboxLinkModalOpen(false);
+    setDropboxLinkError(null);
+  }, []);
+
+  const handleDropboxLinkChange = useCallback((value: string) => {
+    setDropboxLinkDraft(value);
+    setDropboxLinkError(null);
+  }, []);
+
+  const handleDropboxLinkSubmit = useCallback(async () => {
+    const trimmed = dropboxLinkDraft.trim();
+    if (!trimmed) {
+      setDropboxLinkError("Please provide a Dropbox link.");
+      return;
+    }
+
+    const normalizedLink = normalizeDropboxLink(trimmed);
+    setIsDropboxSaving(true);
+    try {
+      const response = await saveDropboxLink(workId, normalizedLink);
+      if (!response.success) {
+        setDropboxLinkError(response.error || "Failed to save Dropbox link.");
+        return;
+      }
+
+      setWork((prev) =>
+        prev ? { ...prev, dropbox_link: normalizedLink } : prev,
+      );
+      closeDropboxLinkModal();
+      openPDFViewer(normalizedLink);
+    } catch (error) {
+      console.error("Failed to save Dropbox link:", error);
+      setDropboxLinkError("Failed to save Dropbox link.");
+    } finally {
+      setIsDropboxSaving(false);
+    }
+  }, [closeDropboxLinkModal, dropboxLinkDraft, openPDFViewer, workId]);
+
   const togglePDFViewer = useCallback(
     (source: "dropbox") => {
       if (isPDFViewerOpen) {
@@ -350,11 +421,21 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
         return;
       }
 
-      if (source === "dropbox" && work?.dropbox_link) {
-        openPDFViewer(work.dropbox_link);
+      if (source === "dropbox") {
+        if (work?.dropbox_link) {
+          openPDFViewer(work.dropbox_link);
+        } else {
+          openDropboxLinkModal();
+        }
       }
     },
-    [closePDFViewer, isPDFViewerOpen, openPDFViewer, work],
+    [
+      closePDFViewer,
+      isPDFViewerOpen,
+      openDropboxLinkModal,
+      openPDFViewer,
+      work,
+    ],
   );
 
   const openLocalPdfViewer = useCallback(
@@ -371,8 +452,48 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     setFilePickerOptions([]);
   }, []);
 
+  const openUploadModal = useCallback(() => {
+    setUploadError(null);
+    setUploadModalVersion((prev) => prev + 1);
+    setIsUploadModalOpen(true);
+  }, []);
+
+  const closeUploadModal = useCallback(() => {
+    setUploadError(null);
+    setIsUploadModalOpen(false);
+  }, []);
+
+  const handleWorkFileUpload = useCallback(
+    async (file: File) => {
+      setIsUploadingFile(true);
+      setUploadError(null);
+      try {
+        const response = await uploadWorkFile(workId, file);
+        if (!response.success) {
+          setUploadError(response.error || "Failed to upload file.");
+          return;
+        }
+
+        closeUploadModal();
+        if (response.url) {
+          openLocalPdfViewer(response.url);
+        }
+        await fetchData();
+      } catch (error) {
+        console.error("Failed to upload work file:", error);
+        setUploadError("Failed to upload file.");
+      } finally {
+        setIsUploadingFile(false);
+      }
+    },
+    [closeUploadModal, fetchData, openLocalPdfViewer, workId],
+  );
+
   const handleFinderButtonClick = useCallback(() => {
-    if (!work?.file_urls?.length) return;
+    if (!work?.file_urls?.length) {
+      openUploadModal();
+      return;
+    }
 
     if (work.file_urls.length === 1) {
       openLocalPdfViewer(work.file_urls[0]);
@@ -385,7 +506,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     }));
     setFilePickerOptions(options);
     setIsFilePickerOpen(true);
-  }, [openLocalPdfViewer, work]);
+  }, [openLocalPdfViewer, openUploadModal, work]);
 
   const handleFilePickerSelect = useCallback(
     (option: DetailFilePickerOption) => {
@@ -440,5 +561,18 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     handleFinderButtonClick,
     handleFilePickerSelect,
     closeFilePicker,
+    isDropboxLinkModalOpen,
+    dropboxLinkDraft,
+    dropboxLinkError,
+    isDropboxSaving,
+    handleDropboxLinkChange,
+    handleDropboxLinkSubmit,
+    closeDropboxLinkModal,
+    isUploadModalOpen,
+    uploadModalVersion,
+    uploadError,
+    isUploadingFile,
+    closeUploadModal,
+    handleWorkFileUpload,
   };
 }
