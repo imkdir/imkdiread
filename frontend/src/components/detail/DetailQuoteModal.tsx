@@ -1,7 +1,7 @@
 import type React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-
-import geminiIcon from "../../assets/imgs/gemini.svg";
+import { AppIcon } from "../AppIcon";
+import "../QuoteCard.css";
 
 export type DetailEditTarget = "quote" | "progress";
 
@@ -137,7 +137,7 @@ export function DetailQuoteModal({
                         disabled={isExplaining || !editingForm.quote}
                         className="detail-explain-btn"
                       >
-                        <img src={geminiIcon} alt="Gemini" width="14" height="14" />
+                        <AppIcon name="gemini" title="Gemini" width={14} height={14} />
                         {isExplaining
                           ? "Thinking..."
                           : editingForm.explanation

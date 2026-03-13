@@ -1,11 +1,12 @@
 .detail-page {
+    --detail-page-goodreads-button-bg: var(--color-text-page-inverse);
+    --detail-page-dropbox-button-bg: var(--color-text-page-inverse);
     min-height: 100vh;
-    background-color: var(--goodreads-dark);
-    color: var(--goodreads-light);
-    font-family: -apple-system, system-ui, sans-serif;
+    background-color: var(--color-bg-page-reader);
+    color: var(--color-text-page-primary);
+    font-family: var(--font-primary-stack);
     position: relative;
     padding: 0 28px;
-    position: relative;
 }
 
 /* 2. The Background Image Layer */
@@ -25,9 +26,7 @@
     border-image-width: 150px 193px 150px 193px;
     border-image-repeat: repeat repeat;
 
-    /* 3. Apply your filters here! */
-    /* Now it ONLY affects the background border image */
-    filter: drop-shadow(16px 16px 20px #fb4343) invert() brightness(25%);
+    filter: invert() brightness(20%);
 }
 
 .detail-split-view-container {
@@ -45,9 +44,216 @@
     min-width: 320px;
     max-width: 1080px;
     margin: 0 auto;
-    padding-left: 72px;
     display: flex;
     flex-direction: column;
+}
+
+/* =========================================================
+   7. DETAIL / PDF PAGE & VIEWER LAYOUT
+   ========================================================= */
+.detail-content-wrapper {
+    position: relative;
+    z-index: var(--z-content-raised);
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+}
+
+.detail-backdrop-gradient {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    background: linear-gradient(
+        to left bottom,
+        var(--bg-elevated) 0%,
+        var(--bg-main) 100%
+    );
+}
+
+.detail-left-col {
+    width: 230px;
+    flex-shrink: 0;
+}
+
+.detail-middle-col {
+    flex-grow: 1;
+}
+
+.detail-right-col {
+    width: 250px;
+    flex-shrink: 0;
+}
+
+.detail-title {
+    margin-top: 30px;
+    font-family: "Libre Baskerville";
+    font-size: 3.5rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    color: var(--color-text-page-primary);
+    margin-bottom: 0.5rem;
+}
+
+/* --- Responsive Detail Wrap --- */
+@media (max-width: 900px) {
+    .detail-content-wrapper {
+        flex-wrap: wrap;
+    }
+    .detail-middle-col {
+        width: calc(100% - 270px);
+    }
+    .detail-right-col {
+        width: 230px;
+    }
+}
+
+@media (max-width: 700px) {
+    .detail-content-wrapper {
+        flex-direction: column;
+        align-items: center;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+    .detail-left-col {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+    .detail-middle-col {
+        width: 100%;
+    }
+    .detail-title {
+        margin-top: 0;
+    }
+    .detail-right-col {
+        width: 50%;
+    }
+}
+
+/* --- PDF Viewer Pane --- */
+.pdf-viewer-pane {
+    flex: 1 1 800px;
+    min-width: 320px;
+    position: sticky;
+    top: 80px;
+    height: calc(100vh - 100px);
+    display: flex;
+    background-color: var(--neutral-charcoal-900);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    box-shadow: 0 15px 35px var(--overlay-black-40);
+    z-index: var(--z-content-sticky);
+    transition:
+        background-color 0.3s ease,
+        padding 0.3s ease;
+}
+
+/* Force Right Column to Wrap when PDF Viewer is side-by-side */
+.detail-content-wrapper.pdf-open-wrap {
+    flex-wrap: wrap;
+    z-index: var(--z-overlay-detail-layout);
+}
+
+.detail-content-wrapper.pdf-open-wrap .detail-middle-col {
+    width: calc(100% - 270px);
+}
+
+/* Morph Right Column into Sliding Drawer */
+.detail-content-wrapper.pdf-open-wrap .detail-right-col {
+    position: fixed;
+    top: 15vh;
+    right: 0;
+    z-index: var(--z-overlay-detail-drawer);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.detail-content-wrapper.pdf-open-wrap .detail-right-col.drawer-closed {
+    transform: translateX(100%);
+}
+
+.detail-content-wrapper.pdf-open-wrap .detail-right-col.drawer-open {
+    transform: translateX(0);
+}
+
+.detail-content-wrapper.pdf-open-wrap .drawer-handle {
+    display: flex;
+    position: absolute;
+    left: -48px;
+    top: 80px;
+    width: 48px;
+    height: 80px;
+    background-color: var(--theme-detail-handle-bg);
+    border: 1px solid var(--color-border-default);
+    border-right: none;
+    border-radius: 12px 0 0 12px;
+    color: var(--theme-detail-handle-text);
+    cursor: pointer;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    box-shadow: -4px 4px 15px var(--overlay-black-30);
+}
+
+.detail-content-wrapper.pdf-open-wrap .drawer-handle:hover {
+    background-color: var(--theme-detail-handle-bg-hover);
+    color: var(--theme-detail-handle-text-hover);
+}
+
+/* --- Responsive PDF Modal/Drawer States --- */
+@media (max-width: 1470px) {
+    .detail-content-wrapper.pdf-open-wrap {
+        position: static;
+        z-index: auto;
+    }
+
+    /* Modal Overlay Mode */
+    .pdf-viewer-pane {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: var(--z-overlay-detail-viewer);
+        background-color: var(--overlay-black-85);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+        border: none;
+        border-radius: 0;
+        padding: 40px 40px 40px 112px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: row;
+        gap: 20px;
+    }
+
+    .detail-content-wrapper.pdf-open-wrap .detail-middle-col {
+        width: 100%;
+    }
+
+    .quotes-grid.pdf-open-grid {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    /* Stacked Modal Mode */
+    .pdf-viewer-pane {
+        padding: 16px;
+        flex-direction: column;
+        gap: 12px;
+    }
+}
+
+.drawer-handle {
+    display: none; /* Hidden by default */
 }
 
 .detail-metadata {
@@ -59,14 +265,15 @@
 }
 
 .detail-author-pill {
-    background-color: var(--goodreads-light);
-    color: var(--goodreads-dark);
+    background-color: var(--theme-pill-background);
+    color: var(--theme-pill-text);
+    border-color: var(--theme-pill-border);
 }
 
 .detail-tag-pill {
-    background-color: transparent;
-    color: var(--goodreads-light);
-    border: 1px solid var(--goodreads-light);
+    background-color: var(--theme-pill-background);
+    color: var(--theme-pill-text);
+    border-color: var(--theme-pill-border);
 }
 
 .drawer-handle-arrow {
@@ -75,11 +282,11 @@
 }
 
 .detail-action-panel {
-    background-color: var(--goodreads-dark);
+    background-color: var(--color-bg-page-reader);
     border-radius: 6px;
-    border: 1px solid var(--border-subtle);
+    border: 1px solid var(--color-border-default);
     overflow: hidden;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 5px 15px var(--color-bg-overlay-soft);
 }
 
 .detail-action-icons-row {
@@ -97,9 +304,17 @@
     gap: 6px;
 }
 
+.detail-action-icon-col:hover .detail-action-icon,
+.detail-action-icon-col:hover .detail-action-label,
+.detail-action-button:hover .detail-action-label {
+    color: var(--theme-detail-action-color-hover);
+}
+
 .detail-action-icon {
     width: 26px;
     height: 26px;
+    color: var(--theme-detail-action-color);
+    flex-shrink: 0;
 }
 
 .detail-action-row {
@@ -118,14 +333,15 @@
 .detail-action-label {
     font-size: 13px;
     font-family: -apple-system, system-ui;
-    color: var(--goodreads-light);
+    color: var(--theme-detail-action-color);
     font-weight: 500;
+    transition: color 0.2s ease;
 }
 
 .detail-divider {
     margin: 0;
     border: none;
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--theme-detail-divider);
 }
 
 .detail-rating-section {
@@ -145,17 +361,19 @@
 .detail-star-icon {
     width: 24px;
     height: 24px;
-    transition: all 0.1s;
+    display: block;
+    transition:
+        color 0.1s ease,
+        opacity 0.1s ease;
 }
 
 .detail-star-icon--active {
-    filter: invert(58%) sepia(87%) saturate(1512%) hue-rotate(167deg)
-        brightness(101%) contrast(92%);
+    color: var(--theme-detail-action-color-hover);
     opacity: 1;
 }
 
 .detail-star-icon--inactive {
-    filter: none;
+    color: var(--theme-detail-action-color);
     opacity: 0.3;
 }
 
@@ -181,11 +399,11 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: var(--color-bg-overlay-medium);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 4500;
+    z-index: var(--z-overlay-detail-modal);
 }
 
 .detail-quote-modal-shell {
@@ -235,7 +453,7 @@
 }
 
 .detail-label {
-    color: rgba(44, 40, 37, 0.7);
+    color: var(--color-text-panel-paper-secondary);
     font-size: 12px;
     font-weight: bold;
     text-transform: uppercase;
@@ -243,14 +461,14 @@
 }
 
 .detail-label--explanation {
-    color: var(--goodreads-dark);
+    color: var(--color-text-panel-paper-primary);
     margin-bottom: 8px;
 }
 
 .detail-secondary-label {
     font-size: 14px;
     font-family: inherit;
-    color: var(--goodreads-dark);
+    color: var(--color-text-panel-paper-primary);
 }
 
 .detail-finished-btn {
@@ -259,13 +477,13 @@
     text-decoration-line: underline;
     font-size: 14px;
     font-family: Fredoka;
-    color: #01635d;
+    color: var(--color-text-accent-teal);
     cursor: pointer;
 }
 
 .detail-modal-title {
     margin: 0 0 8px;
-    color: #2c2825;
+    color: var(--color-text-panel-paper-primary);
     font-size: 16px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -275,13 +493,13 @@
     width: 100%;
     padding: 10px;
     border-radius: 2px;
-    border: 1px solid rgba(44, 40, 37, 0.3);
-    background-color: rgba(255, 255, 255, 0.5);
-    color: #2c2825;
+    border: 1px solid var(--color-border-paper-medium);
+    background-color: var(--color-bg-input-soft);
+    color: var(--color-text-panel-paper-primary);
     font-family: inherit;
     font-size: 14px;
     outline: none;
-    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: inset 0 1px 4px var(--overlay-black-05);
 }
 
 .detail-input--quote {
@@ -307,8 +525,8 @@
 
 .detail-explain-btn {
     background: transparent;
-    border: 1px solid var(--border-subtle);
-    color: var(--goodreads-dark);
+    border: 1px solid var(--color-border-default);
+    color: var(--color-text-panel-paper-primary);
     padding: 6px 12px;
     border-radius: 4px;
     cursor: pointer;
@@ -328,7 +546,7 @@
 .detail-explanation-panel {
     margin-bottom: 20px;
     padding: 16px;
-    background-color: #e5d9c3;
+    background-color: var(--color-bg-panel-paper);
     border-radius: 6px;
     display: flex;
     flex-direction: column;
@@ -344,7 +562,7 @@
     margin: 0;
     font-size: 16px;
     line-height: 1.6;
-    color: var(--goodreads-dark);
+    color: var(--color-text-panel-paper-primary);
     font-family: var(--font-primary-stack);
     white-space: pre-wrap;
 }
@@ -377,14 +595,14 @@
 
 .detail-btn--cancel {
     background-color: transparent;
-    border: 1px solid rgba(44, 40, 37, 0.4);
-    color: #2c2825;
+    border: 1px solid var(--color-border-paper-strong);
+    color: var(--color-text-panel-paper-primary);
 }
 
 .detail-btn--save {
-    background-color: #2c2825;
+    background-color: var(--color-text-panel-paper-primary);
     border: none;
-    color: #fdfbf7;
+    color: var(--color-bg-panel-paper);
     font-weight: bold;
 }
 

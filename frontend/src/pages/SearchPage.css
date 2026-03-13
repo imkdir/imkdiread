@@ -1,0 +1,21 @@
+.search-page {
+    --search-page-bg: var(--color-bg-page-reader);
+    --search-page-text: var(--color-text-page-inverse);
+    --search-page-input-border: var(--color-border-input);
+    --search-page-input-text: var(--color-text-page-primary);
+    --search-page-input-bg: var(--color-bg-overlay-soft);
+    --search-page-icon: var(--color-text-page-secondary);
+    --search-page-divider: var(--color-border-input);
+    --search-page-primary-btn-bg: var(--color-bg-danger);
+    --search-page-primary-btn-text: var(--color-text-page-inverse);
+    --search-page-secondary-btn-border: var(--color-border-default);
+    --search-page-selected-border: var(--color-bg-danger);
+    --search-page-checkbox-border: var(--color-border-input);
+    --search-page-checkbox-bg: var(--color-bg-input-dark);
+    --search-page-series-text: var(--color-text-page-primary);
+}
+
+.search-page__cover {
+    display: block;
+    border-radius: 8px;
+}

@@ -1,9 +1,9 @@
 import React from "react";
+import { AppIcon } from "../../components/AppIcon";
 import type { Author } from "../../types";
 import { request } from "../../utils/APIClient";
 
-import editIcon from "../../assets/imgs/edit.svg";
-import searchIcon from "../../assets/imgs/search.svg";
+import "./AdminAuthorsPage.css";
 
 interface AdminAuthor extends Omit<Author, "goodreads_id"> {
   goodreads_id: string;
@@ -187,12 +187,12 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
     });
 
     return (
-      <div>
+      <div className="admin-authors-page">
         <div style={styles.headerRow}>
           <h1 style={styles.title}>Manage Authors</h1>
           <div style={styles.toolbar}>
             <div style={styles.searchWrapper}>
-              <img src={searchIcon} alt="search" style={styles.searchIcon} />
+              <AppIcon name="search" title="Search" style={styles.searchIcon} />
               <input
                 type="text"
                 placeholder="Filter by ID or name..."
@@ -216,7 +216,7 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
         </div>
 
         {loading ? (
-          <p style={{ color: "#888" }}>Loading database...</p>
+          <p style={{ color: "var(--color-text-page-secondary)" }}>Loading database...</p>
         ) : (
           <div style={styles.tableContainer}>
             <table style={styles.table}>
@@ -235,7 +235,7 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
                       style={{
                         padding: "30px",
                         textAlign: "center",
-                        color: "#888",
+                        color: "var(--color-text-page-secondary)",
                       }}
                     >
                       No authors found matching "{filterText}"
@@ -249,7 +249,7 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
                       </td>
                       <td style={styles.td}>
                         {author.goodreads_id || (
-                          <span style={{ color: "#666" }}>None</span>
+                          <span style={{ color: "var(--color-text-muted-strong)" }}>None</span>
                         )}
                       </td>
                       <td style={styles.td}>
@@ -257,7 +257,7 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
                           onClick={() => this.openEditModal(author)}
                           style={styles.iconBtn}
                         >
-                          <img src={editIcon} alt="Edit" style={styles.icon} />
+                          <AppIcon name="edit" title="Edit" style={styles.icon} />
                         </button>
                       </td>
                     </tr>
@@ -287,8 +287,8 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
                       readOnly={!isAddingNew}
                       style={{
                         ...styles.input,
-                        backgroundColor: isAddingNew ? "#121212" : "#2a2a2a",
-                        color: isAddingNew ? "#fff" : "#888",
+                        backgroundColor: isAddingNew ? "var(--color-bg-page-admin)" : "var(--color-bg-panel-admin-alt)",
+                        color: isAddingNew ? "var(--color-text-page-inverse)" : "var(--color-text-page-secondary)",
                       }}
                       autoFocus={isAddingNew}
                     />
@@ -344,7 +344,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: "12px",
     width: "16px",
     height: "16px",
-    color: "#888",
+    color: "var(--color-text-page-secondary)",
     pointerEvents: "none",
   },
   searchInput: {
@@ -352,22 +352,22 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "10px 32px",
     borderRadius: "6px",
     border: "1px solid var(--border-subtle)",
-    backgroundColor: "#1e1e1e",
-    color: "#fff",
+    backgroundColor: "var(--color-bg-panel-admin)",
+    color: "var(--color-text-page-inverse)",
     fontSize: "14px",
     outline: "none",
   },
   clearSearch: {
     position: "absolute",
     right: "12px",
-    color: "#888",
+    color: "var(--color-text-page-secondary)",
     cursor: "pointer",
     fontSize: "14px",
     fontWeight: "bold",
   },
   addBtn: {
     backgroundColor: "var(--text-main)",
-    color: "#000",
+    color: "var(--color-text-page-inverse-strong)",
     border: "none",
     padding: "10px 16px",
     borderRadius: "6px",
@@ -376,7 +376,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 
   tableContainer: {
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "var(--color-bg-panel-admin)",
     borderRadius: "8px",
     border: "1px solid var(--border-subtle)",
     overflow: "hidden",
@@ -385,7 +385,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   th: {
     padding: "16px",
     borderBottom: "1px solid var(--border-subtle)",
-    color: "#888",
+    color: "var(--color-text-page-secondary)",
     fontSize: "12px",
     textTransform: "uppercase",
     letterSpacing: "1px",
@@ -414,27 +414,27 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "var(--color-bg-overlay-medium)",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 2000,
+    zIndex: "var(--z-overlay-admin-modal)",
   },
   modalContent: {
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "var(--color-bg-panel-admin)",
     padding: "30px",
     borderRadius: "12px",
     border: "1px solid var(--border-subtle)",
     width: "100%",
     maxWidth: "600px",
-    boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+    boxShadow: "0 10px 40px var(--color-bg-overlay-soft)",
   },
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" },
   grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" },
   inputGroup: { display: "flex", flexDirection: "column", gap: "8px" },
   label: {
-    color: "#888",
+    color: "var(--color-text-page-secondary)",
     fontSize: "12px",
     fontWeight: "bold",
     textTransform: "uppercase",
@@ -443,8 +443,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "10px 12px",
     borderRadius: "6px",
     border: "1px solid var(--border-subtle)",
-    backgroundColor: "#121212",
-    color: "#fff",
+    backgroundColor: "var(--color-bg-page-admin)",
+    color: "var(--color-text-page-inverse)",
     fontSize: "14px",
     outline: "none",
   },
@@ -459,7 +459,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "10px 20px",
     backgroundColor: "transparent",
     border: "1px solid var(--border-subtle)",
-    color: "#ccc",
+    color: "var(--color-text-page-tertiary)",
     borderRadius: "6px",
     cursor: "pointer",
   },
@@ -467,7 +467,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "10px 20px",
     backgroundColor: "var(--text-main)",
     border: "none",
-    color: "#000",
+    color: "var(--color-text-page-inverse-strong)",
     borderRadius: "6px",
     cursor: "pointer",
     fontWeight: "bold",

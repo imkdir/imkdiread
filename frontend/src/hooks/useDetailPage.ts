@@ -162,7 +162,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   );
 
   const handleStarMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLImageElement>, starIndex: number) => {
+    (e: React.MouseEvent<Element>, starIndex: number) => {
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const newHoverRating = x < 12 ? starIndex * 2 - 1 : starIndex * 2;

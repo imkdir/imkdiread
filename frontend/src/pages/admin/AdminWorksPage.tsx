@@ -1,11 +1,10 @@
 import React from "react";
 import Papa from "papaparse";
+import { AppIcon } from "../../components/AppIcon";
 import { request } from "../../utils/APIClient";
 import type { Work } from "../../types";
 
-import editIcon from "../../assets/imgs/edit.svg";
-import trashIcon from "../../assets/imgs/trash.svg";
-import searchIcon from "../../assets/imgs/search.svg";
+import "./AdminWorksPage.css";
 
 interface EditFormState {
   id: string;
@@ -290,14 +289,14 @@ export class AdminWorksPage extends React.Component<
     });
 
     return (
-      <div>
+      <div className="admin-works-page">
         <div style={styles.headerRow}>
           <h1 style={styles.title}>Manage Works</h1>
 
           {/* --- NEW: Toolbar Area --- */}
           <div style={styles.toolbar}>
             <div style={styles.searchWrapper}>
-              <img src={searchIcon} alt="search" style={styles.searchIcon} />
+              <AppIcon name="search" title="Search" style={styles.searchIcon} />
               <input
                 type="text"
                 placeholder="Filter by Title, or Tag..."
@@ -336,7 +335,7 @@ export class AdminWorksPage extends React.Component<
         </div>
 
         {loading ? (
-          <p style={{ color: "#888" }}>Loading database...</p>
+          <p style={{ color: "var(--color-text-page-secondary)" }}>Loading database...</p>
         ) : (
           <div style={styles.tableContainer}>
             <table style={styles.table}>
@@ -356,7 +355,7 @@ export class AdminWorksPage extends React.Component<
                       style={{
                         padding: "30px",
                         textAlign: "center",
-                        color: "#888",
+                        color: "var(--color-text-page-secondary)",
                       }}
                     >
                       No works found matching "{filterText}"
@@ -377,7 +376,7 @@ export class AdminWorksPage extends React.Component<
                       <td style={styles.td}>
                         <div style={styles.truncateTitle}>
                           {work.title || (
-                            <span style={{ color: "#666" }}>No Title</span>
+                            <span style={{ color: "var(--color-text-muted-strong)" }}>No Title</span>
                           )}
                         </div>
                       </td>
@@ -400,17 +399,13 @@ export class AdminWorksPage extends React.Component<
                           onClick={() => this.openEditModal(work)}
                           style={styles.iconBtn}
                         >
-                          <img src={editIcon} alt="Edit" style={styles.icon} />
+                          <AppIcon name="edit" title="Edit" style={styles.icon} />
                         </button>
                         <button
                           onClick={() => this.handleDelete(work.id)}
                           style={styles.iconBtn}
                         >
-                          <img
-                            src={trashIcon}
-                            alt="Delete"
-                            style={styles.icon}
-                          />
+                          <AppIcon name="trash" title="Delete" style={styles.icon} />
                         </button>
                       </td>
                     </tr>
@@ -554,7 +549,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: "12px",
     width: "16px",
     height: "16px",
-    color: "#888",
+    color: "var(--color-text-page-secondary)",
     pointerEvents: "none",
   },
   searchInput: {
@@ -562,15 +557,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "10px 32px",
     borderRadius: "6px",
     border: "1px solid var(--border-subtle)",
-    backgroundColor: "#1e1e1e",
-    color: "#fff",
+    backgroundColor: "var(--color-bg-panel-admin)",
+    color: "var(--color-text-page-inverse)",
     fontSize: "14px",
     outline: "none",
   },
   clearSearch: {
     position: "absolute",
     right: "12px",
-    color: "#888",
+    color: "var(--color-text-page-secondary)",
     cursor: "pointer",
     fontSize: "14px",
     fontWeight: "bold",
@@ -578,7 +573,7 @@ const styles: { [key: string]: React.CSSProperties } = {
 
   addBtn: {
     backgroundColor: "var(--text-main)",
-    color: "#000",
+    color: "var(--color-text-page-inverse-strong)",
     border: "none",
     padding: "10px 16px",
     borderRadius: "6px",
@@ -605,7 +600,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 
   tableContainer: {
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "var(--color-bg-panel-admin)",
     borderRadius: "8px",
     border: "1px solid var(--border-subtle)",
     overflow: "hidden",
@@ -614,7 +609,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   th: {
     padding: "16px",
     borderBottom: "1px solid var(--border-subtle)",
-    color: "#888",
+    color: "var(--color-text-page-secondary)",
     fontSize: "12px",
     textTransform: "uppercase",
     letterSpacing: "1px",
@@ -637,16 +632,16 @@ const styles: { [key: string]: React.CSSProperties } = {
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
-    color: "#ccc",
+    color: "var(--color-text-page-tertiary)",
   },
 
   tagsWrapper: { display: "flex", gap: "6px", flexWrap: "wrap" },
   tagPill: {
-    backgroundColor: "#2a2a2a",
+    backgroundColor: "var(--color-bg-panel-admin-alt)",
     padding: "4px 8px",
     borderRadius: "12px",
     fontSize: "11px",
-    color: "#8ab4f8",
+    color: "var(--color-text-link-primary)",
     border: "1px solid var(--border-subtle)",
   },
 
@@ -677,26 +672,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "var(--color-bg-overlay-medium)",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 2000,
+    zIndex: "var(--z-overlay-admin-modal)",
   },
   modalContent: {
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "var(--color-bg-panel-admin)",
     padding: "30px",
     borderRadius: "12px",
     border: "1px solid var(--border-subtle)",
     width: "100%",
     maxWidth: "600px",
-    boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+    boxShadow: "0 10px 40px var(--color-bg-overlay-soft)",
   },
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" },
   inputGroup: { display: "flex", flexDirection: "column", gap: "8px" },
   label: {
-    color: "#888",
+    color: "var(--color-text-page-secondary)",
     fontSize: "12px",
     fontWeight: "bold",
     textTransform: "uppercase",
@@ -705,8 +700,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "10px 12px",
     borderRadius: "6px",
     border: "1px solid var(--border-subtle)",
-    backgroundColor: "#121212",
-    color: "#fff",
+    backgroundColor: "var(--color-bg-page-admin)",
+    color: "var(--color-text-page-inverse)",
     fontSize: "14px",
     outline: "none",
     fontFamily: "inherit",
@@ -722,7 +717,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "10px 20px",
     backgroundColor: "transparent",
     border: "1px solid var(--border-subtle)",
-    color: "#ccc",
+    color: "var(--color-text-page-tertiary)",
     borderRadius: "6px",
     cursor: "pointer",
   },
@@ -730,7 +725,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "10px 20px",
     backgroundColor: "var(--text-main)",
     border: "none",
-    color: "#000",
+    color: "var(--color-text-page-inverse-strong)",
     borderRadius: "6px",
     cursor: "pointer",
     fontWeight: "bold",

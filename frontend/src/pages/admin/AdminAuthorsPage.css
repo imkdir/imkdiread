@@ -1,0 +1,12 @@
+.admin-authors-page {
+    --admin-authors-page-panel-bg: var(--color-bg-panel-admin);
+    --admin-authors-page-input-bg: var(--color-bg-page-admin);
+    --admin-authors-page-input-readonly-bg: var(--color-bg-panel-admin-alt);
+    --admin-authors-page-border: var(--color-border-default);
+    --admin-authors-page-text: var(--color-text-page-inverse);
+    --admin-authors-page-muted: var(--color-text-page-secondary);
+    --admin-authors-page-subtle: var(--color-text-page-tertiary);
+    --admin-authors-page-empty: var(--color-text-muted-strong);
+    --admin-authors-page-overlay: var(--color-bg-overlay-medium);
+    --admin-authors-page-shadow: var(--color-bg-overlay-soft);
+}

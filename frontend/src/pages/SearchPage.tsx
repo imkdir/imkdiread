@@ -1,11 +1,15 @@
 import React from "react";
 import Masonry from "react-masonry-css";
+import { useNavigate } from "react-router-dom";
 import type { User, Work, Series } from "../types";
 import { request } from "../utils/APIClient";
 import { useAuth } from "../components/AuthContext";
+import { FloatingDrawer } from "../components/FloatingDrawer";
+import { AppIcon } from "../components/AppIcon";
 
-import { GoodreadsCover } from "../components/GoodreadsImages";
-import searchIcon from "../assets/imgs/search.svg";
+import { GoodreadsCover } from "../components/GoodreadsCover";
+
+import "./SearchPage.css";
 
 // --- Custom Debounce Utility ---
 function debounce<TArgs extends unknown[]>(
@@ -22,6 +26,9 @@ function debounce<TArgs extends unknown[]>(
 // 1. Define Props to include the injected user
 interface Props {
   user: User | null;
+  inDrawer?: boolean;
+  initialQuery?: string;
+  syncQueryToUrl?: boolean;
 }
 
 interface State {
@@ -47,8 +54,7 @@ class SearchPageClass extends React.Component<Props, State> {
   };
 
   componentDidMount() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialQuery = urlParams.get("q") || "";
+    const initialQuery = this.props.initialQuery || "";
 
     this.fetchSeries();
 
@@ -99,7 +105,9 @@ class SearchPageClass extends React.Component<Props, State> {
 
     // Instantly update the input field and set loading state, but debounce the actual fetch
     this.setState({ query: newQuery, loading: true });
-    window.history.replaceState(null, "", `?q=${newQuery}`);
+    if (this.props.syncQueryToUrl) {
+      window.history.replaceState(null, "", `?q=${newQuery}`);
+    }
 
     this.debouncedSearch(newQuery);
   };
@@ -172,14 +180,24 @@ class SearchPageClass extends React.Component<Props, State> {
     const showLoadingOnly = loading && query !== "" && searchResults.length === 0;
 
     return (
-      <div style={styles.page}>
+      <div
+        className={`search-page ${this.props.inDrawer ? "search-page--drawer" : ""}`}
+        style={{
+          ...styles.page,
+          ...(this.props.inDrawer ? styles.pageInDrawer : {}),
+        }}
+      >
         <div
-          style={{ ...styles.header, top: window.innerWidth <= 768 ? 60 : 0 }}
+          style={{
+            ...styles.header,
+            top: this.props.inDrawer ? 0 : (window.innerWidth <= 768 ? 60 : 0),
+          }}
         >
           {/* Only render Edit Mode UI if they are an Admin and edit mode is active */}
           {isEditMode && isAdmin ? (
             <div style={styles.searchBarWrapper}>
               <input
+                id="global-search-input"
                 type="text"
                 placeholder="Enter tags..."
                 value={bulkTagInput}
@@ -221,6 +239,7 @@ class SearchPageClass extends React.Component<Props, State> {
           ) : (
             <div style={styles.searchBarWrapper}>
               <input
+                id="global-search-input"
                 type="text"
                 placeholder="Search by title, author, or keyword"
                 value={query}
@@ -238,7 +257,9 @@ class SearchPageClass extends React.Component<Props, State> {
                         searchResults: [],
                         loading: false,
                       });
-                      window.history.replaceState(null, "", "?q=");
+                      if (this.props.syncQueryToUrl) {
+                        window.history.replaceState(null, "", "?q=");
+                      }
                     }}
                   >
                     ✕
@@ -255,18 +276,19 @@ class SearchPageClass extends React.Component<Props, State> {
                     Select
                   </button>
                 ) : (
-                  <img
-                    src={searchIcon}
-                    style={styles.searchIcon}
-                    alt={"search"}
-                  />
+                  <AppIcon name="search" title="Search" style={styles.searchIcon} />
                 )}
               </div>
             </div>
           )}
         </div>
 
-        <div style={styles.mainContent}>
+        <div
+          style={{
+            ...styles.mainContent,
+            ...(this.props.inDrawer ? styles.mainContentInDrawer : {}),
+          }}
+        >
           {showLoadingOnly ? (
             <div style={styles.loading}>Searching...</div>
           ) : (
@@ -305,7 +327,7 @@ class SearchPageClass extends React.Component<Props, State> {
                           <GoodreadsCover
                             work={work}
                             disabled={isEditMode}
-                            style={{ display: "block", borderRadius: "8px" }}
+                            className="search-page__cover"
                           />
                           {/* Only show checkboxes if Admin and Edit Mode is active */}
                           {isEditMode && isAdmin && (
@@ -367,15 +389,77 @@ class SearchPageClass extends React.Component<Props, State> {
 // 4. Create the Functional Wrapper to export
 export const SearchPage = () => {
   const { user } = useAuth();
-  return <SearchPageClass user={user} />;
+  const navigate = useNavigate();
+  const initialQuery = new URLSearchParams(window.location.search).get("q") || "";
+
+  const handleClose = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/");
+  };
+
+  return (
+    <FloatingDrawer
+      isOpen
+      title="Search"
+      onClose={handleClose}
+      defaultPlacement="center"
+      defaultViewportRatio={{ width: 0.8, height: 0.8 }}
+      minSize={{ width: 640, height: 420 }}
+      bodyStyle={styles.drawerBody}
+    >
+      <SearchPageClass
+        user={user}
+        inDrawer
+        initialQuery={initialQuery}
+        syncQueryToUrl
+      />
+    </FloatingDrawer>
+  );
+};
+
+interface SearchDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const SearchDrawer: React.FC<SearchDrawerProps> = ({
+  isOpen,
+  onClose,
+}) => {
+  const { user } = useAuth();
+
+  return (
+    <FloatingDrawer
+      isOpen={isOpen}
+      title="Search"
+      onClose={onClose}
+      defaultPlacement="center"
+      defaultViewportRatio={{ width: 0.8, height: 0.8 }}
+      minSize={{ width: 640, height: 420 }}
+      bodyStyle={styles.drawerBody}
+    >
+      <SearchPageClass user={user} inDrawer />
+    </FloatingDrawer>
+  );
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
   page: {
     minHeight: "100vh",
-    backgroundColor: "var(--goodreads-dark)",
-    color: "var(--goodreads-light)",
+    backgroundColor: "var(--search-page-bg)",
+    color: "var(--search-page-text)",
     fontFamily: "-apple-system, system-ui, sans-serif",
+  },
+  pageInDrawer: {
+    minHeight: "100%",
+    height: "100%",
+    backgroundColor: "transparent",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
   },
   header: {
     display: "flex",
@@ -398,10 +482,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "0 10px 0 24px",
     fontSize: "16px",
     borderRadius: "34px",
-    border: "1px solid #5f6368",
+    border: "1px solid var(--search-page-input-border)",
     outline: "none",
-    color: "var(--text-main)",
-    backgroundColor: "#00000080",
+    color: "var(--search-page-input-text)",
+    backgroundColor: "var(--search-page-input-bg)",
     boxShadow: "none",
   },
   iconGroup: {
@@ -410,41 +494,56 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    color: "#9aa0a6",
+    color: "var(--search-page-icon)",
   },
   clearIcon: { cursor: "pointer", fontSize: "18px" },
-  divider: { color: "#5f6368" },
-  searchIcon: { height: "16px" },
+  divider: { color: "var(--search-page-divider)" },
+  searchIcon: { width: "16px", height: "16px" },
   mainContent: { padding: "0 30px 40px 30px" },
-  loading: { marginTop: "30px", color: "#9aa0a6" },
+  mainContentInDrawer: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: "auto",
+    overscrollBehavior: "contain",
+    WebkitOverflowScrolling: "touch",
+  },
+  drawerBody: {
+    minHeight: 0,
+    padding: 0,
+  },
+  loading: { marginTop: "30px", color: "var(--search-page-icon)" },
   resultsContainer: {
     maxWidth: "1200px",
     margin: "0 auto",
   },
-  resultStats: { color: "#9aa0a6", fontSize: "14px", margin: "20px 0" },
+  resultStats: {
+    color: "var(--search-page-icon)",
+    fontSize: "14px",
+    margin: "20px 0",
+  },
   workCard: {
     borderRadius: "8px",
     border: "2px solid transparent",
     transition: "border-color 0.1s, transform 0.1s",
     position: "relative",
   },
-  noResults: { color: "var(--text-main)", fontSize: "16px" },
+  noResults: { color: "var(--search-page-input-text)", fontSize: "16px" },
   primaryBtn: {
     padding: "6px 16px",
     borderRadius: "20px",
     border: "none",
-    backgroundColor: "var(--logo-red)",
-    color: "var(--text-main)",
+    backgroundColor: "var(--search-page-primary-btn-bg)",
+    color: "var(--search-page-primary-btn-text)",
     cursor: "pointer",
     fontWeight: "bold" as const,
     transition: "all 0.2s",
   },
   secondaryBtn: {
-    border: "1px solid var(--border-subtle)",
+    border: "1px solid var(--search-page-secondary-btn-border)",
     backgroundColor: "transparent",
   },
   selectedCard: {
-    border: "2px solid var(--logo-red)",
+    border: "2px solid var(--search-page-selected-border)",
     transform: "scale(0.98)",
   },
   checkboxInactive: {
@@ -454,8 +553,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: "24px",
     height: "24px",
     borderRadius: "4px",
-    border: "2px solid rgba(255,255,255,0.7)",
-    backgroundColor: "rgba(0,0,0,0.3)",
+    border: "2px solid var(--search-page-checkbox-border)",
+    backgroundColor: "var(--search-page-checkbox-bg)",
     zIndex: 10,
   },
   checkboxActive: {
@@ -465,14 +564,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: "24px",
     height: "24px",
     borderRadius: "4px",
-    backgroundColor: "var(--logo-red)",
+    backgroundColor: "var(--search-page-primary-btn-bg)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "#fff",
+    color: "var(--search-page-primary-btn-text)",
     fontWeight: "bold" as const,
     zIndex: 10,
-    border: "2px solid var(--logo-red)",
+    border: "2px solid var(--search-page-selected-border)",
   },
 
   seriesGrid: {
@@ -501,7 +600,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: "absolute",
     zIndex: 1,
     fontSize: "2vw",
-    color: "var(--text-main)",
+    color: "var(--search-page-series-text)",
     fontWeight: "bold",
   },
 };

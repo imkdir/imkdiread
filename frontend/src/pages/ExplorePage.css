@@ -1,0 +1,139 @@
+.explore-page {
+    --explore-page-avatar-bg: var(--color-bg-card-base);
+    --explore-page-avatar-border: var(--color-border-default);
+    --explore-page-avatar-placeholder-bg: var(--color-bg-avatar-placeholder);
+
+    min-height: 100vh;
+    padding: 40px 20px;
+    background-color: var(--color-bg-page-reader);
+    color: var(--color-text-page-inverse);
+    font-family: var(--font-primary-stack);
+}
+
+.explore-page__container {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 28px;
+    align-items: start;
+    width: 90%;
+    max-width: 1580px;
+    margin: 50px auto;
+}
+
+.explore-page__feeds {
+    min-width: 0;
+}
+
+.explore-page__sidebar {
+    background-color: var(--color-bg-highlight-parchment);
+    border: 1px solid var(--color-border-default);
+    border-radius: 20px;
+    padding: 24px 16px;
+    position: sticky;
+    top: 90px;
+    align-self: flex-start;
+}
+
+.explore-page__header {
+    margin-bottom: 24px;
+    padding-left: 16px;
+}
+
+.explore-page__title {
+    margin: 0 0 4px;
+    color: var(--color-text-page-inverse);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.explore-page__subtitle {
+    margin: 0;
+    color: var(--color-text-muted-soft);
+    font-size: 13px;
+}
+
+.explore-page__sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.explore-page__sidebar-item {
+    display: flex;
+    align-items: center;
+}
+
+.explore-page__avatar {
+    width: 48px;
+    height: 48px;
+    margin-right: 14px;
+    border: 1px solid var(--explore-page-avatar-border);
+    border-radius: 50%;
+    background-color: var(--explore-page-avatar-bg);
+}
+
+.explore-page__avatar-placeholder {
+    background-color: var(--explore-page-avatar-placeholder-bg);
+}
+
+.explore-page__link-wrapper {
+    flex-grow: 1;
+    text-decoration: none;
+}
+
+.explore-page__info-stack {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.explore-page__username {
+    color: var(--color-text-page-inverse);
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.explore-page__bio-text {
+    margin-top: 2px;
+    color: var(--color-text-muted-soft);
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.explore-page__context-text {
+    margin-top: 4px;
+    color: var(--color-text-muted-soft);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.explore-page__footer-links {
+    margin-top: 30px;
+    padding-left: 16px;
+    color: var(--color-text-muted-strong);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.explore-page__footer-links p {
+    margin: 0;
+}
+
+@media (max-width: 1024px) {
+    .explore-page__container {
+        grid-template-columns: 1fr;
+    }
+    .explore-page__sidebar {
+        position: static;
+        top: auto;
+        align-self: stretch;
+    }
+}

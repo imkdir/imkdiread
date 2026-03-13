@@ -1,0 +1,43 @@
+.progress-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.progress-bar__track {
+    position: relative;
+    flex: 1;
+    min-width: 80px;
+    height: 12px;
+    background-color: var(--theme-detail-progress-track);
+    transition: background-color 0.2s ease;
+}
+
+.progress-bar__fill {
+    position: absolute;
+    top: 0.5px;
+    bottom: 0.5px;
+    left: 0.5px;
+    background-color: var(--theme-detail-progress-fill);
+    transition: background-color 0.2s ease;
+}
+
+.progress-bar__label {
+    color: var(--theme-detail-progress-text);
+    font-family: -apple-system, system-ui;
+    font-size: 13px;
+    transition: color 0.2s ease;
+}
+
+.progress-bar:hover .progress-bar__track {
+    background-color: var(--theme-detail-progress-track-hover);
+}
+
+.progress-bar:hover .progress-bar__fill {
+    background-color: var(--theme-detail-progress-fill-hover);
+}
+
+.progress-bar:hover .progress-bar__label {
+    color: var(--theme-detail-progress-text-hover);
+}

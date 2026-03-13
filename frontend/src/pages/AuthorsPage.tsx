@@ -3,6 +3,8 @@ import { type Author } from "../types";
 import { AuthorCard } from "../components/AuthorCard";
 import { request } from "../utils/APIClient";
 
+import "./AuthorsPage.css";
+
 interface PageState {
   authors: Author[];
   loading: boolean;
@@ -36,38 +38,25 @@ export class AuthorsPage extends React.Component<
     const { authors } = this.state;
 
     return (
-      <div style={styles.page}>
-        <div style={styles.container}>
+      <div className="authors-page">
+        <div className="authors-page__container">
           {authors.map((author) => (
-            <AuthorCard key={author.name} author={author} />
+            <AuthorCard
+              key={author.name}
+              author={author}
+              theme={{
+                cardBackgroundColor: "var(--authors-page-card-bg)",
+                cardBorderColor: "var(--authors-page-card-border)",
+                avatarBackgroundColor: "var(--authors-page-card-avatar-bg)",
+                avatarTextColor: "var(--authors-page-card-avatar-text)",
+                avatarPlaceholderBackgroundColor:
+                  "var(--authors-page-card-avatar-placeholder-bg)",
+                nameColor: "var(--authors-page-card-name)",
+              }}
+            />
           ))}
         </div>
       </div>
     );
   }
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  page: {
-    minHeight: "100vh",
-    backgroundColor: "var(--goodreads-dark)",
-    color: "var(--goodreads-light)",
-    fontFamily: "-apple-system, system-ui, sans-serif",
-  },
-
-  loading: {
-    textAlign: "center",
-    marginTop: "50px",
-    color: "#ff4d94",
-    fontWeight: "bold",
-  },
-
-  container: {
-    padding: "40px 20px",
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-    gap: "20px",
-    maxWidth: "1200px",
-    margin: "0 auto",
-  },
-};

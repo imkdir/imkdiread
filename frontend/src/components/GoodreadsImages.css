@@ -1,0 +1,70 @@
+.goodreads-author-avatar {
+    position: relative;
+    display: inline-block;
+}
+
+.goodreads-author-avatar__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+}
+
+.goodreads-author-avatar__placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+    font-size: 2em;
+}
+
+.goodreads-cover {
+    position: relative;
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    border-radius: inherit;
+    transform-style: preserve-3d;
+    will-change: transform;
+}
+
+.goodreads-cover__link {
+    position: relative;
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    overflow: hidden;
+    background:
+        linear-gradient(
+            160deg,
+            rgba(255, 255, 255, 0.12),
+            rgba(255, 255, 255, 0.03)
+        ),
+        rgba(0, 0, 0, 0.22);
+    box-shadow:
+        0 16px 34px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.goodreads-cover__image {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: inherit;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.goodreads-cover__glare {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    transition: opacity 0.25s ease;
+}

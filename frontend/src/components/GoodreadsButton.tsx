@@ -1,20 +1,28 @@
 import React, { PureComponent } from "react";
-import logo from "../assets/imgs/goodreads.svg";
+import { AppIcon } from "./AppIcon";
 
 interface Props {
   category: "book" | "author";
   goodreadsId: string;
   style?: React.CSSProperties;
+  className?: string;
 }
 
 export class GoodreadsButton extends PureComponent<Props> {
   render() {
     return (
       <div
+        className={this.props.className}
         style={{ ...styles.root, ...this.props.style }}
         onClick={this.openGoodreadsPage}
       >
-        <img src={logo} style={styles.icon} alt={"goodreads-logo"} />
+        <AppIcon
+          name="goodreads"
+          width={64}
+          height={16}
+          title="Goodreads"
+          style={styles.icon}
+        />
       </div>
     );
   }
@@ -35,7 +43,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: "none",
     padding: "4px 8px 0px 8px",
     borderRadius: "8px",
-    backgroundColor: "var(--goodreads-light)",
     cursor: "pointer",
   },
   icon: {

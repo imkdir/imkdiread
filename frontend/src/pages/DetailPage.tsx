@@ -83,7 +83,7 @@ function DetailPage({ workId, initialWork }: Props) {
                 layoutId={`work-cover-${work.id}`}
                 src={work.cover_img_url as string}
                 alt={work.id}
-                className="work-cover-img"
+                className="goodreads-cover"
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               />
             </aside>
@@ -104,6 +104,10 @@ function DetailPage({ workId, initialWork }: Props) {
                     <GoodreadsButton
                       category="book"
                       goodreadsId={work.goodreads_id}
+                      style={{
+                        backgroundColor:
+                          "var(--detail-page-goodreads-button-bg)",
+                      }}
                     />
                   )}
 
@@ -132,7 +136,12 @@ function DetailPage({ workId, initialWork }: Props) {
                   )}
 
                   {work.dropbox_link && (
-                    <DropboxButton onClick={() => togglePDFViewer("dropbox")} />
+                    <DropboxButton
+                      onClick={() => togglePDFViewer("dropbox")}
+                      style={{
+                        backgroundColor: "var(--detail-page-dropbox-button-bg)",
+                      }}
+                    />
                   )}
 
                   {work.amazon_asin && <KindleButton asin={work.amazon_asin} />}
@@ -147,7 +156,9 @@ function DetailPage({ workId, initialWork }: Props) {
               displayRating={displayRating}
               isPDFViewerOpen={isPDFViewerOpen}
               isActionDrawerOpen={isActionDrawerOpen}
-              progressContent={<ProgressBar work={work} />}
+              progressContent={
+                <ProgressBar work={work} />
+              }
               onToggleDrawer={toggleActionDrawer}
               onToggleAction={toggleAction}
               onResetHoverRating={() => setHoverRating(0)}

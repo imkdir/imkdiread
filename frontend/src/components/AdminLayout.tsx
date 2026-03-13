@@ -1,10 +1,6 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-
-import usersIcon from "../assets/imgs/users.svg";
-import tagIcon from "../assets/imgs/tag.svg";
-import arrowLeftIcon from "../assets/imgs/arrow-left.svg";
-import pdfIcon from "../assets/imgs/pdf.svg";
+import { AppIcon } from "./AppIcon";
 
 export const AdminLayout: React.FC = () => {
   const location = useLocation();
@@ -26,7 +22,7 @@ export const AdminLayout: React.FC = () => {
               ...(isActive("/admin/works") ? styles.activeLink : {}),
             }}
           >
-            <img src={pdfIcon} style={styles.icon} alt="Works" /> Works
+            <AppIcon name="pdf" title="Works" style={styles.icon} /> Works
           </Link>
 
           <Link
@@ -36,7 +32,7 @@ export const AdminLayout: React.FC = () => {
               ...(isActive("/admin/authors") ? styles.activeLink : {}),
             }}
           >
-            <img src={usersIcon} style={styles.icon} alt="Authors" /> Authors
+            <AppIcon name="users" title="Authors" style={styles.icon} /> Authors
           </Link>
 
           <Link
@@ -46,7 +42,7 @@ export const AdminLayout: React.FC = () => {
               ...(isActive("/admin/tags") ? styles.activeLink : {}),
             }}
           >
-            <img src={tagIcon} style={styles.icon} alt="Tags" /> Tags
+            <AppIcon name="tag" title="Tags" style={styles.icon} /> Tags
           </Link>
         </div>
 
@@ -54,7 +50,7 @@ export const AdminLayout: React.FC = () => {
 
         <div style={styles.navSection}>
           <Link to="/" style={styles.exitLink}>
-            <img src={arrowLeftIcon} style={styles.icon} alt="Exit" /> Back
+            <AppIcon name="arrow-left" title="Back" style={styles.icon} /> Back
           </Link>
         </div>
       </aside>
@@ -70,14 +66,14 @@ const styles: { [key: string]: React.CSSProperties } = {
   layout: {
     display: "flex",
     minHeight: "100vh",
-    backgroundColor: "#121212",
+    backgroundColor: "var(--color-bg-page-admin)",
     color: "var(--text-main)",
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   },
   sidebar: {
     width: "260px",
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "var(--color-bg-panel-admin)",
     borderRight: "1px solid var(--border-subtle)",
     display: "flex",
     flexDirection: "column",
@@ -86,7 +82,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     top: 0,
     bottom: 0,
     left: 0,
-    zIndex: 1000,
+    zIndex: "var(--z-shell-sidebar)",
   },
   header: {
     padding: "0 24px 20px 24px",
@@ -98,7 +94,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   logoText: { margin: 0, fontSize: "18px", fontWeight: "bold" },
   badge: {
-    backgroundColor: "#b31826",
+    backgroundColor: "var(--color-bg-danger)",
     color: "white",
     fontSize: "10px",
     padding: "2px 6px",
@@ -107,7 +103,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   navSection: { padding: "0 16px", marginBottom: "30px" },
   sectionTitle: {
-    color: "#888",
+    color: "var(--color-text-page-secondary)",
     fontSize: "11px",
     fontWeight: "bold",
     letterSpacing: "1px",
@@ -122,15 +118,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: "12px",
     padding: "10px 12px",
     borderRadius: "6px",
-    color: "#ccc",
+    color: "var(--color-text-page-tertiary)",
     textDecoration: "none",
     fontSize: "14px",
     marginBottom: "4px",
     transition: "background-color 0.2s, color 0.2s",
   },
   activeLink: {
-    backgroundColor: "#2a2a2a",
-    color: "#fff",
+    backgroundColor: "var(--color-bg-panel-admin-alt)",
+    color: "var(--color-text-page-inverse)",
     fontWeight: "bold" as const,
   },
   exitLink: {
@@ -138,7 +134,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     gap: "12px",
     padding: "10px 12px",
-    color: "#888",
+    color: "var(--color-text-page-secondary)",
     textDecoration: "none",
     fontSize: "14px",
     transition: "color 0.2s",

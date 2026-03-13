@@ -1,5 +1,6 @@
 import React, { PureComponent } from "react";
 import type { Work } from "../types";
+import "./ProgressBar.css";
 
 interface Props {
   work: Work;
@@ -17,40 +18,15 @@ export class ProgressBar extends PureComponent<Props> {
       : 0;
 
     return (
-      <div style={{ ...styles.root, ...this.props.style }}>
-        <div style={styles.bar}>
-          <div style={{ ...styles.fill, width: `${progress}%` }} />
+      <div className="progress-bar" style={this.props.style}>
+        <div className="progress-bar__track">
+          <div
+            className="progress-bar__fill"
+            style={{ width: `${progress}%` }}
+          />
         </div>
-        <span style={styles.label}>{`${current_page} / ${page_count}`}</span>
+        <span className="progress-bar__label">{`${current_page} / ${page_count}`}</span>
       </div>
     );
   }
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  root: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginBottom: "6px",
-  },
-  bar: {
-    flex: 1,
-    position: "relative",
-    minWidth: "80px",
-    height: "12px",
-    backgroundColor: "rgba(235, 226, 215, 0.4)",
-  },
-  fill: {
-    position: "absolute",
-    left: 0.5,
-    top: 0.5,
-    bottom: 0.5,
-    backgroundColor: "var(--goodreads-light)",
-  },
-  label: {
-    fontSize: "13px",
-    fontFamily: "-apple-system, system-ui",
-    color: "var(--goodreads-light)",
-  },
-};

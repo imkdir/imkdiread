@@ -1,10 +1,11 @@
 import React, { Component } from "react";
 import { Link } from "react-router-dom";
 import Masonry from "react-masonry-css";
+import { AppIcon } from "../components/AppIcon";
 import { request } from "../utils/APIClient";
 import type { Work, Quote, User } from "../types";
 
-import photoIcon from "../assets/imgs/instagram.svg";
+import "./ProfilePage.css";
 
 interface RichQuote extends Quote {
   work?: Work;
@@ -153,10 +154,10 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
       isEditing,
     } = this.state;
 
-    if (isLoading) return <div style={styles.loading} />;
+    if (isLoading) return <div className="profile-page" style={styles.loading} />;
 
     return (
-      <div style={styles.page}>
+      <div className="profile-page" style={styles.page}>
         {/* --- HEADER & AVATAR --- */}
         <div style={styles.headerContainer}>
           <input
@@ -172,14 +173,16 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
             style={styles.avatarWrapper}
             title="Click to change avatar"
           >
-            <img
-              src={user?.avatar_url ?? photoIcon}
-              alt="Avatar"
-              style={{
-                ...styles.avatarImg,
-                padding: user?.avatar_url ? "0" : "20px",
-              }}
-            />
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="Avatar" style={styles.avatarImg} />
+            ) : (
+              <AppIcon
+                name="instagram"
+                title="Avatar"
+                size={60}
+                style={{ ...styles.avatarImg, padding: "20px" }}
+              />
+            )}
           </div>
 
           <div>
@@ -338,12 +341,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "40px",
     maxWidth: "1200px",
     margin: "0 auto",
-    color: "var(--text-main)",
+    color: "var(--profile-page-text)",
   },
   loading: {
     textAlign: "center",
     marginTop: "100px",
-    color: "var(--link-blue)",
+    color: "var(--profile-page-loading)",
   },
   headerContainer: {
     display: "flex",
@@ -358,7 +361,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: "pointer",
     overflow: "hidden",
     position: "relative",
-    border: "2px solid var(--border-subtle)",
+    border: "2px solid var(--profile-page-avatar-border)",
     flexShrink: 0,
   },
   avatarImg: { width: "100%", height: "100%", objectFit: "cover" },
@@ -370,12 +373,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: "relative",
     margin: "12px 0",
     borderRadius: "6px",
-    border: "1px solid var(--border-main)",
-    backgroundColor: "rgba(0,0,0,0.2)",
+    border: "1px solid var(--profile-page-input-border)",
+    backgroundColor: "var(--profile-page-input-bg)",
   },
   input: {
     padding: "6px",
-    color: "var(--text-main)",
+    color: "var(--profile-page-input-text)",
     background: "transparent",
     outline: "none",
     border: "none",
@@ -391,7 +394,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     textDecorationLine: "underline",
     fontSize: "14px",
     fontFamily: "Fredoka",
-    color: "var(--goodreads-light)",
+    color: "var(--profile-page-save-text)",
     cursor: "pointer",
   },
   shelvesSection: {
@@ -408,38 +411,38 @@ const styles: { [key: string]: React.CSSProperties } = {
   title: {
     textDecoration: "none",
     fontFamily: "Fredoka",
-    color: "var(--goodreads-light)",
+    color: "var(--profile-page-title)",
   },
   sectionHeader: {
     marginBottom: "24px",
     fontSize: "20px",
     fontFamily: "Fredoka",
   },
-  emptyText: { color: "var(--text-muted)" },
+  emptyText: { color: "var(--profile-page-empty-text)" },
   progressTrack: {
     width: "100%",
-    backgroundColor: "var(--bg-elevated)",
+    backgroundColor: "var(--profile-page-progress-track)",
     height: "6px",
     borderRadius: "3px",
     marginTop: "8px",
     overflow: "hidden",
   },
   progressBar: {
-    backgroundColor: "var(--logo-green)",
+    backgroundColor: "var(--profile-page-accent)",
     height: "100%",
     borderRadius: "3px",
   },
   progressText: {
     fontSize: "12px",
-    color: "var(--text-muted)",
+    color: "var(--profile-page-empty-text)",
     marginTop: "4px",
     textAlign: "right",
   },
   quoteCard: {
-    border: "1px solid var(--border-subtle)",
+    border: "1px solid var(--profile-page-quote-border)",
     borderRadius: "16px",
     padding: "18px",
-    background: "rgba(255,255,255,0.04)",
+    background: "var(--profile-page-quote-bg)",
     display: "flex",
     flexDirection: "column",
     gap: "12px",
@@ -450,21 +453,21 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: "column",
     gap: "6px",
     alignItems: "flex-end",
-    borderTop: "1px solid var(--border-subtle)",
+    borderTop: "1px solid var(--profile-page-quote-border)",
     paddingTop: "12px",
   },
   quoteText: {
     margin: 0,
     lineHeight: 1.6,
-    color: "var(--goodreads-light)",
+    color: "var(--profile-page-quote-text)",
   },
   quoteDate: {
     letterSpacing: "0.05em",
-    color: "var(--text-muted)",
+    color: "var(--profile-page-empty-text)",
     fontSize: "13px",
   },
   quoteSource: {
-    color: "var(--logo-green)",
+    color: "var(--profile-page-accent)",
     fontFamily: "Fredoka",
     textDecoration: "none",
     fontSize: "16px",

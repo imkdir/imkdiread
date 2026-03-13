@@ -8,6 +8,8 @@ import {
 import { useAuth } from "../components/AuthContext";
 import type { User } from "../types";
 
+import "./LoginPage.css";
+
 interface PageProps {
   navigate: NavigateFunction;
   location: Location;
@@ -124,54 +126,51 @@ class LoginPage extends Component<PageProps, PageState> {
     } = this.state;
 
     return (
-      <div style={styles.container}>
+      <div className="login-page">
         {!images.length || (
           <img
             src={images[index]}
             alt="screensaver"
-            style={styles.background}
+            className="login-page__background"
           />
         )}
-        <form onSubmit={this.handleSubmit} style={styles.form}>
+        <form onSubmit={this.handleSubmit} className="login-page__form">
           <input
-            className="auth-input"
+            className="auth-input login-page__input"
             type="text"
             name="username"
             placeholder="Username"
             value={username}
             onChange={this.handleInputChange}
-            style={styles.input}
             required
           />
           <input
-            className="auth-input"
+            className="auth-input login-page__input"
             name="password"
             type="password"
             placeholder="Password"
             value={password}
             onChange={this.handleInputChange}
-            style={styles.input}
             required
           />
 
           {!isSignup || (
             <input
-              className="auth-input"
+              className="auth-input login-page__input"
               name="inviteCode"
               type="text"
               placeholder="Invite code"
               value={inviteCode}
               onChange={this.handleInputChange}
-              style={styles.input}
             />
           )}
-          <button type="submit" style={styles.button}>
+          <button type="submit" className="login-page__button">
             {isSignup ? "Sign Up" : "Log In"}
           </button>
 
           {!isSignup && !alreadySignedUp && (
             <button
-              style={styles.button}
+              className="login-page__button"
               onClick={() => this.setState({ isSignup: !isSignup })}
             >
               {"I'm Invited"}
@@ -182,58 +181,3 @@ class LoginPage extends Component<PageProps, PageState> {
     );
   }
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  container: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "var(--goodreads-dark)",
-  },
-  background: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    zIndex: 0,
-  },
-  form: {
-    position: "fixed",
-    top: "20px",
-    right: "20px",
-    display: "flex",
-    gap: "16px",
-    alignItems: "center",
-    background: "rgba(255, 255, 255, 0.4)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-    boxShadow: "2px 6px 15px rgba(0, 0, 0, 0.2)",
-    borderRadius: "24px",
-    padding: "12px",
-    maxWidth: "960px",
-    zIndex: 1,
-  },
-  input: {
-    padding: "12px",
-    borderRadius: "12px",
-    border: "none",
-    backgroundColor: "rgba(0,0,0,0.15)",
-    color: "var(--goodreads-light)",
-    fontSize: "16px",
-    fontFamily: "Fredoka",
-  },
-  button: {
-    padding: "10px 12px",
-    borderRadius: "12px",
-    border: "none",
-    backgroundColor: "rgba(255,255,255,0.6)",
-    color: "var(--goodreads-brown)",
-    fontSize: "16px",
-    fontWeight: "540",
-    cursor: "pointer",
-    fontFamily: "Fredoka",
-  },
-};

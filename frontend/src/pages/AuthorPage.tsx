@@ -3,14 +3,14 @@ import Masonry from "react-masonry-css";
 
 import { useParams } from "react-router-dom";
 import { type Work, type Author, type Quote } from "../types";
-import {
-  GoodreadsAuthorAvatar,
-  GoodreadsCover,
-} from "../components/GoodreadsImages";
+import { GoodreadsAuthorAvatar } from "../components/GoodreadsAuthorAvatar";
+import { GoodreadsCover } from "../components/GoodreadsCover";
 import { GoodreadsButton } from "../components/GoodreadsButton";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { request } from "../utils/APIClient";
 import { QuoteCard } from "../components/QuoteCard";
+
+import "./AuthorPage.css";
 
 interface AuthorQuote extends Quote {
   work: Work;
@@ -126,7 +126,13 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
   };
 
   renderQuoteCard = (entry: Quote) => {
-    return <QuoteCard quote={entry} displaySource onRefresh={() => {}} />;
+    return (
+      <QuoteCard
+        quote={entry}
+        displaySource
+        onRefresh={() => {}}
+      />
+    );
   };
 
   render() {
@@ -134,14 +140,14 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
     const authorQuotes = this.getAuthorQuotes();
 
     if (loading) {
-      return <div style={styles.loading}>Loading author…</div>;
+      return <div className="author-page__loading">Loading author…</div>;
     }
 
     if (!profile) {
       return (
-        <div style={styles.emptyState}>
-          <h2 style={styles.emptyTitle}>Author not found</h2>
-          <p style={styles.emptyText}>
+        <div className="author-page__empty-state">
+          <h2 className="author-page__empty-title">Author not found</h2>
+          <p className="author-page__empty-text">
             We could not find a matching author profile for this collection.
           </p>
         </div>
@@ -152,30 +158,41 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
       optimisticFollow !== null ? optimisticFollow : !!profile.followed;
 
     return (
-      <div style={styles.page}>
+      <div className="author-page">
         <div className="collection-container">
           <div className="profile-header">
             <div className="avatar-container">
-              <GoodreadsAuthorAvatar author={profile} style={styles.avatar} />
+              <GoodreadsAuthorAvatar
+                author={profile}
+                className="author-page__avatar"
+                placeholderClassName="author-page__avatar-placeholder"
+              />
               {!profile.goodreads_id || (
                 <GoodreadsButton
                   category="author"
                   goodreadsId={profile.goodreads_id}
-                  style={styles.badge}
+                  style={{ backgroundColor: "var(--author-page-goodreads-button-bg)" }}
+                  className="author-page__goodreads-button"
                 />
               )}
             </div>
 
             <div className="info-container">
-              <span style={styles.name}>{profile.name}</span>
-              <div style={styles.metaLine}>
+              <span className="author-page__name">{profile.name}</span>
+              <div className="author-page__meta-line">
                 <span>{profile.works_count} works</span>
                 <span>•</span>
                 <span>{authorQuotes.length} quotes</span>
               </div>
 
               <SegmentedControl
-                style={styles.segment}
+                style={styles.segmentedControl}
+                theme={{
+                  backgroundColor: "var(--author-page-segment-bg)",
+                  activeBackgroundColor: "var(--author-page-segment-active-bg)",
+                  activeTextColor: "var(--author-page-segment-active-text)",
+                  inactiveTextColor: "var(--author-page-segment-inactive-text)",
+                }}
                 value={activeTab}
                 onChange={(val) =>
                   this.setState({
@@ -198,8 +215,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
 
               <div className="action-row">
                 <button
-                  className="follow-button"
-                  style={isFollowing ? styles.following : styles.follow}
+                  className={`follow-button ${isFollowing ? "author-page__follow-button--following" : "author-page__follow-button--default"}`}
                   onClick={this.toggleFollow}
                 >
                   {isFollowing ? "Following" : "Follow"}
@@ -208,23 +224,23 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
             </div>
           </div>
 
-          <div style={styles.gridContainer}>
+          <div className="author-page__grid-container">
             {activeTab === "works" ? (
               works.length ? (
-                <div style={styles.worksGrid}>
+                <div className="author-page__works-grid">
                   {works.map((work) => (
                     <GoodreadsCover
                       key={work.id}
                       work={work}
-                      style={styles.workCover}
+                      className="author-page__cover"
                     />
                   ))}
                 </div>
               ) : (
-                <div style={styles.emptyState}>
-                  <div style={styles.emptyIcon}>📚</div>
-                  <h2 style={styles.emptyTitle}>No Works Yet</h2>
-                  <p style={styles.emptyText}>
+                <div className="author-page__empty-state">
+                  <div className="author-page__empty-icon">📚</div>
+                  <h2 className="author-page__empty-title">No Works Yet</h2>
+                  <p className="author-page__empty-text">
                     This author does not have any works in your library yet.
                   </p>
                 </div>
@@ -238,10 +254,10 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
                 {authorQuotes.map(this.renderQuoteCard)}
               </Masonry>
             ) : (
-              <div style={styles.emptyState}>
-                <div style={styles.emptyIcon}>✍️</div>
-                <h2 style={styles.emptyTitle}>No Quotes Yet</h2>
-                <p style={styles.emptyText}>
+              <div className="author-page__empty-state">
+                <div className="author-page__empty-icon">✍️</div>
+                <h2 className="author-page__empty-title">No Quotes Yet</h2>
+                <p className="author-page__empty-text">
                   When you add quotes from {profile.name}'s works, they will
                   appear here.
                 </p>
@@ -255,113 +271,8 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
 }
 
 const styles: { [key: string]: React.CSSProperties } = {
-  page: {
-    minHeight: "100vh",
-    backgroundColor: "var(--goodreads-dark)",
-    color: "var(--goodreads-light)",
-    fontFamily: "-apple-system, system-ui, sans-serif",
-  },
-  loading: {
-    textAlign: "center",
-    marginTop: "100px",
-    color: "#8ab4f8",
-    fontSize: "14px",
-  },
-  avatar: {
-    width: "150px",
-    height: "150px",
-    borderRadius: "50%",
-    objectFit: "cover",
-    border: "1px solid var(--border-subtle)",
-  },
-  badge: {
-    position: "absolute",
-    bottom: "4px",
-    right: "-8px",
-  },
-  name: {
-    fontSize: "2em",
-    fontWeight: "bold",
-    fontFamily: "Libre Baskerville",
-    color: "#f5f5f5",
-    marginBottom: "10px",
-  },
-  metaLine: {
-    display: "flex",
-    gap: "10px",
-    alignItems: "center",
-    color: "#c7c7c7",
-    fontSize: "14px",
-    marginBottom: "14px",
-  },
-  segment: {
+  segmentedControl: {
     marginBottom: "20px",
     flex: 1,
   },
-  follow: {
-    backgroundColor: "var(--goodreads-light)",
-    color: "var(--goodreads-dark)",
-  },
-  following: {
-    backgroundColor: "#ffffff30",
-    color: "#f5f5f5",
-  },
-  gridContainer: {
-    paddingBottom: "50px",
-    paddingTop: "20px",
-  },
-  worksGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: "40px",
-  },
-  workCover: {
-    width: "100%",
-    aspectRatio: "0.66",
-    objectFit: "cover",
-  },
-  quotesList: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-    gap: "18px",
-  },
-  quoteCard: {
-    border: "1px solid var(--border-subtle)",
-    borderRadius: "16px",
-    padding: "18px",
-    background: "rgba(255,255,255,0.04)",
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-  },
-  quoteWorkTitle: {
-    fontWeight: 700,
-    color: "#f3f3f3",
-  },
-  quotePage: {
-    whiteSpace: "nowrap",
-  },
-  quoteText: {
-    margin: 0,
-    fontSize: "15px",
-    lineHeight: 1.6,
-    color: "#f7f7f7",
-  },
-  quoteMetaBottom: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    fontSize: "12px",
-    color: "#9f9f9f",
-  },
-  emptyState: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "60px 20px",
-    textAlign: "center",
-  },
-  emptyIcon: { fontSize: "48px", marginBottom: "20px" },
-  emptyTitle: { fontSize: "24px", fontWeight: "bold", margin: "0 0 10px 0" },
-  emptyText: { color: "#a8a8a8", fontSize: "14px", maxWidth: "350px" },
 };

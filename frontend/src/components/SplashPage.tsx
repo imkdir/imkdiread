@@ -1,13 +1,16 @@
 import React from "react";
-import instagramIcon from "../assets/imgs/instagram.svg";
 import { Link } from "react-router-dom";
+import { AppIcon } from "./AppIcon";
 
 interface PageState {
   images: string[];
   index: number;
 }
 
-export class SplashPage extends React.Component<Record<string, never>, PageState> {
+export class SplashPage extends React.Component<
+  Record<string, never>,
+  PageState
+> {
   state: PageState = {
     images: [],
     index: 0,
@@ -37,7 +40,7 @@ export class SplashPage extends React.Component<Record<string, never>, PageState
             )}
           </Link>
           <button onClick={() => this.nextScreenshot()} style={styles.button}>
-            <img src={instagramIcon} style={styles.buttonIcon} />
+            <AppIcon name="instagram" size={24} style={styles.buttonIcon} />
           </button>
         </div>
       </div>
@@ -73,7 +76,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: "column",
     minHeight: "100vh",
     fontFamily: "arial, sans-serif",
-    backgroundColor: "var(--goodreads-dark)",
+    backgroundColor: "var(--bg-main)",
     color: "var(--text-main)",
   },
   container: {

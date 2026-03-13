@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { request } from "../utils/APIClient";
-import closeIcon from "../assets/imgs/close.svg";
+import { FloatingDrawer } from "./FloatingDrawer";
 
 interface DictResult {
   word: string;
@@ -23,12 +23,14 @@ interface Props {
   workId: string;
   isOpen: boolean;
   onClose: () => void;
+  anchorRect?: DOMRect | null;
 }
 
 export const DictionaryDrawer: React.FC<Props> = ({
   workId,
   isOpen,
   onClose,
+  anchorRect,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -111,14 +113,15 @@ export const DictionaryDrawer: React.FC<Props> = ({
   if (!isOpen || !workId) return null;
 
   return (
-    <div className="sidebar-drawer-panel">
-      <div style={styles.drawerHeader}>
-        <h2 style={styles.drawerTitle}>Ask Gemini</h2>
-        <button onClick={onClose} style={styles.closeBtn}>
-          <img src={closeIcon} alt={"close"} />
-        </button>
-      </div>
-
+    <FloatingDrawer
+      isOpen={isOpen}
+      title="Ask Gemini"
+      onClose={onClose}
+      anchorRect={anchorRect}
+      defaultSize={{ width: 440, height: 1200 }}
+      minSize={{ width: 340, height: 320 }}
+      bodyStyle={styles.drawerBody}
+    >
       <form onSubmit={handleSearch} style={styles.searchForm}>
         <input
           type="text"
@@ -136,102 +139,99 @@ export const DictionaryDrawer: React.FC<Props> = ({
         </button>
       </form>
 
-      {dictResult && (
-        <div style={styles.glassPanel}>
-          <div style={styles.dictHeader}>
-            <h3 style={styles.dictWord}>{dictResult.word}</h3>
-            {dictResult.phonetic && (
-              <span style={styles.dictPhonetic}>{dictResult.phonetic}</span>
-            )}
-          </div>
-
-          {dictResult.lore_note && (
-            <div style={styles.loreBox}>
-              <span style={styles.loreLabel}>Lore & Context</span>
-              <p style={styles.loreBody}>{dictResult.lore_note}</p>
+      <div style={styles.scrollArea}>
+        {dictResult && (
+          <div style={styles.glassPanel}>
+            <div style={styles.dictHeader}>
+              <h3 style={styles.dictWord}>{dictResult.word}</h3>
+              {dictResult.phonetic && (
+                <span style={styles.dictPhonetic}>{dictResult.phonetic}</span>
+              )}
             </div>
-          )}
 
-          <div style={styles.dictBody}>
-            {dictResult.meanings.slice(0, 2).map((meaning, idx) => (
-              <div key={idx} style={{ marginBottom: "12px" }}>
-                <span style={styles.partOfSpeech}>{meaning.partOfSpeech}</span>
-                <p style={styles.definition}>
-                  1. {meaning.definitions[0].definition}
-                </p>
+            {dictResult.lore_note && (
+              <div style={styles.loreBox}>
+                <span style={styles.loreLabel}>Lore & Context</span>
+                <p style={styles.loreBody}>{dictResult.lore_note}</p>
+              </div>
+            )}
+
+            <div style={styles.dictBody}>
+              {dictResult.meanings.slice(0, 2).map((meaning, idx) => (
+                <div key={idx} style={styles.meaningBlock}>
+                  <span style={styles.partOfSpeech}>
+                    {meaning.partOfSpeech}
+                  </span>
+                  <p style={styles.definition}>
+                    1. {meaning.definitions[0].definition}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div style={styles.saveActions}>
+              <button onClick={handleSaveVocab} style={styles.saveBtn}>
+                Save to Vocabulary
+              </button>
+              <button
+                onClick={() => setDictResult(null)}
+                style={styles.saveBtn}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!!savedVocabs.length && (
+          <div style={styles.savedVocabList}>
+            <h3 style={styles.listTitle}>Did you know?</h3>
+            {savedVocabs.map((vocab) => (
+              <div
+                key={vocab.id}
+                style={styles.localTagCard}
+                onClick={() => setDictResult(vocab.word_data)}
+              >
+                <div style={styles.tagRow}>
+                  <span style={styles.tagName}>{vocab.word}</span>
+                  <span style={styles.tagAuthor}>by {vocab.username}</span>
+                </div>
+                {vocab.word_data?.meanings?.[0]?.definitions?.[0]
+                  ?.definition && (
+                  <p style={styles.tagLabel}>
+                    {vocab.word_data.meanings[0].definitions[0].definition}
+                  </p>
+                )}
               </div>
             ))}
           </div>
-
-          <div style={styles.saveActions}>
-            <button onClick={handleSaveVocab} style={styles.saveBtn}>
-              Save to Vocabulary
-            </button>
-            <button onClick={() => setDictResult(null)} style={styles.saveBtn}>
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!!savedVocabs.length && (
-        <div style={styles.savedVocabList}>
-          <h3 style={styles.listTitle}>Did you know?</h3>
-          {savedVocabs.map((vocab) => (
-            <div
-              key={vocab.id}
-              style={styles.localTagCard}
-              onClick={() => setDictResult(vocab.word_data)}
-            >
-              <div style={styles.tagRow}>
-                <span style={styles.tagName}>{vocab.word}</span>
-                <span style={styles.tagAuthor}>by {vocab.username}</span>
-              </div>
-              {vocab.word_data?.meanings?.[0]?.definitions?.[0]?.definition && (
-                <p style={styles.tagLabel}>
-                  {vocab.word_data.meanings[0].definitions[0].definition}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </FloatingDrawer>
   );
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
-  drawerHeader: {
+  drawerBody: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    margin: "12px 0 36px 0",
-  },
-  drawerTitle: {
-    margin: 0,
-    fontSize: "28px",
-    fontFamily: "Fredoka",
-  },
-  closeBtn: {
-    background: "none",
-    border: "none",
-    color: "var(--text-muted)",
-    cursor: "pointer",
-    padding: 0,
-    display: "flex",
+    flexDirection: "column",
+    minHeight: 0,
+    overflow: "hidden",
+    padding: "10px 20px 20px",
   },
   searchForm: {
     display: "flex",
     gap: "8px",
-    marginBottom: "24px",
+    marginBottom: "16px",
+    flexShrink: 0,
   },
   searchInput: {
     flexGrow: 1,
     padding: "10px 14px",
     borderRadius: "8px",
-    border: "1px solid var(--border-subtle)",
-    backgroundColor: "rgba(0,0,0,0.3)",
-    color: "var(--text-main)",
+    border: "1px solid var(--theme-dictionary-input-border)",
+    backgroundColor: "var(--theme-dictionary-input-bg)",
+    color: "var(--theme-dictionary-input-text)",
     outline: "none",
     fontFamily: "Fredoka",
     fontSize: "16px",
@@ -241,57 +241,78 @@ const styles: { [key: string]: React.CSSProperties } = {
     margin: "1px 0",
     borderRadius: "10px",
     border: "none",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    color: "var(--goodreads-light)",
+    backgroundColor: "var(--color-bg-input-ghost-soft)",
+    color: "var(--theme-dictionary-input-text)",
     cursor: "pointer",
     fontFamily: "Fredoka",
   },
+  scrollArea: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: "auto",
+    overscrollBehavior: "contain",
+    WebkitOverflowScrolling: "touch",
+    paddingRight: "4px",
+  },
   glassPanel: {
-    backgroundColor: "rgba(255,255,255, 0.05)",
-    border: "1px solid rgba(255,255,255, 0.1)",
-    borderRadius: "12px",
-    padding: "20px",
+    backgroundColor: "var(--theme-dictionary-panel-bg)",
+    border: "1px solid var(--theme-dictionary-panel-border)",
+    borderRadius: "16px",
+    padding: "22px",
     marginBottom: "24px",
+    boxShadow: "0 12px 32px rgba(0, 0, 0, 0.18)",
   },
   dictHeader: {
-    marginBottom: "16px",
-    borderBottom: "1px solid rgba(255,255,255,0.1)",
-    paddingBottom: "12px",
+    marginBottom: "18px",
+    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+    paddingBottom: "14px",
   },
   dictWord: {
     margin: "0 0 4px 0",
     fontSize: "28px",
     fontFamily: "Libre Baskerville",
-    color: "var(--text-main)",
+    color: "var(--theme-dictionary-title)",
   },
   dictPhonetic: {
     fontSize: "14px",
-    color: "var(--logo-green)",
+    color: "var(--theme-dictionary-accent)",
     fontFamily: "monospace",
   },
   loreBox: {
-    backgroundColor: "rgba(255, 215, 0, 0.1)",
-    borderLeft: "3px solid var(--logo-green)",
-    padding: "12px",
-    marginBottom: "16px",
-    borderRadius: "0 4px 4px 0",
+    backgroundColor: "var(--theme-dictionary-panel-bg)",
+    border: "1px solid var(--theme-dictionary-panel-border)",
+    borderLeft: "4px solid var(--theme-dictionary-accent)",
+    padding: "16px 18px",
+    marginBottom: "20px",
+    borderRadius: "0 14px 14px 0",
+    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.08)",
   },
   loreLabel: {
+    display: "inline-block",
+    marginBottom: "8px",
     fontSize: "11px",
     textTransform: "uppercase",
-    color: "var(--logo-green)",
+    color: "var(--theme-dictionary-accent)",
     fontWeight: "bold",
-    letterSpacing: "0.05em",
+    letterSpacing: "0.08em",
   },
   loreBody: {
-    margin: "4px 0 0 0",
-    fontSize: "16px",
-    lineHeight: "1.5",
-    color: "var(--text-main)",
+    margin: 0,
+    fontSize: "17px",
+    lineHeight: "1.8",
+    color: "var(--theme-dictionary-body)",
     fontFamily: "Libre Baskerville",
+    textWrap: "pretty",
   },
   dictBody: {
     marginBottom: "16px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "14px",
+  },
+  meaningBlock: {
+    paddingBottom: "14px",
+    borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
   },
   partOfSpeech: {
     fontSize: "12px",
@@ -301,10 +322,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: "bold",
   },
   definition: {
-    margin: "4px 0 0 0",
-    fontSize: "14px",
-    lineHeight: "1.5",
-    color: "var(--text-dim)",
+    margin: "8px 0 0 0",
+    fontSize: "15px",
+    lineHeight: "1.7",
+    color: "var(--theme-dictionary-card-text)",
     fontFamily: "Libre Baskerville",
   },
   saveActions: {
@@ -317,29 +338,28 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     flexDirection: "column",
     gap: "12px",
-    flex: 1,
-    overflowY: "auto",
   },
   saveBtn: {
     padding: "8px 16px",
     borderRadius: "6px",
     border: "none",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    color: "#fff",
+    backgroundColor: "var(--color-bg-input-ghost)",
+    color: "var(--theme-dictionary-input-text)",
     cursor: "pointer",
     fontWeight: "bold",
     fontSize: "13px",
     fontFamily: "Fredoka",
   },
   listTitle: {
-    margin: "0 0 8px 4px",
+    margin: "0 0 10px 4px",
     color: "var(--text-muted)",
     fontFamily: "Fredoka",
   },
   localTagCard: {
-    padding: "12px",
-    borderRadius: "8px",
-    backgroundColor: "rgba(0,0,0,0.2)",
+    padding: "14px",
+    borderRadius: "12px",
+    backgroundColor: "var(--theme-dictionary-card-bg)",
+    border: "1px solid var(--theme-dictionary-panel-border)",
     cursor: "pointer",
   },
   tagRow: {
@@ -349,7 +369,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   tagName: {
     fontSize: "20px",
-    color: "var(--goodreads-light)",
+    color: "var(--theme-dictionary-title)",
     fontFamily: "Libre Baskerville",
   },
   tagAuthor: {
@@ -358,9 +378,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   tagLabel: {
     fontSize: "13px",
-    lineHeight: "1.4",
-    color: "var(--text-dim)",
-    marginTop: "6px",
+    lineHeight: "1.55",
+    color: "var(--theme-dictionary-card-text)",
+    marginTop: "8px",
     marginBottom: 0,
   },
 };

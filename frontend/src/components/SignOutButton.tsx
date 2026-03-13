@@ -37,7 +37,7 @@ class SignOutButton extends React.Component<Props> {
           cursor: "pointer",
           width: "100%",
           textAlign: "left",
-          color: "var(--goodreads-light)", // Subtly red to indicate a destructive action
+          color: "var(--text-main)", // Subtly red to indicate a destructive action
           display: "flex",
           alignItems: "center",
           padding: "12px",

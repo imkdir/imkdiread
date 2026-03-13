@@ -1,0 +1,301 @@
+.quote-card-container {
+    position: relative;
+    perspective: 1200px;
+    --quote-card-explain-border: transparent;
+    --quote-card-explain-text: var(--theme-quote-card-accent);
+    --quote-card-input-border: var(--theme-quote-card-input-border);
+    --quote-card-input-bg: var(--theme-quote-card-input-bg);
+    --quote-card-input-text: var(--theme-quote-card-input-text);
+    --quote-card-label: var(--theme-quote-card-muted);
+    --quote-card-delete-border: var(--theme-quote-card-danger);
+    --quote-card-delete-text: var(--theme-quote-card-danger);
+    --quote-card-cancel-border: var(--theme-quote-card-input-border);
+    --quote-card-cancel-text: var(--theme-quote-card-accent);
+    --quote-card-save-bg: var(--theme-quote-card-primary-action-bg);
+    --quote-card-save-text: var(--theme-quote-card-primary-action-text);
+    --quote-card-explanation-label: var(--theme-quote-card-accent);
+    --quote-card-explanation-close: var(--theme-quote-card-muted);
+    --quote-card-explanation-text: var(--theme-quote-card-explanation-text);
+}
+
+.quote-card-flipper {
+    position: relative;
+    display: grid;
+    transform-style: preserve-3d;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.quote-face-front,
+.quote-face-back {
+    grid-area: 1 / 1;
+    top: 0;
+    left: 0;
+    width: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.quote-face-front {
+    padding: 24px 32px;
+    background: linear-gradient(
+        135deg,
+        var(--theme-quote-card-front-bg) 0%,
+        color-mix(in srgb, var(--theme-quote-card-front-bg) 78%, #fff 22%) 100%
+    );
+    box-shadow:
+        2px 6px 15px var(--overlay-black-40),
+        inset 0 0 20px var(--overlay-paper-shadow);
+    border: 1px solid var(--theme-quote-card-front-border);
+    border-radius: 2px;
+}
+
+.quote-face-back {
+    transform: rotateY(180deg);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 32px;
+    background: linear-gradient(
+        135deg,
+        var(--theme-quote-card-back-bg) 0%,
+        color-mix(in srgb, var(--theme-quote-card-back-bg) 72%, #000 12%) 100%
+    );
+    box-shadow: inset 2px 4px 15px var(--overlay-black-08);
+    border: 1px solid var(--theme-quote-card-back-border);
+    border-radius: 2px;
+}
+
+.quote-face-front--visible,
+.quote-face-back--visible {
+    position: relative;
+    pointer-events: auto;
+}
+
+.quote-face-front--hidden,
+.quote-face-back--hidden {
+    position: absolute;
+    pointer-events: none;
+}
+
+.quote-face-front:hover {
+    cursor: text;
+}
+
+.quote-edit-hint {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--theme-quote-card-muted);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    text-align: right;
+    text-transform: uppercase;
+    transition: opacity 0.2s;
+}
+
+.quote-face-front:hover .quote-edit-hint {
+    opacity: 1;
+}
+
+.quote-text {
+    position: relative;
+    margin: 0;
+    color: var(--theme-quote-card-front-text);
+    font-family: "Libre Baskerville", ui-serif, Georgia, serif;
+    font-size: 1rem;
+    line-height: 1.65;
+    white-space: pre-line;
+}
+
+.quote-meta {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.3rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid color-mix(in srgb, var(--theme-quote-card-front-text) 18%, transparent);
+    color: var(--theme-quote-card-front-text);
+}
+
+.quote-meta--card {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.quote-number {
+    color: var(--theme-quote-card-front-text);
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.quote-source {
+    color: var(--theme-quote-card-front-text);
+    font-family: "Libre Baskerville", ui-serif, Georgia, serif;
+    font-size: 0.95rem;
+    text-align: right;
+    text-decoration: none;
+}
+
+.quote-explain-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding: 4px 8px;
+    border: 1px solid var(--quote-card-explain-border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--quote-card-explain-text);
+    cursor: pointer;
+    font-family: "Fredoka";
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.quote-explain-icon {
+    width: 12px;
+    height: 12px;
+}
+
+.quote-card-form,
+.quote-card-explanation {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+}
+
+.quote-card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.quote-card-page-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.quote-card-label {
+    margin: 0;
+    color: var(--quote-card-label);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.quote-card-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--quote-card-input-border);
+    border-radius: 2px;
+    background-color: var(--quote-card-input-bg);
+    box-shadow: inset 0 1px 4px var(--overlay-black-05);
+    color: var(--quote-card-input-text);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    resize: none;
+}
+
+.quote-card-input--quote {
+    overflow: hidden;
+}
+
+.quote-card-input--page {
+    width: 60px;
+    padding: 6px;
+}
+
+.quote-card-delete-button,
+.quote-card-action-button,
+.quote-card-explanation-close {
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.quote-card-delete-button {
+    padding: 6px 12px;
+    border: 1px solid var(--quote-card-delete-border);
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--quote-card-delete-text);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.quote-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.quote-card-action-button {
+    flex: 1;
+    padding: 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.quote-card-action-button--cancel {
+    border: 1px solid var(--quote-card-cancel-border);
+    background-color: transparent;
+    color: var(--quote-card-cancel-text);
+}
+
+.quote-card-action-button--save {
+    border: none;
+    background-color: var(--quote-card-save-bg);
+    color: var(--quote-card-save-text);
+    font-weight: 700;
+}
+
+.quote-card-explanation-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.quote-card-explanation-label {
+    color: var(--quote-card-explanation-label);
+}
+
+.quote-card-explanation-close {
+    display: flex;
+    padding: 4px;
+    border: none;
+    background: none;
+    color: var(--quote-card-explanation-close);
+}
+
+.quote-card-explanation-close-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.quote-card-explanation-scroll {
+    padding-right: 4px;
+}
+
+.quote-card-explanation-text {
+    margin: 0;
+    color: var(--quote-card-explanation-text);
+    font-family: var(--font-primary-stack);
+    font-size: 16px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}

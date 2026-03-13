@@ -1,0 +1,126 @@
+.author-page {
+    --author-page-avatar-border: var(--color-border-default);
+    --author-page-avatar-placeholder-bg: var(--color-bg-avatar-placeholder);
+    --author-page-goodreads-button-bg: var(--color-text-page-inverse);
+    --author-page-segment-bg: var(--color-bg-card-soft-strong);
+    --author-page-segment-active-bg: var(--color-text-page-inverse);
+    --author-page-segment-active-text: var(--color-text-page-inverse-strong);
+    --author-page-segment-inactive-text: var(--color-text-page-inverse);
+
+    min-height: 100vh;
+    background-color: var(--color-bg-page-reader);
+    color: var(--color-text-page-inverse);
+    font-family: var(--font-primary-stack);
+}
+
+.author-page__loading {
+    margin-top: 100px;
+    color: var(--color-text-link-primary);
+    font-size: 14px;
+    text-align: center;
+}
+
+.author-page__name {
+    display: inline-block;
+    margin-bottom: 10px;
+    color: var(--color-text-page-inverse);
+    font-size: 2em;
+    font-weight: 700;
+    font-family: "Libre Baskerville", serif;
+}
+
+.author-page__avatar {
+    width: 150px;
+    height: 150px;
+    border: 1px solid var(--author-page-avatar-border);
+    border-radius: 50%;
+}
+
+.author-page__avatar-placeholder {
+    background-color: var(--author-page-avatar-placeholder-bg);
+}
+
+.author-page__goodreads-button {
+    position: absolute;
+    right: -8px;
+    bottom: 4px;
+}
+
+.author-page__meta-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    color: var(--color-text-muted-mid);
+    font-size: 14px;
+}
+
+.author-page__grid-container {
+    padding-top: 20px;
+    padding-bottom: 50px;
+}
+
+.author-page__works-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+}
+
+.author-page__cover {
+    width: 100%;
+    aspect-ratio: 0.66;
+}
+
+.author-page__follow-button--default {
+    background-color: var(--color-text-page-inverse);
+    color: var(--color-bg-page-reader);
+}
+
+.author-page__follow-button--following {
+    background-color: var(--color-bg-card-soft-strong);
+    color: var(--color-text-page-inverse);
+}
+
+.author-page__empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.author-page__empty-icon {
+    margin-bottom: 20px;
+    font-size: 48px;
+}
+
+.author-page__empty-title {
+    margin: 0 0 10px;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.author-page__empty-text {
+    max-width: 350px;
+    color: var(--color-text-muted-soft);
+    font-size: 14px;
+}
+
+@media (max-width: 1100px) {
+    .author-page__works-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 800px) {
+    .author-page__works-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+    }
+}
+
+@media (max-width: 560px) {
+    .author-page__works-grid {
+        grid-template-columns: 1fr;
+    }
+}

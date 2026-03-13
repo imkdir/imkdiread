@@ -12,14 +12,28 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   style?: React.CSSProperties;
+  theme?: {
+    backgroundColor?: string;
+    activeBackgroundColor?: string;
+    activeTextColor?: string;
+    inactiveTextColor?: string;
+  };
 }
 
 export class SegmentedControl extends React.Component<Props> {
   render() {
-    const { options, value, onChange, style } = this.props;
+    const { options, value, onChange, style, theme } = this.props;
 
     return (
-      <div style={{ ...styles.container, ...style }}>
+      <div
+        style={{
+          ...styles.container,
+          ...(theme?.backgroundColor
+            ? { backgroundColor: theme.backgroundColor }
+            : {}),
+          ...style,
+        }}
+      >
         {options.map((option) => {
           const isActive = option.value === value;
           return (
@@ -32,7 +46,12 @@ export class SegmentedControl extends React.Component<Props> {
               {isActive && (
                 <motion.div
                   layoutId="segmentedControlIndicator"
-                  style={styles.activeIndicator}
+                  style={{
+                    ...styles.activeIndicator,
+                    ...(theme?.activeBackgroundColor
+                      ? { backgroundColor: theme.activeBackgroundColor }
+                      : {}),
+                  }}
                   transition={{
                     type: "spring",
                     stiffness: 500,
@@ -43,7 +62,9 @@ export class SegmentedControl extends React.Component<Props> {
               <span
                 style={{
                   ...styles.text,
-                  color: isActive ? "#000000" : "#ffffff",
+                  color: isActive
+                    ? (theme?.activeTextColor ?? styles.text.color)
+                    : (theme?.inactiveTextColor ?? styles.textInactive.color),
                   opacity: isActive ? 1 : 0.6,
                 }}
               >
@@ -63,7 +84,6 @@ export class SegmentedControl extends React.Component<Props> {
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
     display: "inline-flex",
-    backgroundColor: "#ffffff30",
     borderRadius: "9px",
     padding: "2px",
     position: "relative",
@@ -90,9 +110,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#eee",
     borderRadius: "8px",
-    boxShadow: "0 3px 8px 0 rgba(0,0,0,0.12), 0 3px 1px 0 rgba(0,0,0,0.04)",
+    boxShadow:
+      "0 3px 8px 0 var(--color-shadow-soft), 0 3px 1px 0 var(--color-shadow-subtle)",
     zIndex: -1,
   },
   text: {
@@ -103,6 +123,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     zIndex: 1,
     whiteSpace: "nowrap",
     fontFamily: "-apple-system, system-ui",
+    color: "var(--color-text-page-inverse-strong)",
+  },
+  textInactive: {
+    color: "var(--color-text-page-inverse)",
   },
   count: {
     fontWeight: 700,

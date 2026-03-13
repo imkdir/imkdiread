@@ -1,5 +1,5 @@
 import React, { PureComponent } from "react";
-import logo from "../assets/imgs/dropbox.svg";
+import { AppIcon } from "./AppIcon";
 
 interface Props {
   style?: React.CSSProperties;
@@ -13,7 +13,13 @@ export class DropboxButton extends PureComponent<Props> {
         style={{ ...styles.root, ...this.props.style }}
         onClick={this.props.onClick}
       >
-        <img src={logo} style={styles.icon} alt={"dropbox-logo"} />
+        <AppIcon
+          name="dropbox"
+          width={28}
+          height={26}
+          title="Dropbox"
+          style={styles.icon}
+        />
       </button>
     );
   }
@@ -23,7 +29,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   root: {
     border: "none",
     borderRadius: "8px",
-    backgroundColor: "#fff",
     cursor: "pointer",
   },
   icon: {

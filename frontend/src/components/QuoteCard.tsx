@@ -1,19 +1,37 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-import { motion } from "framer-motion";
+import { motion, type Transition } from "framer-motion";
 import type { Quote, User } from "../types";
 import { request } from "../utils/APIClient";
+import { AppIcon } from "./AppIcon";
 import { useAuth } from "./AuthContext";
-
-import geminiIcon from "../assets/imgs/gemini.svg";
-import closeIcon from "../assets/imgs/close.svg";
+import "./QuoteCard.css";
 
 interface Props {
   quote: Quote;
   displaySource?: boolean;
   onRefresh: () => void;
   user: User | null;
+  theme?: QuoteCardTheme;
+}
+
+export interface QuoteCardTheme {
+  explainButtonBorderColor?: string;
+  explainButtonTextColor?: string;
+  inputBorderColor?: string;
+  inputBackgroundColor?: string;
+  inputTextColor?: string;
+  labelColor?: string;
+  deleteBorderColor?: string;
+  deleteTextColor?: string;
+  cancelBorderColor?: string;
+  cancelTextColor?: string;
+  saveBackgroundColor?: string;
+  saveTextColor?: string;
+  explanationLabelColor?: string;
+  explanationCloseColor?: string;
+  explanationTextColor?: string;
 }
 
 interface State {
@@ -25,6 +43,70 @@ interface State {
 }
 
 const TEXTAREA_RESIZE_DELAY_MS = 10;
+const FLIP_TRANSITION: Transition = {
+  type: "spring",
+  stiffness: 90,
+  damping: 15,
+  mass: 1.2,
+};
+
+type QuoteCardThemeVars = React.CSSProperties & Record<`--${string}`, string>;
+
+function getQuoteCardThemeVars(theme?: QuoteCardTheme): QuoteCardThemeVars {
+  const vars = {} as QuoteCardThemeVars;
+
+  if (!theme) {
+    return vars;
+  }
+
+  if (theme.explainButtonBorderColor) {
+    vars["--quote-card-explain-border"] = theme.explainButtonBorderColor;
+  }
+  if (theme.explainButtonTextColor) {
+    vars["--quote-card-explain-text"] = theme.explainButtonTextColor;
+  }
+  if (theme.inputBorderColor) {
+    vars["--quote-card-input-border"] = theme.inputBorderColor;
+  }
+  if (theme.inputBackgroundColor) {
+    vars["--quote-card-input-bg"] = theme.inputBackgroundColor;
+  }
+  if (theme.inputTextColor) {
+    vars["--quote-card-input-text"] = theme.inputTextColor;
+  }
+  if (theme.labelColor) {
+    vars["--quote-card-label"] = theme.labelColor;
+  }
+  if (theme.deleteBorderColor) {
+    vars["--quote-card-delete-border"] = theme.deleteBorderColor;
+  }
+  if (theme.deleteTextColor) {
+    vars["--quote-card-delete-text"] = theme.deleteTextColor;
+  }
+  if (theme.cancelBorderColor) {
+    vars["--quote-card-cancel-border"] = theme.cancelBorderColor;
+  }
+  if (theme.cancelTextColor) {
+    vars["--quote-card-cancel-text"] = theme.cancelTextColor;
+  }
+  if (theme.saveBackgroundColor) {
+    vars["--quote-card-save-bg"] = theme.saveBackgroundColor;
+  }
+  if (theme.saveTextColor) {
+    vars["--quote-card-save-text"] = theme.saveTextColor;
+  }
+  if (theme.explanationLabelColor) {
+    vars["--quote-card-explanation-label"] = theme.explanationLabelColor;
+  }
+  if (theme.explanationCloseColor) {
+    vars["--quote-card-explanation-close"] = theme.explanationCloseColor;
+  }
+  if (theme.explanationTextColor) {
+    vars["--quote-card-explanation-text"] = theme.explanationTextColor;
+  }
+
+  return vars;
+}
 
 class QuoteCardClass extends React.Component<Props, State> {
   private textareaRef = React.createRef<HTMLTextAreaElement>();
@@ -131,10 +213,96 @@ class QuoteCardClass extends React.Component<Props, State> {
       });
   };
 
+  getFaceClassName = (
+    baseClassName: "quote-face-front" | "quote-face-back",
+    isVisible: boolean,
+  ) =>
+    `${baseClassName} ${isVisible ? `${baseClassName}--visible` : `${baseClassName}--hidden`}`;
+
+  renderEditForm = () => {
+    const { editQuote, editPageNum, isSaving } = this.state;
+
+    return (
+      <form onSubmit={this.handleSave} className="quote-card-form">
+        <textarea
+          ref={this.textareaRef}
+          name="editQuote"
+          value={editQuote}
+          onChange={this.handleInputChange}
+          className="quote-card-input quote-card-input--quote"
+          rows={4}
+        />
+
+        <div className="quote-card-row">
+          <div className="quote-card-page-group">
+            <label className="quote-card-label">Pg.</label>
+            <input
+              name="editPageNum"
+              value={editPageNum}
+              onChange={this.handleInputChange}
+              className="quote-card-input quote-card-input--page"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={this.handleDelete}
+            className="quote-card-delete-button"
+          >
+            Delete
+          </button>
+        </div>
+
+        <div className="quote-card-actions">
+          <button
+            type="button"
+            onClick={(e) => this.toggleFlip("edit", e)}
+            className="quote-card-action-button quote-card-action-button--cancel"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="quote-card-action-button quote-card-action-button--save"
+          >
+            {isSaving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </form>
+    );
+  };
+
+  renderExplanation = () => {
+    const { quote } = this.props;
+
+    return (
+      <div className="quote-card-explanation">
+        <div className="quote-card-explanation-header">
+          <label className="quote-card-label quote-card-explanation-label">
+            Gemini says:
+          </label>
+
+          <button
+            type="button"
+            onClick={(e) => this.toggleFlip("explain", e)}
+            className="quote-card-explanation-close"
+            aria-label="Close explanation"
+          >
+            <AppIcon name="close" className="quote-card-explanation-close-icon" />
+          </button>
+        </div>
+
+        <div className="quote-card-explanation-scroll">
+          <p className="quote-card-explanation-text">{quote.explanation}</p>
+        </div>
+      </div>
+    );
+  };
+
   render() {
-    const { quote, displaySource } = this.props;
-    const { isFlipped, flipMode, editQuote, editPageNum, isSaving } =
-      this.state;
+    const { quote, displaySource, theme } = this.props;
+    const { isFlipped, flipMode } = this.state;
 
     const hasPermission = this.canEditOrDelete();
     const showQuoteMeta =
@@ -144,41 +312,22 @@ class QuoteCardClass extends React.Component<Props, State> {
       <motion.div
         layout
         className="quote-card-container"
-        style={{ position: "relative" }}
+        style={getQuoteCardThemeVars(theme)}
       >
         <motion.div
           className="quote-card-flipper"
           initial={false}
           animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ type: "spring", stiffness: 90, damping: 15, mass: 1.2 }}
+          transition={FLIP_TRANSITION}
           onAnimationComplete={this.handleFlipAnimationComplete}
-          style={{ position: "relative", width: "100%" }}
         >
-          {/* ========================================== */}
-          {/* FRONT FACE (Quote Preview)                 */}
-          {/* ========================================== */}
           <div
-            className="quote-face-front"
-            style={{
-              position: isFlipped ? "absolute" : "relative",
-              top: 0,
-              left: 0,
-              width: "100%",
-              pointerEvents: isFlipped ? "none" : "auto",
-            }}
+            className={this.getFaceClassName("quote-face-front", !isFlipped)}
           >
             <blockquote className="quote-text">{quote.quote}</blockquote>
 
             {showQuoteMeta && (
-              <div
-                className="quote-meta"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  gap: "12px",
-                }}
-              >
+              <div className="quote-meta quote-meta--card">
                 {quote.page_number && (
                   <span className="quote-number">P{quote.page_number}</span>
                 )}
@@ -193,24 +342,15 @@ class QuoteCardClass extends React.Component<Props, State> {
                 ) : (
                   !!quote.explanation && (
                     <button
+                      type="button"
                       onClick={(e) => this.toggleFlip("explain", e)}
-                      style={{
-                        background: "transparent",
-                        border: "1px solid rgba(44, 40, 37, 0.3)",
-                        color: "var(--goodreads-dark)",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        fontSize: "11px",
-                        fontWeight: "bold",
-                        fontFamily: "Fredoka",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        marginLeft: "auto", // Pushes the button to the far right
-                      }}
+                      className="quote-explain-button"
                     >
-                      <img src={geminiIcon} alt="Gemini" />
+                      <AppIcon
+                        name="gemini"
+                        className="quote-explain-icon"
+                        title="Gemini"
+                      />
                       Gemini
                     </button>
                   )
@@ -229,161 +369,11 @@ class QuoteCardClass extends React.Component<Props, State> {
             )}
           </div>
 
-          {/* ========================================== */}
-          {/* BACK FACE (Dynamic: Edit Form OR Explanation)*/}
-          {/* ========================================== */}
           {(hasPermission || quote.explanation) && flipMode && (
             <div
-              className="quote-face-back"
-              style={{
-                position: isFlipped ? "relative" : "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                pointerEvents: !isFlipped ? "none" : "auto",
-              }}
+              className={this.getFaceClassName("quote-face-back", isFlipped)}
             >
-              {flipMode === "edit" ? (
-                // --- THE EDIT FORM ---
-                <form
-                  onSubmit={this.handleSave}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    height: "100%",
-                    gap: "12px",
-                  }}
-                >
-                  <textarea
-                    ref={this.textareaRef}
-                    name="editQuote"
-                    value={editQuote}
-                    onChange={this.handleInputChange}
-                    style={{ ...styles.input, overflow: "hidden" }}
-                    rows={4}
-                  />
-
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <label style={styles.label}>Pg.</label>
-                      <input
-                        name="editPageNum"
-                        value={editPageNum}
-                        onChange={this.handleInputChange}
-                        style={{
-                          ...styles.input,
-                          width: "60px",
-                          padding: "6px",
-                        }}
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={this.handleDelete}
-                      style={styles.deleteBtn}
-                    >
-                      Delete
-                    </button>
-                  </div>
-
-                  <div
-                    style={{ display: "flex", gap: "8px", marginTop: "auto" }}
-                  >
-                    <button
-                      type="button"
-                      onClick={(e) => this.toggleFlip("edit", e)}
-                      style={styles.cancelBtn}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSaving}
-                      style={styles.saveBtn}
-                    >
-                      {isSaving ? "Saving..." : "Save"}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                // --- THE AI EXPLANATION VIEW ---
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "12px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "12px",
-                    }}
-                  >
-                    <label
-                      style={{
-                        ...styles.label,
-                        color: "var(--goodreads-dark)",
-                        margin: 0,
-                      }}
-                    >
-                      Gemini says:
-                    </label>
-
-                    <button
-                      onClick={(e) => this.toggleFlip("explain", e)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "var(--text-muted)",
-                        display: "flex",
-                        padding: "4px",
-                      }}
-                    >
-                      <img
-                        src={closeIcon}
-                        alt="Close"
-                        style={{ width: "16px", filter: "invert(1)" }}
-                      />
-                    </button>
-                  </div>
-
-                  <div
-                    style={{
-                      paddingRight: "4px",
-                    }}
-                  >
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: "16px",
-                        lineHeight: "1.6",
-                        color: "var(--goodreads-dark)",
-                        fontFamily: "Google Sans",
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
-                      {quote.explanation}
-                    </p>
-                  </div>
-                </div>
-              )}
+              {flipMode === "edit" ? this.renderEditForm() : this.renderExplanation()}
             </div>
           )}
         </motion.div>
@@ -396,58 +386,4 @@ class QuoteCardClass extends React.Component<Props, State> {
 export const QuoteCard = (props: Omit<Props, "user">) => {
   const { user } = useAuth();
   return <QuoteCardClass {...props} user={user} />;
-};
-
-// Local styles tailored for the light, coarse paper background
-const styles: { [key: string]: React.CSSProperties } = {
-  input: {
-    width: "100%",
-    padding: "10px",
-    borderRadius: "2px",
-    border: "1px solid rgba(44, 40, 37, 0.3)",
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-    color: "#2c2825",
-    fontFamily: "inherit",
-    fontSize: "14px",
-    resize: "none",
-    outline: "none",
-    boxShadow: "inset 0 1px 4px rgba(0,0,0,0.05)",
-  },
-  label: {
-    color: "rgba(44, 40, 37, 0.7)",
-    fontSize: "12px",
-    fontWeight: "bold",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-  },
-  deleteBtn: {
-    backgroundColor: "transparent",
-    border: "1px solid #d32f2f",
-    color: "#d32f2f",
-    padding: "6px 12px",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: "bold",
-  },
-  cancelBtn: {
-    flex: 1,
-    backgroundColor: "transparent",
-    border: "1px solid rgba(44, 40, 37, 0.4)",
-    color: "#2c2825",
-    padding: "8px",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontWeight: "600",
-  },
-  saveBtn: {
-    flex: 1,
-    backgroundColor: "#2c2825",
-    border: "none",
-    color: "#fdfbf7",
-    padding: "8px",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
 };

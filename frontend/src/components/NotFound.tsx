@@ -24,8 +24,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "var(--goodreads-dark)",
-    color: "var(--goodreads-light)",
+    backgroundColor: "var(--bg-main)",
+    color: "var(--text-main)",
     fontFamily: "-apple-system, system-ui, sans-serif",
     textAlign: "center",
     padding: "20px",
@@ -33,7 +33,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   errorCode: {
     fontSize: "120px",
     margin: "0",
-    color: "rgba(255,255,255,0.1)", // Faint watermark look
+    color: "var(--color-bg-input-ghost)", // Faint watermark look
     fontWeight: "900",
   },
   title: {
@@ -43,15 +43,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     zIndex: 1,
   },
   description: {
-    color: "#aaa",
+    color: "var(--color-text-muted-soft)",
     maxWidth: "400px",
     lineHeight: "1.6",
     marginBottom: "32px",
   },
   homeButton: {
     padding: "12px 24px",
-    backgroundColor: "#fff",
-    color: "#000",
+    backgroundColor: "var(--color-text-page-inverse)",
+    color: "var(--color-text-page-inverse-strong)",
     textDecoration: "none",
     borderRadius: "6px",
     fontWeight: "bold",

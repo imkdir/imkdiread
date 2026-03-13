@@ -4,10 +4,10 @@ import Masonry from "react-masonry-css";
 import { request } from "../utils/APIClient";
 
 import { type Author, type Work } from "../types";
-import {
-  GoodreadsAuthorAvatar,
-  GoodreadsCover,
-} from "../components/GoodreadsImages";
+import { GoodreadsAuthorAvatar } from "../components/GoodreadsAuthorAvatar";
+import { GoodreadsCover } from "../components/GoodreadsCover";
+
+import "./ExplorePage.css";
 
 interface PageState {
   authors: Author[];
@@ -41,10 +41,10 @@ export class ExplorePage extends React.Component<Record<string, never>, PageStat
     const { authors, works, loading } = this.state;
 
     return (
-      <div style={styles.page}>
-        <div className="explore-container">
+      <div className="explore-page">
+        <div className="explore-page__container">
           {/* --- LEFT: MAIN FEED --- */}
-          <div className="explore-feeds">
+          <div className="explore-page__feeds">
             <Masonry
               breakpointCols={{ default: 4, 1100: 4, 800: 3, 500: 2 }}
               className="my-masonry-grid"
@@ -60,34 +60,39 @@ export class ExplorePage extends React.Component<Record<string, never>, PageStat
           </div>
 
           {/* --- RIGHT: SIDEBAR (Authors) --- */}
-          <div className="explore-sidebar" style={styles.sidebar}>
-            <div style={styles.header}>
-              <h1 style={styles.title}>Suggested for you</h1>
-              <p style={styles.subtitle}>Based on your digital library</p>
+          <div className="explore-page__sidebar">
+            <div className="explore-page__header">
+              <h1 className="explore-page__title">Suggested for you</h1>
+              <p className="explore-page__subtitle">
+                Based on your digital library
+              </p>
             </div>
 
             {loading || (
-              <div className="explore-sidebar-content">
+              <div className="explore-page__sidebar-content">
                 {authors.map((author, index) => (
-                  <div key={index} className="explore-sidebar-item">
+                  <div key={index} className="explore-page__sidebar-item">
                     {/* Left: Avatar */}
                     <GoodreadsAuthorAvatar
                       author={author}
-                      style={styles.avatar}
+                      className="explore-page__avatar"
+                      placeholderClassName="explore-page__avatar-placeholder"
                     />
                     {/* Middle: Text Stack */}
                     <Link
                       to={`/collection/${encodeURIComponent(author.name)}`}
-                      style={styles.linkWrapper}
+                      className="explore-page__link-wrapper"
                     >
-                      <div style={styles.infoStack}>
-                        <span style={styles.username}>{author.name}</span>
-                        <span style={styles.bioText}>
+                      <div className="explore-page__info-stack">
+                        <span className="explore-page__username">
+                          {author.name}
+                        </span>
+                        <span className="explore-page__bio-text">
                           {author.goodreads_id
                             ? `@${author.goodreads_id}`
                             : "Author"}
                         </span>
-                        <span style={styles.contextText}>
+                        <span className="explore-page__context-text">
                           Featured in {author.works_count} works
                         </span>
                       </div>
@@ -99,7 +104,7 @@ export class ExplorePage extends React.Component<Record<string, never>, PageStat
 
             {/* Standard Instagram-style subtle footer links */}
             {!loading && (
-              <div style={styles.footerLinks}>
+              <div className="explore-page__footer-links">
                 <p>About • Help • Press • API • Jobs • Privacy • Terms</p>
                 <p>© 2026 D CHENG</p>
               </div>
@@ -110,101 +115,3 @@ export class ExplorePage extends React.Component<Record<string, never>, PageStat
     );
   }
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  page: {
-    minHeight: "100vh",
-    backgroundColor: "var(--goodreads-dark)",
-    color: "var(--goodreads-light)",
-    fontFamily: "-apple-system, system-ui, sans-serif",
-    padding: "40px 20px",
-  },
-  header: {
-    marginBottom: "24px",
-    paddingLeft: "16px",
-  },
-  title: {
-    fontSize: "18px",
-    fontWeight: "bold",
-    color: "#ffffff",
-    margin: "0 0 4px 0",
-  },
-  subtitle: {
-    color: "#a8a8a8",
-    fontSize: "13px",
-    margin: 0,
-  },
-  loading: {
-    textAlign: "center",
-    marginTop: "50px",
-    color: "#ff4d94",
-    fontWeight: "bold",
-  },
-
-  sidebar: {
-    backgroundColor: "rgba(235, 226, 215, 0.1)",
-  },
-
-  // Avatar
-  avatar: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "50%",
-    objectFit: "cover",
-    backgroundColor: "var(--bg-elevated)",
-    border: "1px solid var(--border-subtle)",
-    marginRight: "14px",
-    textDecoration: "none",
-  },
-
-  // Text Stack
-  infoStack: {
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  linkWrapper: {
-    flexGrow: 1,
-    textDecoration: "none",
-  },
-  username: {
-    color: "#ffffff",
-    fontSize: "14px",
-    fontWeight: "600",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-  bioText: {
-    color: "#a8a8a8",
-    fontSize: "13px",
-    marginTop: "2px",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-  contextText: {
-    color: "#a8a8a8",
-    fontSize: "12px",
-    marginTop: "4px",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-
-  // Button
-  buttonWrapper: {
-    textDecoration: "none",
-    marginLeft: "12px",
-  },
-
-  // Footer Links
-  footerLinks: {
-    marginTop: "30px",
-    paddingLeft: "16px",
-    fontSize: "12px",
-    color: "#737373",
-    lineHeight: "1.6",
-  },
-};

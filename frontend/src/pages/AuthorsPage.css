@@ -1,0 +1,22 @@
+.authors-page {
+    --authors-page-card-bg: var(--color-bg-overlay-card);
+    --authors-page-card-border: var(--color-border-default);
+    --authors-page-card-avatar-bg: var(--color-bg-card-base);
+    --authors-page-card-avatar-text: var(--color-text-page-secondary);
+    --authors-page-card-avatar-placeholder-bg: var(--color-bg-avatar-placeholder);
+    --authors-page-card-name: var(--color-text-page-inverse);
+
+    min-height: 100vh;
+    background-color: var(--color-bg-page-reader);
+    color: var(--color-text-page-inverse);
+    font-family: var(--font-primary-stack);
+}
+
+.authors-page__container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+    padding: 40px 20px;
+}

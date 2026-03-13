@@ -1,14 +1,5 @@
 import type React from "react";
-
-import eyeIcon from "../../assets/imgs/eye.svg";
-import eyeFilledIcon from "../../assets/imgs/eye-filled.svg";
-import heartIcon from "../../assets/imgs/heart.svg";
-import heartFilledIcon from "../../assets/imgs/heart-filled.svg";
-import clockIcon from "../../assets/imgs/clock.svg";
-import clockFilledIcon from "../../assets/imgs/clock-filled.svg";
-import starIcon from "../../assets/imgs/star.svg";
-import starHalfIcon from "../../assets/imgs/star-half.svg";
-import starFilledIcon from "../../assets/imgs/star-filled.svg";
+import { AppIcon } from "../AppIcon";
 
 export type DetailActionType = "read" | "liked" | "shelved";
 
@@ -23,10 +14,7 @@ interface DetailActionPanelProps {
   onToggleDrawer: () => void;
   onToggleAction: (action: DetailActionType) => void;
   onResetHoverRating: () => void;
-  onStarMouseMove: (
-    e: React.MouseEvent<HTMLImageElement>,
-    starIndex: number,
-  ) => void;
+  onStarMouseMove: (e: React.MouseEvent<Element>, starIndex: number) => void;
   onStarClick: () => void;
   onOpenQuoteModal: () => void;
   onOpenProgressModal: () => void;
@@ -67,9 +55,8 @@ export function DetailActionPanel({
             className="detail-action-icon-col"
             onClick={() => onToggleAction("read")}
           >
-            <img
-              src={read ? eyeFilledIcon : eyeIcon}
-              alt="Read"
+            <AppIcon
+              name={read ? "eye-filled" : "eye"}
               className="detail-action-icon"
             />
             <span className="detail-action-label">Read</span>
@@ -78,9 +65,8 @@ export function DetailActionPanel({
             className="detail-action-icon-col"
             onClick={() => onToggleAction("liked")}
           >
-            <img
-              src={liked ? heartFilledIcon : heartIcon}
-              alt="Like"
+            <AppIcon
+              name={liked ? "heart-filled" : "heart"}
               className="detail-action-icon"
             />
             <span className="detail-action-label">{liked ? "Liked" : "Like"}</span>
@@ -89,9 +75,8 @@ export function DetailActionPanel({
             className="detail-action-icon-col"
             onClick={() => onToggleAction("shelved")}
           >
-            <img
-              src={shelved ? clockFilledIcon : clockIcon}
-              alt="Shelve"
+            <AppIcon
+              name={shelved ? "clock-filled" : "clock"}
               className="detail-action-icon"
             />
             <span className="detail-action-label">
@@ -106,23 +91,29 @@ export function DetailActionPanel({
           <span className="detail-action-label">Rate</span>
           <div className="detail-stars-row" onMouseLeave={onResetHoverRating}>
             {[1, 2, 3, 4, 5].map((starIndex) => {
-              let iconSrc = starIcon;
+              let variant: "outline" | "half" | "filled" = "outline";
               if (displayRating >= starIndex * 2) {
-                iconSrc = starFilledIcon;
+                variant = "filled";
               } else if (displayRating === starIndex * 2 - 1) {
-                iconSrc = starHalfIcon;
+                variant = "half";
               }
 
               const isActive = displayRating >= starIndex * 2 - 1;
 
               return (
-                <img
+                <AppIcon
                   key={starIndex}
-                  src={iconSrc}
-                  alt={`${starIndex} Star`}
+                  name={
+                    variant === "filled"
+                      ? "star-filled"
+                      : variant === "half"
+                        ? "star-half"
+                        : "star"
+                  }
                   className={`detail-star-icon ${isActive ? "detail-star-icon--active" : "detail-star-icon--inactive"}`}
                   onMouseMove={(e) => onStarMouseMove(e, starIndex)}
                   onClick={onStarClick}
+                  aria-label={`${starIndex} Star`}
                 />
               );
             })}

@@ -1,0 +1,16 @@
+.profile-page {
+    --profile-page-text: var(--color-text-page-primary);
+    --profile-page-loading: var(--color-text-link-primary);
+    --profile-page-avatar-border: var(--color-border-default);
+    --profile-page-input-border: var(--color-border-input);
+    --profile-page-input-bg: var(--color-bg-card-overlay);
+    --profile-page-input-text: var(--color-text-page-primary);
+    --profile-page-save-text: var(--color-text-page-inverse);
+    --profile-page-title: var(--color-text-page-primary);
+    --profile-page-empty-text: var(--color-text-page-secondary);
+    --profile-page-progress-track: var(--color-bg-card-base);
+    --profile-page-accent: var(--color-text-accent-teal);
+    --profile-page-quote-border: var(--color-border-default);
+    --profile-page-quote-bg: var(--color-bg-overlay-card-soft);
+    --profile-page-quote-text: var(--color-text-page-inverse);
+}

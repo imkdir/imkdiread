@@ -2,14 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
 
-import homeIcon from "../assets/imgs/home.svg";
-import userIcon from "../assets/imgs/users.svg";
-import searchIcon from "../assets/imgs/search.svg";
-import exploreIcon from "../assets/imgs/compass.svg";
-import settingsIcon from "../assets/imgs/settings.svg";
-import dictionaryIcon from "../assets/imgs/dictionary.svg";
+import { AppIcon } from "./AppIcon";
 import { DictionaryDrawer } from "./DictionaryDrawer";
-import { ThemeEditorDrawer } from "./ThemeEditorDrawer"; // <-- Import the new component
+import { ThemeEditorDrawer } from "./ThemeEditorDrawer";
+import { SearchDrawer } from "../pages/SearchPage";
 
 export const SidebarLayout: React.FC = () => {
   const auth = useAuth();
@@ -25,6 +21,10 @@ export const SidebarLayout: React.FC = () => {
     string | null
   >(null);
   const [isThemeOpen, setIsThemeOpen] = useState(false); // <-- Theme Drawer State
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [dictionaryAnchorRect, setDictionaryAnchorRect] =
+    useState<DOMRect | null>(null);
+  const [themeAnchorRect, setThemeAnchorRect] = useState<DOMRect | null>(null);
 
   const isDictOpen = Boolean(workId) && openDictionaryForWorkId === workId;
 
@@ -34,7 +34,9 @@ export const SidebarLayout: React.FC = () => {
       // Cmd/Ctrl + K -> Global Search
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        navigate("/search");
+        setIsSearchOpen(true);
+        setIsThemeOpen(false);
+        setOpenDictionaryForWorkId(null);
         setTimeout(
           () => document.getElementById("global-search-input")?.focus(),
           100,
@@ -46,6 +48,10 @@ export const SidebarLayout: React.FC = () => {
       if (e.key === "Escape") {
         if (isDictOpen) {
           setOpenDictionaryForWorkId(null);
+          return;
+        }
+        if (isSearchOpen) {
+          setIsSearchOpen(false);
           return;
         }
         if (isThemeOpen) {
@@ -69,28 +75,44 @@ export const SidebarLayout: React.FC = () => {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [navigate, isDictOpen, isThemeOpen]);
+  }, [navigate, isDictOpen, isSearchOpen, isThemeOpen]);
 
   return (
     <div className="layout-container" style={styles.layoutContainer}>
-      {/* --- THE SIDEBAR --- */}
-      <nav className="sidebar" style={{ zIndex: 6002 }}>
+      {/* --- THE MENU BAR --- */}
+      <nav className="sidebar">
         <Link to={"/"} className="logo-link">
-          <img src={homeIcon} alt={"home"} />
+          <AppIcon name="home" title="Home" />
         </Link>
 
         <div className="nav-menu">
-          <Link to={"/search"} title="Search Library" className="sidebar-link">
-            <img src={searchIcon} alt={"search"} />
-          </Link>
+          <div
+            title="Search Library"
+            className="sidebar-link"
+            style={{ cursor: "pointer" }}
+            onClick={() => {
+              setIsSearchOpen(true);
+              setIsThemeOpen(false);
+              setOpenDictionaryForWorkId(null);
+              setTimeout(
+                () => document.getElementById("global-search-input")?.focus(),
+                100,
+              );
+            }}
+          >
+            <AppIcon name="search" title="Search" />
+          </div>
           <Link to={"/explore"} title="Explore" className="sidebar-link">
-            <img src={exploreIcon} alt={"explore"} />
+            <AppIcon name="compass" title="Explore" />
           </Link>
 
           {/* THE CONTEXTUAL DICTIONARY TRIGGER */}
           {workId && (
             <div
-              onClick={() => {
+              onClick={(event) => {
+                setDictionaryAnchorRect(
+                  event.currentTarget.getBoundingClientRect(),
+                );
                 setOpenDictionaryForWorkId((current) =>
                   current === workId ? null : workId,
                 );
@@ -100,28 +122,27 @@ export const SidebarLayout: React.FC = () => {
               className="sidebar-link"
               style={{ cursor: "pointer" }}
             >
-              <img src={dictionaryIcon} alt={"dictionary"} />
+              <AppIcon name="dictionary" title="Dictionary" />
             </div>
           )}
 
           {/* THE THEME EDITOR TRIGGER */}
           <div
             className="sidebar-link"
-            style={{ cursor: "pointer", fontSize: "20px" }}
-            onClick={() => {
+            style={{ cursor: "pointer" }}
+            onClick={(event) => {
+              setThemeAnchorRect(event.currentTarget.getBoundingClientRect());
               setIsThemeOpen(!isThemeOpen);
               setOpenDictionaryForWorkId(null); // Close dictionary if opening theme
             }}
             title="Theme Editor"
           >
-            🎨
+            <AppIcon name="brush" title="Theme Editor" size={20} />
           </div>
-        </div>
 
-        <div className="bottom-menu">
           {auth.user && (
             <Link to="/profile" className="sidebar-link" title="Profile">
-              <img src={userIcon} alt={"profile"} />
+              <AppIcon name="users" title="Profile" />
             </Link>
           )}
           {auth.user && auth.user.role === "admin" && (
@@ -130,7 +151,7 @@ export const SidebarLayout: React.FC = () => {
               className="sidebar-link"
               title="Admin Dashboard"
             >
-              <img src={settingsIcon} alt={"admin"} />
+              <AppIcon name="settings" title="Admin Dashboard" />
             </Link>
           )}
         </div>
@@ -141,11 +162,19 @@ export const SidebarLayout: React.FC = () => {
         workId={workId || ""}
         isOpen={isDictOpen}
         onClose={() => setOpenDictionaryForWorkId(null)}
+        anchorRect={dictionaryAnchorRect}
+      />
+
+      <SearchDrawer
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
       />
 
       <ThemeEditorDrawer
         isOpen={isThemeOpen}
         onClose={() => setIsThemeOpen(false)}
+        routePath={location.pathname}
+        anchorRect={themeAnchorRect}
       />
 
       {/* --- THE MAIN PAGE CONTENT --- */}
@@ -169,7 +198,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexGrow: 1,
     minHeight: 0,
     minWidth: 0,
+    height: "calc(100vh - 60px)",
+    marginTop: "60px",
     overflowY: "auto",
+    boxSizing: "border-box",
     overscrollBehaviorY: "contain",
     WebkitOverflowScrolling: "touch",
   },
