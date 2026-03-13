@@ -8,6 +8,7 @@ import {
 } from "framer-motion";
 import { Link } from "react-router-dom";
 import type { Work } from "../types";
+import noCover from "../assets/imgs/no_cover.png";
 
 import "./GoodreadsImages.css";
 
@@ -37,11 +38,15 @@ export function GoodreadsCover({
   in_transition,
 }: CoverProps) {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
+  const src = work.cover_img_url || "";
+  const title = work.title || work.id || "Untitled Work";
+  const showFallback = !src || hasError;
 
   const mouseXSpring = useSpring(x, { stiffness: 240, damping: 22 });
   const mouseYSpring = useSpring(y, { stiffness: 240, damping: 22 });
@@ -52,7 +57,27 @@ export function GoodreadsCover({
 
   useEffect(() => {
     setIsLoaded(false);
-  }, [work.cover_img_url]);
+    setHasError(false);
+
+    if (!src) {
+      setHasError(true);
+      return;
+    }
+
+    const probe = new window.Image();
+    probe.onload = () => setIsLoaded(true);
+    probe.onerror = () => setHasError(true);
+    probe.src = src;
+
+    if (probe.complete && probe.naturalWidth > 0) {
+      setIsLoaded(true);
+    }
+
+    return () => {
+      probe.onload = null;
+      probe.onerror = null;
+    };
+  }, [src]);
 
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -91,17 +116,29 @@ export function GoodreadsCover({
         state={{ work }}
         className={joinClasses("goodreads-cover__link", linkClassName)}
       >
-        <motion.img
-          layoutId={in_transition ? `work-cover-${work.id}` : undefined}
-          src={work.cover_img_url as string}
-          alt={work.title}
-          className={joinClasses("goodreads-cover__image", imageClassName)}
-          style={{
-            opacity: isLoaded ? 1 : 0,
-            ...imageStyle,
-          }}
-          onLoad={() => setIsLoaded(true)}
-        />
+        {showFallback ? (
+          <img
+            src={noCover}
+            alt={title}
+            title={title}
+            className={joinClasses("goodreads-cover__image", imageClassName)}
+          />
+        ) : (
+          <motion.img
+            layoutId={in_transition ? `work-cover-${work.id}` : undefined}
+            src={src}
+            alt={title}
+            className={joinClasses("goodreads-cover__image", imageClassName)}
+            style={{
+              opacity: isLoaded ? 1 : 0,
+              ...imageStyle,
+            }}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setIsLoaded(true)}
+            onError={() => setHasError(true)}
+          />
+        )}
 
         <motion.div
           className="goodreads-cover__glare"

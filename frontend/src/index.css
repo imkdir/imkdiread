@@ -63,14 +63,19 @@
     --theme-dictionary-panel-bg: rgba(255, 255, 255, 0.05);
     --theme-dictionary-panel-border: rgba(255, 255, 255, 0.14);
     --theme-dictionary-title: var(--theme-page-text);
-    --theme-dictionary-accent: var(--logo-yellow);
+    --theme-dictionary-accent: #fbbc05;
     --theme-dictionary-body: rgba(255, 250, 240, 0.94);
     --theme-dictionary-card-bg: rgba(255, 255, 255, 0.05);
     --theme-dictionary-card-text: rgba(255, 255, 255, 0.82);
 
-    /* --- Google Dark Mode Theme --- */
-    --bg-main: var(--theme-page-background);
-    --bg-elevated: #382110; /* Cards, search bars, buttons */
+    --theme-explore-sidebar-title: var(--color-text-page-inverse);
+    --theme-explore-sidebar-muted: var(--color-text-muted-soft);
+    --theme-explore-sidebar-footer: var(--color-text-muted-strong);
+    --theme-explore-sidebar-avatar-bg: var(--color-bg-card-base);
+    --theme-explore-sidebar-avatar-border: var(--color-border-default);
+    --theme-explore-sidebar-avatar-placeholder: var(
+        --color-bg-avatar-placeholder
+    );
 
     --text-main: var(--theme-page-text); /* Primary page text */
     --text-muted: #9aa0a6; /* Gray icons and secondary text */
@@ -124,7 +129,7 @@
     /* --- Semantic Background Colors (element-level) --- */
     --color-bg-page-reader: var(--theme-page-background);
     --color-bg-page-admin: #121212;
-    --color-bg-card-base: var(--bg-elevated);
+    --color-bg-card-base: #382110;
     --color-bg-card-overlay: var(--overlay-black-20);
     --color-bg-panel-admin: #1e1e1e;
     --color-bg-panel-admin-alt: #2a2a2a;
@@ -136,7 +141,7 @@
     --color-bg-input-soft-strong: rgba(255, 255, 255, 0.6);
     --color-bg-input-ghost: var(--overlay-white-10);
     --color-bg-input-ghost-soft: rgba(255, 255, 255, 0.08);
-    --color-bg-overlay-medium: var(--overlay-black-70);
+    --color-bg-overlay-medium: var(--overlay-black-85);
     --color-bg-overlay-soft: var(--overlay-black-50);
     --color-bg-overlay-card: var(--overlay-white-05);
     --color-bg-overlay-card-soft: rgba(255, 255, 255, 0.04);
@@ -198,7 +203,7 @@ body,
     padding: 0;
     width: 100%;
     min-height: 100vh;
-    background-color: var(--bg-main);
+    background-color: var(--theme-page-background);
     color: var(--text-main);
     font-family: var(--font-primary-stack);
     box-sizing: border-box;
@@ -309,7 +314,7 @@ html {
 }
 
 .sidebar-link:hover {
-    background-color: var(--bg-elevated);
+    background-color: var(--color-bg-card-base);
 }
 
 .sidebar-icon {
@@ -453,7 +458,7 @@ html {
 }
 
 .file-picker-card {
-    color: var(--bg-main);
+    color: var(--theme-quote-card-accent);
     border-radius: 14px;
     background: var(--paper-cream-warm);
     box-shadow: 0 20px 60px var(--overlay-black-35);
@@ -486,7 +491,7 @@ html {
     cursor: pointer;
     font-size: 0.95rem;
     font-family: "Libre Baskerville";
-    color: var(--bg-main);
+    color: var(--theme-quote-card-accent);
 }
 
 .file-picker-option:hover {
@@ -499,7 +504,7 @@ html {
     border: none;
     cursor: pointer;
     font-size: 16px;
-    color: var(--bg-main);
+    color: var(--theme-quote-card-accent);
 }
 
 /* =========================================================

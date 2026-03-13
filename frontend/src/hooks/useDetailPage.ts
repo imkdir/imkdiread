@@ -24,7 +24,10 @@ interface UseDetailPageOptions {
 
 type EditTarget = "quote" | "progress";
 
-function createEmptyForm(target: EditTarget, currentPage?: number): DetailEditingForm {
+function createEmptyForm(
+  target: EditTarget,
+  currentPage?: number,
+): DetailEditingForm {
   return {
     target,
     quote: "",
@@ -66,9 +69,12 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     editingFormRef.current = editingForm;
   }, [editingForm]);
 
-  const getEditEmptyForm = useCallback((target: EditTarget): DetailEditingForm => {
-    return createEmptyForm(target, workRef.current?.current_page);
-  }, []);
+  const getEditEmptyForm = useCallback(
+    (target: EditTarget): DetailEditingForm => {
+      return createEmptyForm(target, workRef.current?.current_page);
+    },
+    [],
+  );
 
   const fetchData = useCallback(async () => {
     if (!workId) return;
@@ -296,29 +302,32 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     }
   }, [fetchData, getEditEmptyForm, workId]);
 
-  const handleExplainPassage = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
-    const text = editingFormRef.current.quote;
-    if (!text) return;
+  const handleExplainPassage = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      const text = editingFormRef.current.quote;
+      if (!text) return;
 
-    setIsExplaining(true);
-    try {
-      const data = await explainPassage(workId, text);
-      if (data.success) {
-        setEditingForm((prev) => ({
-          ...prev,
-          quote: data.cleanedQuote || text,
-          explanation: data.explanation || "",
-        }));
-      } else {
-        alert(data.error || "Failed to analyze passage.");
+      setIsExplaining(true);
+      try {
+        const data = await explainPassage(workId, text);
+        if (data.success) {
+          setEditingForm((prev) => ({
+            ...prev,
+            quote: data.cleanedQuote || text,
+            explanation: data.explanation || "",
+          }));
+        } else {
+          alert(data.error || "Failed to analyze passage.");
+        }
+      } catch {
+        alert("Network error while analyzing passage.");
+      } finally {
+        setIsExplaining(false);
       }
-    } catch {
-      alert("Network error while analyzing passage.");
-    } finally {
-      setIsExplaining(false);
-    }
-  }, [workId]);
+    },
+    [workId],
+  );
 
   const openPDFViewer = useCallback(
     (initialUrl: string | null) => {
@@ -390,11 +399,11 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const displayQuotes = useMemo(
     () =>
       (work?.quotes || []).filter(
-        (q: Quote) => q.quote.trim().length > 0 && !q.quote.startsWith("@notes:"),
+        (q: Quote) =>
+          q.quote.trim().length > 0 && !q.quote.startsWith("@notes:"),
       ),
     [work?.quotes],
   );
-  const hasLocalFiles = (work?.file_urls?.length ?? 0) > 0;
 
   return {
     work,
@@ -414,7 +423,6 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     isExplaining,
     displayRating,
     displayQuotes,
-    hasLocalFiles,
     fetchData,
     toggleActionDrawer,
     toggleAction,

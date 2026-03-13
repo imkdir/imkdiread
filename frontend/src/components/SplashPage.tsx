@@ -76,7 +76,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: "column",
     minHeight: "100vh",
     fontFamily: "arial, sans-serif",
-    backgroundColor: "var(--bg-main)",
+    backgroundColor: "var(--theme-page-background)",
     color: "var(--text-main)",
   },
   container: {

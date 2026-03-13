@@ -59,12 +59,18 @@ const QUOTE_CARD_SECTION: ThemeSection = {
       defaultHex: "#e6e1d6",
     },
     {
-      ids: ["--theme-quote-card-front-border", "--theme-quote-card-back-border"],
+      ids: [
+        "--theme-quote-card-front-border",
+        "--theme-quote-card-back-border",
+      ],
       label: "Border",
       defaultHex: "#ccc5b3",
     },
     {
-      ids: ["--theme-quote-card-front-text", "--theme-quote-card-explanation-text"],
+      ids: [
+        "--theme-quote-card-front-text",
+        "--theme-quote-card-explanation-text",
+      ],
       label: "Text",
       defaultHex: "#2c2825",
     },
@@ -249,6 +255,27 @@ const DICTIONARY_SECTION: ThemeSection = {
   ],
 };
 
+const EXPLORE_SIDEBAR_SECTION: ThemeSection = {
+  title: "Explore Sidebar",
+  items: [
+    {
+      ids: ["--theme-explore-sidebar-title"],
+      label: "Heading Text",
+      defaultHex: "#faf8f6",
+    },
+    {
+      ids: ["--theme-explore-sidebar-muted"],
+      label: "Secondary Text",
+      defaultHex: "#c6b9ab",
+    },
+    {
+      ids: ["--theme-explore-sidebar-footer"],
+      label: "Footer Text",
+      defaultHex: "#8b7e70",
+    },
+  ],
+};
+
 function normalizeHexForInput(value: string, fallback: string): string {
   const normalized = value.trim();
   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return normalized;
@@ -271,7 +298,12 @@ function resolveThemeRoute(pathname: string): ThemeRouteConfig {
   const sections: ThemeSection[] = [SITE_SECTION];
 
   if (/^\/work\/[^/]+/.test(pathname)) {
-    sections.push(DETAIL_ACTION_SECTION, QUOTE_CARD_SECTION, PILL_BUTTON_SECTION, DICTIONARY_SECTION);
+    sections.push(
+      DETAIL_ACTION_SECTION,
+      QUOTE_CARD_SECTION,
+      PILL_BUTTON_SECTION,
+      DICTIONARY_SECTION,
+    );
     return { label: "Detail", sections };
   }
 
@@ -285,6 +317,7 @@ function resolveThemeRoute(pathname: string): ThemeRouteConfig {
   }
 
   if (/^\/explore(?:\/|$)/.test(pathname)) {
+    sections.push(EXPLORE_SIDEBAR_SECTION);
     return { label: "Explore", sections };
   }
 
@@ -309,19 +342,21 @@ export const ThemeEditorDrawer: React.FC<ThemeEditorDrawerProps> = ({
   routePath,
   anchorRect,
 }) => {
-  const [customStyles, setCustomStyles] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem("app-custom-styles");
-    if (!saved) return {};
+  const [customStyles, setCustomStyles] = useState<Record<string, string>>(
+    () => {
+      const saved = localStorage.getItem("app-custom-styles");
+      if (!saved) return {};
 
-    try {
-      const parsed = JSON.parse(saved);
-      return parsed && typeof parsed === "object"
-        ? (parsed as Record<string, string>)
-        : {};
-    } catch {
-      return {};
-    }
-  });
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed && typeof parsed === "object"
+          ? (parsed as Record<string, string>)
+          : {};
+      } catch {
+        return {};
+      }
+    },
+  );
 
   useEffect(() => {
     localStorage.setItem("app-custom-styles", JSON.stringify(customStyles));
@@ -389,7 +424,9 @@ export const ThemeEditorDrawer: React.FC<ThemeEditorDrawerProps> = ({
                   const storedColor = item.ids
                     .map((id) => customStyles[id])
                     .find(Boolean);
-                  const isCustomized = item.ids.some((id) => id in customStyles);
+                  const isCustomized = item.ids.some(
+                    (id) => id in customStyles,
+                  );
                   const currentColor = normalizeHexForInput(
                     storedColor || item.defaultHex,
                     item.defaultHex,
@@ -440,7 +477,10 @@ export const ThemeEditorDrawer: React.FC<ThemeEditorDrawerProps> = ({
         </div>
 
         {Object.keys(customStyles).length > 0 && (
-          <button onClick={() => setCustomStyles({})} style={styles.resetAllBtn}>
+          <button
+            onClick={() => setCustomStyles({})}
+            style={styles.resetAllBtn}
+          >
             Reset All Defaults
           </button>
         )}
@@ -544,7 +584,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: "none",
     borderRadius: "10px",
     padding: "10px 14px",
-    backgroundColor: "var(--color-bg-overlay-subtle)",
+    backgroundColor: "var(--color-bg-danger)",
     color: "var(--color-text-page-primary)",
     cursor: "pointer",
     fontWeight: 600,

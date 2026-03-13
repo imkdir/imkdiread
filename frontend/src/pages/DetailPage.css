@@ -59,19 +59,6 @@
     align-items: flex-start;
 }
 
-.detail-backdrop-gradient {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 100%;
-    background: linear-gradient(
-        to left bottom,
-        var(--bg-elevated) 0%,
-        var(--bg-main) 100%
-    );
-}
-
 .detail-left-col {
     width: 230px;
     flex-shrink: 0;
@@ -104,9 +91,6 @@
     }
     .detail-middle-col {
         width: calc(100% - 270px);
-    }
-    .detail-right-col {
-        width: 230px;
     }
 }
 
@@ -282,7 +266,9 @@
 }
 
 .detail-action-panel {
-    background-color: var(--color-bg-page-reader);
+    background-color: var(--overlay-black-30);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border-radius: 6px;
     border: 1px solid var(--color-border-default);
     overflow: hidden;

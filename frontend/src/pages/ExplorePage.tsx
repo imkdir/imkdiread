@@ -15,7 +15,10 @@ interface PageState {
   loading: boolean;
 }
 
-export class ExplorePage extends React.Component<Record<string, never>, PageState> {
+export class ExplorePage extends React.Component<
+  Record<string, never>,
+  PageState
+> {
   state: PageState = {
     authors: [],
     works: [],
@@ -51,10 +54,7 @@ export class ExplorePage extends React.Component<Record<string, never>, PageStat
               columnClassName="my-masonry-grid_column"
             >
               {works.map((work) => (
-                <GoodreadsCover
-                  key={work.id}
-                  work={work}
-                />
+                <GoodreadsCover key={work.id} work={work} />
               ))}
             </Masonry>
           </div>
@@ -105,7 +105,7 @@ export class ExplorePage extends React.Component<Record<string, never>, PageStat
             {/* Standard Instagram-style subtle footer links */}
             {!loading && (
               <div className="explore-page__footer-links">
-                <p>About • Help • Press • API • Jobs • Privacy • Terms</p>
+                <p>About • Help • Jobs • Privacy • Terms</p>
                 <p>© 2026 D CHENG</p>
               </div>
             )}

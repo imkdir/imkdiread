@@ -14,6 +14,8 @@ import { DetailQuoteModal } from "../components/detail/DetailQuoteModal";
 import { DetailFilePickerModal } from "../components/detail/DetailFilePickerModal";
 import { useDetailPage } from "../hooks/useDetailPage";
 
+import noCover from "../assets/imgs/no_cover.png";
+
 import "./DetailPage.css";
 
 interface Props {
@@ -49,7 +51,6 @@ function DetailPage({ workId, initialWork }: Props) {
     isExplaining,
     displayRating,
     displayQuotes,
-    hasLocalFiles,
     fetchData,
     toggleActionDrawer,
     toggleAction,
@@ -131,18 +132,14 @@ function DetailPage({ workId, initialWork }: Props) {
                     </Link>
                   ))}
 
-                  {hasLocalFiles && (
-                    <FinderButton onClick={handleFinderButtonClick} />
-                  )}
+                  <FinderButton onClick={handleFinderButtonClick} />
 
-                  {work.dropbox_link && (
-                    <DropboxButton
-                      onClick={() => togglePDFViewer("dropbox")}
-                      style={{
-                        backgroundColor: "var(--detail-page-dropbox-button-bg)",
-                      }}
-                    />
-                  )}
+                  <DropboxButton
+                    onClick={() => togglePDFViewer("dropbox")}
+                    style={{
+                      backgroundColor: "var(--detail-page-dropbox-button-bg)",
+                    }}
+                  />
 
                   {work.amazon_asin && <KindleButton asin={work.amazon_asin} />}
                 </div>
@@ -156,9 +153,7 @@ function DetailPage({ workId, initialWork }: Props) {
               displayRating={displayRating}
               isPDFViewerOpen={isPDFViewerOpen}
               isActionDrawerOpen={isActionDrawerOpen}
-              progressContent={
-                <ProgressBar work={work} />
-              }
+              progressContent={<ProgressBar work={work} />}
               onToggleDrawer={toggleActionDrawer}
               onToggleAction={toggleAction}
               onResetHoverRating={() => setHoverRating(0)}

@@ -81,7 +81,7 @@ export const SidebarLayout: React.FC = () => {
     <div className="layout-container" style={styles.layoutContainer}>
       {/* --- THE MENU BAR --- */}
       <nav className="sidebar">
-        <Link to={"/"} className="logo-link">
+        <Link to={"/"} className="sidebar-link">
           <AppIcon name="home" title="Home" />
         </Link>
 
