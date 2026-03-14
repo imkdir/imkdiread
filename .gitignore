@@ -39,8 +39,6 @@ Thumbs.db
 *.swp
 *.swo
 
-# --- Optional: Local Database/Media ---
-backend/data/
+# --- Runtime Database / Media ---
 backend/public/*
-!backend/public/imgs/
-backend/public/imgs/*
+backend/db/database.sqlite
