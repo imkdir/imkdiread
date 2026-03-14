@@ -11,32 +11,6 @@ function createWorkService({ db, BACKEND_URL }) {
       : null;
   };
 
-  function getProgressWithWork(work) {
-    const quotes = work.quotes || [];
-    let current_page = 0;
-
-    if (quotes.length) {
-      let maxPageOverall = 0;
-      let latestProgressTs = -1;
-
-      for (const q of quotes) {
-        const pageNum = q.page_number || 0;
-        if (pageNum > maxPageOverall) {
-          maxPageOverall = pageNum;
-        }
-        if (pageNum && (!q.quote.length || q.quote.startsWith("@notes:"))) {
-          const ts = Date.parse(q.created_at) || 0;
-          if (ts > latestProgressTs) {
-            latestProgressTs = ts;
-            current_page = pageNum;
-          }
-        }
-      }
-    }
-
-    return current_page;
-  }
-
   function getWorkFileNames(workId) {
     const filesDir = getPublicPath("files");
     if (!fs.existsSync(filesDir)) return [];
@@ -63,7 +37,6 @@ function createWorkService({ db, BACKEND_URL }) {
     const fileUrls = getWorkFileUrls(work.id);
     return {
       ...work,
-      current_page: getProgressWithWork(work),
       cover_img_url: getStaticUrlIfItExists(
         ["imgs", "covers"],
         `${work.id}.png`,
@@ -144,6 +117,7 @@ function createWorkService({ db, BACKEND_URL }) {
           .all(workRow.id);
 
     let userStats = { read: 0, liked: 0, shelved: 0, rating: 0 };
+    let latestReadingActivity = null;
     if (userId) {
       const stats = db
         .prepare(
@@ -151,9 +125,27 @@ function createWorkService({ db, BACKEND_URL }) {
         )
         .get(userId, workRow.id);
       if (stats) userStats = stats;
+
+      latestReadingActivity = db
+        .prepare(
+          `SELECT user_id, work_id, notes, current_page, page_count, created_at
+           FROM user_reading_activities
+           WHERE user_id = ? AND work_id = ?
+           ORDER BY datetime(created_at) DESC, rowid DESC
+           LIMIT 1`,
+        )
+        .get(userId, workRow.id);
     }
 
-    return { ...workRow, authors, tags, quotes, ...userStats };
+    return {
+      ...workRow,
+      authors,
+      tags,
+      quotes,
+      current_page: latestReadingActivity?.current_page || 0,
+      latest_reading_activity: latestReadingActivity,
+      ...userStats,
+    };
   }
 
   function getAuthorWithRelations(authorRow, userId = null) {
@@ -184,9 +176,9 @@ function createWorkService({ db, BACKEND_URL }) {
     return Math.floor(pageNumber);
   }
 
-  function normalizeProgressQuote(note) {
+  function normalizeProgressNotes(note) {
     const trimmed = typeof note === "string" ? note.trim() : "";
-    return trimmed ? `@notes:${trimmed}` : "";
+    return trimmed;
   }
 
   function ensureUserWorkInteraction(userId, workId) {
@@ -195,7 +187,7 @@ function createWorkService({ db, BACKEND_URL }) {
     ).run(userId, workId);
   }
 
-  function recordProgressUpdate(
+  function recordReadingActivity(
     workId,
     userId,
     pageNumber,
@@ -221,12 +213,14 @@ function createWorkService({ db, BACKEND_URL }) {
       throw error;
     }
 
-    const progressQuote = normalizeProgressQuote(note);
+    const notes = normalizeProgressNotes(note);
 
     db.transaction(() => {
       db.prepare(
-        "INSERT INTO work_quotes (work_id, user_id, quote, page_number) VALUES (?, ?, ?, ?)",
-      ).run(workId, userId, progressQuote, safePageNumber);
+        `INSERT INTO user_reading_activities
+         (user_id, work_id, notes, current_page, page_count)
+         VALUES (?, ?, ?, ?, ?)`,
+      ).run(userId, workId, notes, safePageNumber, totalPages);
 
       ensureUserWorkInteraction(userId, workId);
 
@@ -256,9 +250,9 @@ function createWorkService({ db, BACKEND_URL }) {
     syncTags,
     syncAuthors,
     normalizePageNumber,
-    normalizeProgressQuote,
+    normalizeProgressNotes,
     ensureUserWorkInteraction,
-    recordProgressUpdate,
+    recordReadingActivity,
   };
 }
 

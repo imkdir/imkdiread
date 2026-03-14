@@ -518,11 +518,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
 
   const displayRating = hoverRating > 0 ? hoverRating : rating;
   const displayQuotes = useMemo(
-    () =>
-      (work?.quotes || []).filter(
-        (q: Quote) =>
-          q.quote.trim().length > 0 && !q.quote.startsWith("@notes:"),
-      ),
+    () => (work?.quotes || []).filter((q: Quote) => q.quote.trim().length > 0),
     [work?.quotes],
   );
 

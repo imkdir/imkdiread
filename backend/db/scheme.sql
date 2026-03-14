@@ -28,6 +28,16 @@ CREATE TABLE IF NOT EXISTS "work_quotes" (
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP, user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY(work_id) REFERENCES "works"(id) ON DELETE CASCADE
     );
+CREATE TABLE IF NOT EXISTS "user_reading_activities" (
+        user_id TEXT,
+        work_id TEXT,
+        notes TEXT,
+        current_page INTEGER,
+        page_count INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY(work_id) REFERENCES "works"(id) ON DELETE CASCADE
+    );
 CREATE TABLE IF NOT EXISTS "work_authors" (
         work_id TEXT,
         author_id INTEGER,

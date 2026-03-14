@@ -48,10 +48,11 @@ function createProfileRouter({ db, workService }) {
       SELECT DISTINCT p.* FROM works p
       LEFT JOIN user_work_interactions i ON p.id = i.work_id AND i.user_id = ?
       LEFT JOIN work_quotes q ON p.id = q.work_id AND q.user_id = ?
-      WHERE i.user_id IS NOT NULL OR q.user_id IS NOT NULL
+      LEFT JOIN user_reading_activities a ON p.id = a.work_id AND a.user_id = ?
+      WHERE i.user_id IS NOT NULL OR q.user_id IS NOT NULL OR a.user_id IS NOT NULL
     `,
         )
-        .all(userId, userId);
+        .all(userId, userId, userId);
 
       const processedBooks = interactedBookRows
         .map((row) => workService.getWorkWithRelations(row, userId))
@@ -74,7 +75,7 @@ function createProfileRouter({ db, workService }) {
         .all(userId);
 
       const richQuotes = rawQuotes
-        .filter((r) => r.quote.length && !r.quote.startsWith("@notes:"))
+        .filter((r) => r.quote.length)
         .map((quote) => {
           const matchingBook = processedBooks.find(
             (b) => b.id === quote.work_id,

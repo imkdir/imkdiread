@@ -95,6 +95,16 @@ function seedTestDb(targetDbPath) {
       user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE
     );
+    CREATE TABLE user_reading_activities (
+      user_id TEXT,
+      work_id TEXT,
+      notes TEXT,
+      current_page INTEGER,
+      page_count INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE
+    );
   `);
 
   db.prepare("INSERT INTO tags (name) VALUES (?)").run("philosophy");
@@ -170,6 +180,43 @@ function seedLegacyAuthorSchemaDb(targetDbPath) {
   db.prepare(
     "INSERT INTO user_author_interactions (user_id, author_name, followed) VALUES (?, ?, ?)",
   ).run("user-1", "Aristotle", 1);
+
+  db.close();
+}
+
+function seedLegacyProgressSchemaDb(targetDbPath) {
+  const db = new Database(targetDbPath);
+  db.exec(`
+    PRAGMA foreign_keys = ON;
+
+    CREATE TABLE users (
+      id TEXT PRIMARY KEY
+    );
+    CREATE TABLE works (
+      id TEXT PRIMARY KEY,
+      page_count INTEGER DEFAULT 0
+    );
+    CREATE TABLE work_quotes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      work_id TEXT NOT NULL,
+      quote TEXT NOT NULL,
+      page_number INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE
+    );
+  `);
+
+  db.prepare("INSERT INTO users (id) VALUES (?)").run("user-1");
+  db.prepare("INSERT INTO works (id, page_count) VALUES (?, ?)").run("W1", 321);
+  db.prepare(
+    `INSERT INTO work_quotes (work_id, quote, page_number, created_at, user_id)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run("W1", "@notes:Reached the midpoint", 123, "2026-03-14 09:00:00", "user-1");
+  db.prepare(
+    `INSERT INTO work_quotes (work_id, quote, page_number, created_at, user_id)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run("W1", "A real quote", 124, "2026-03-14 10:00:00", "user-1");
 
   db.close();
 }
@@ -314,6 +361,53 @@ test("read flow smoke: /api/search returns results for authenticated user", asyn
   assert.equal(search.json.results[0].id, "W1");
 });
 
+test("reading progress is stored separately from quotes", async () => {
+  const login = await requestJson("POST", "/api/auth/login", {
+    username: "guest",
+    password: "guest-pass",
+  });
+  assert.equal(login.status, 200);
+  const token = login.json?.token;
+  assert.equal(typeof token, "string");
+
+  const progress = await requestJson(
+    "POST",
+    "/api/works/W1/progress",
+    {
+      note: "Reached the midpoint",
+      pageNumber: 42,
+    },
+    token,
+  );
+  assert.equal(progress.status, 200);
+  assert.equal(progress.json?.success, true);
+  assert.equal(progress.json?.page_number, 42);
+  assert.equal(progress.json?.page_count, 100);
+
+  const quoteCount = appDb
+    .prepare("SELECT COUNT(*) AS count FROM work_quotes WHERE work_id = ?")
+    .get("W1").count;
+  const activity = appDb
+    .prepare(
+      `SELECT user_id, work_id, notes, current_page, page_count
+       FROM user_reading_activities
+       WHERE user_id = ? AND work_id = ?`,
+    )
+    .get("guest-1", "W1");
+
+  assert.equal(quoteCount, 0);
+  assert.equal(activity.user_id, "guest-1");
+  assert.equal(activity.work_id, "W1");
+  assert.equal(activity.notes, "Reached the midpoint");
+  assert.equal(activity.current_page, 42);
+  assert.equal(activity.page_count, 100);
+
+  const work = await requestJson("GET", "/api/works/W1", undefined, token);
+  assert.equal(work.status, 200);
+  assert.equal(work.json?.current_page, 42);
+  assert.equal(work.json?.quotes?.length, 0);
+});
+
 test("author admin flow supports update and delete by numeric id", async () => {
   const login = await requestJson("POST", "/api/auth/login", {
     username: "admin",
@@ -420,6 +514,59 @@ test("author migration script upgrades legacy name-based tables", () => {
     assert.equal(followedAuthor.user_id, "user-1");
     assert.equal(followedAuthor.author_id, migratedAuthor.id);
     assert.equal(followedAuthor.followed, 1);
+
+    migratedDb.close();
+  } finally {
+    fs.rmSync(tempMigrationDir, { recursive: true, force: true });
+  }
+});
+
+test("reading progress migration script moves legacy progress rows out of work_quotes", () => {
+  const tempMigrationDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "imkdiread-progress-migration-"),
+  );
+  const legacyDbPath = path.join(tempMigrationDir, "legacy.sqlite");
+
+  try {
+    seedLegacyProgressSchemaDb(legacyDbPath);
+
+    execFileSync("node", ["scripts/migrate-reading-progress-to-activities.js"], {
+      cwd: path.join(__dirname, ".."),
+      env: { ...process.env, DB_PATH: legacyDbPath },
+      stdio: "pipe",
+    });
+
+    const migratedDb = new Database(legacyDbPath, { readonly: true });
+    const activityColumns = migratedDb
+      .prepare("PRAGMA table_info(user_reading_activities)")
+      .all();
+    assert.ok(
+      activityColumns.some((column) => column.name === "current_page"),
+    );
+    assert.ok(activityColumns.some((column) => column.name === "notes"));
+
+    const activity = migratedDb
+      .prepare(
+        `SELECT user_id, work_id, notes, current_page, page_count, created_at
+         FROM user_reading_activities`,
+      )
+      .get();
+    assert.equal(activity.user_id, "user-1");
+    assert.equal(activity.work_id, "W1");
+    assert.equal(activity.notes, "Reached the midpoint");
+    assert.equal(activity.current_page, 123);
+    assert.equal(activity.page_count, 321);
+    assert.equal(activity.created_at, "2026-03-14 09:00:00");
+
+    const remainingQuotes = migratedDb
+      .prepare("SELECT quote, page_number FROM work_quotes ORDER BY id")
+      .all();
+    assert.deepEqual(remainingQuotes, [
+      {
+        quote: "A real quote",
+        page_number: 124,
+      },
+    ]);
 
     migratedDb.close();
   } finally {

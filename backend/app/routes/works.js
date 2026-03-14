@@ -304,6 +304,9 @@ function createWorksRouter({ db, workService }) {
             "UPDATE work_quotes SET work_id = ? WHERE work_id = ?",
           ).run(work.id, id);
           db.prepare(
+            "UPDATE user_reading_activities SET work_id = ? WHERE work_id = ?",
+          ).run(work.id, id);
+          db.prepare(
             "UPDATE user_work_interactions SET work_id = ? WHERE work_id = ?",
           ).run(work.id, id);
         } else {
@@ -582,6 +585,7 @@ function createWorksRouter({ db, workService }) {
           db.prepare("DELETE FROM work_authors WHERE work_id = ?").run(id);
           db.prepare("DELETE FROM work_tags WHERE work_id = ?").run(id);
           db.prepare("DELETE FROM work_quotes WHERE work_id = ?").run(id);
+          db.prepare("DELETE FROM user_reading_activities WHERE work_id = ?").run(id);
           db.prepare("DELETE FROM works WHERE id = ?").run(id);
         })();
         res.json({ success: true });
@@ -628,7 +632,7 @@ function createWorksRouter({ db, workService }) {
 
   router.post("/api/works/:id/progress", authenticateToken, (req, res) => {
     try {
-      const result = workService.recordProgressUpdate(
+      const result = workService.recordReadingActivity(
         req.params.id,
         req.user.id,
         workService.normalizePageNumber(req.body.pageNumber),
@@ -648,7 +652,7 @@ function createWorksRouter({ db, workService }) {
     authenticateToken,
     (req, res) => {
       try {
-        const result = workService.recordProgressUpdate(
+        const result = workService.recordReadingActivity(
           req.params.id,
           req.user.id,
           null,

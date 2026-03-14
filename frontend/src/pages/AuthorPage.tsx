@@ -79,7 +79,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
   getAuthorQuotes = (): AuthorQuote[] => {
     const quotes = this.state.works.flatMap((work) =>
       (work.quotes || [])
-        .filter((quote) => quote.quote && !quote.quote.startsWith("@notes:"))
+        .filter((quote) => quote.quote)
         .map((quote) => ({
           ...quote,
           work,
