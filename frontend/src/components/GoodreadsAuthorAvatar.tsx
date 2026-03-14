@@ -41,6 +41,7 @@ export class GoodreadsAuthorAvatar extends React.Component<
   componentDidUpdate(prevProps: AvatarProps) {
     if (
       prevProps.author.avatar_img_url !== this.props.author.avatar_img_url ||
+      prevProps.author.id !== this.props.author.id ||
       prevProps.author.name !== this.props.author.name ||
       prevProps.author.goodreads_id !== this.props.author.goodreads_id
     ) {
@@ -89,7 +90,7 @@ export class GoodreadsAuthorAvatar extends React.Component<
       formData.append("file", file);
 
       const res = await request(
-        `/api/authors/${encodeURIComponent(author.name)}/avatar`,
+        `/api/authors/${author.id}/avatar`,
         {
           method: "POST",
           body: formData,

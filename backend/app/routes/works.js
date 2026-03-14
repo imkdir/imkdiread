@@ -128,13 +128,7 @@ function createWorksRouter({ db, workService }) {
         .map((row) => workService.getWorkWithRelations(row, req.user?.id))
         .map(workService.processWork);
       const authors = db
-        .prepare(
-          `
-      SELECT authors.*, COUNT(work_authors.work_id) as works_count
-      FROM authors LEFT JOIN work_authors ON authors.name = work_authors.author_name
-      GROUP BY authors.name ORDER BY RANDOM() LIMIT 6
-    `,
-        )
+        .prepare("SELECT authors.* FROM authors ORDER BY RANDOM() LIMIT 6")
         .all()
         .map((row) => workService.getAuthorWithRelations(row, req.user?.id))
         .map(workService.processAuthor);
@@ -157,7 +151,8 @@ function createWorksRouter({ db, workService }) {
       LEFT JOIN work_tags ON works.id = work_tags.work_id
       LEFT JOIN tags ON work_tags.tag_id = tags.id
       LEFT JOIN work_authors ON works.id = work_authors.work_id
-      WHERE works.id LIKE ? COLLATE NOCASE OR works.title LIKE ? COLLATE NOCASE OR tags.name LIKE ? COLLATE NOCASE OR work_authors.author_name LIKE ? COLLATE NOCASE
+      LEFT JOIN authors ON work_authors.author_id = authors.id
+      WHERE works.id LIKE ? COLLATE NOCASE OR works.title LIKE ? COLLATE NOCASE OR tags.name LIKE ? COLLATE NOCASE OR authors.name LIKE ? COLLATE NOCASE
       ORDER BY works.id ASC LIMIT 100
     `,
         )
@@ -188,10 +183,13 @@ function createWorksRouter({ db, workService }) {
         matchedRows = db
           .prepare(
             `
-        SELECT works.* FROM works JOIN work_authors ON works.id = work_authors.work_id WHERE work_authors.author_name = ?
+        SELECT works.*
+        FROM works
+        JOIN work_authors ON works.id = work_authors.work_id
+        WHERE work_authors.author_id = ?
       `,
           )
-          .all(keyword);
+          .all(authorRow.id);
       } else {
         matchedRows = db
           .prepare(

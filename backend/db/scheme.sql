@@ -9,7 +9,9 @@ CREATE TABLE series (
     count INTEGER DEFAULT 0
   );
 CREATE TABLE authors (
-    name TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    bio TEXT,
     goodreads_id TEXT);
 CREATE TABLE IF NOT EXISTS "work_tags" (
         work_id TEXT,
@@ -28,10 +30,10 @@ CREATE TABLE IF NOT EXISTS "work_quotes" (
     );
 CREATE TABLE IF NOT EXISTS "work_authors" (
         work_id TEXT,
-        author_name TEXT,
+        author_id INTEGER,
         FOREIGN KEY(work_id) REFERENCES "works"(id) ON DELETE CASCADE,
-        FOREIGN KEY(author_name) REFERENCES authors(name) ON DELETE CASCADE,
-        UNIQUE(work_id, author_name)
+        FOREIGN KEY(author_id) REFERENCES authors(id) ON DELETE CASCADE,
+        UNIQUE(work_id, author_id)
     );
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
@@ -60,9 +62,9 @@ CREATE TABLE IF NOT EXISTS "works" (
     );
 CREATE TABLE user_author_interactions (
       user_id TEXT,
-      author_name TEXT,
+      author_id INTEGER,
       followed BOOLEAN DEFAULT 0,
-      PRIMARY KEY (user_id, author_name),
+      PRIMARY KEY (user_id, author_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (author_name) REFERENCES authors(name) ON DELETE CASCADE
+      FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE CASCADE
     );

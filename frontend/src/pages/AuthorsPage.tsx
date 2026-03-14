@@ -42,7 +42,7 @@ export class AuthorsPage extends React.Component<
         <div className="authors-page__container">
           {authors.map((author) => (
             <AuthorCard
-              key={author.name}
+              key={author.id}
               author={author}
               theme={{
                 cardBackgroundColor: "var(--authors-page-card-bg)",

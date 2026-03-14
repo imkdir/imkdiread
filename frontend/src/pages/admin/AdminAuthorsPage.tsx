@@ -5,12 +5,9 @@ import { request } from "../../utils/APIClient";
 
 import "./AdminAuthorsPage.css";
 
-interface AdminAuthor extends Omit<Author, "goodreads_id"> {
-  goodreads_id: string;
-}
-
 interface EditFormState {
   name: string;
+  bio: string;
   goodreads_id: string;
 }
 
@@ -19,9 +16,9 @@ interface State {
   loading: boolean;
   isModalOpen: boolean;
   isAddingNew: boolean;
-  originalEditingName: string | null; // Tracks the target for PUT requests
+  editingAuthorId: number | null;
   editForm: EditFormState;
-  filterText: string; // <-- Initialized to empty string
+  filterText: string;
 }
 
 export class AdminAuthorsPage extends React.Component<Record<string, never>, State> {
@@ -30,9 +27,9 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
     loading: true,
     isModalOpen: false,
     isAddingNew: false,
-    originalEditingName: null,
+    editingAuthorId: null,
     editForm: this.getEmptyForm(),
-    filterText: "", // <-- Initialized to empty string
+    filterText: "",
   };
 
   componentDidMount() {
@@ -42,9 +39,9 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
   fetchAuthors = () => {
     request("/api/authors")
       .then((res) => res.json())
-      .then((data: Author[]) =>
-        this.setState({ authors: data, loading: false }),
-      )
+      .then((data: Author[]) => {
+        this.setState({ authors: data, loading: false });
+      })
       .catch((err) => {
         console.error("Failed to fetch authors", err);
         this.setState({ loading: false });
@@ -54,16 +51,16 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
   getEmptyForm(): EditFormState {
     return {
       name: "",
+      bio: "",
       goodreads_id: "",
     };
   }
 
-  // --- Modal Handlers ---
   openAddModal = () => {
     this.setState({
       isModalOpen: true,
       isAddingNew: true,
-      originalEditingName: null,
+      editingAuthorId: null,
       editForm: this.getEmptyForm(),
     });
   };
@@ -72,9 +69,10 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
     this.setState({
       isModalOpen: true,
       isAddingNew: false,
-      originalEditingName: author.name,
+      editingAuthorId: author.id,
       editForm: {
         name: author.name,
+        bio: author.bio || "",
         goodreads_id: author.goodreads_id || "",
       },
     });
@@ -83,32 +81,55 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
   closeModal = () => {
     this.setState({
       isModalOpen: false,
+      isAddingNew: false,
+      editingAuthorId: null,
       editForm: this.getEmptyForm(),
     });
   };
 
-  handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
-    if (name === "name") {
-      this.setState((prevState) => ({
-        editForm: {
-          ...prevState.editForm,
-          name: value,
-        },
+    this.setState((prevState) => ({
+      editForm: {
+        ...prevState.editForm,
+        [name]: value,
+      },
+    }));
+  };
+
+  handleDelete = async (author: Author) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete "${author.name}"? This will remove the author from all linked works.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await request(`/api/authors/${author.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to delete author.");
+      }
+
+      this.setState((prev) => ({
+        authors: prev.authors.filter((entry) => entry.id !== author.id),
       }));
-    } else if (name === "goodreads_id") {
-      this.setState((prevState) => ({
-        editForm: {
-          ...prevState.editForm,
-          goodreads_id: value,
-        },
-      }));
+    } catch (error) {
+      console.error("Failed to delete author", error);
+      alert("Failed to delete author.");
     }
   };
 
-  saveAuthor = (e: React.FormEvent) => {
+  saveAuthor = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { editForm, isAddingNew, originalEditingName, authors } = this.state;
+    const { editForm, isAddingNew, editingAuthorId, authors } = this.state;
 
     const trimmedName = editForm.name.trim();
     if (!trimmedName) {
@@ -116,56 +137,47 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
       return;
     }
 
-    if (
-      isAddingNew &&
-      authors.some((a) => a.name.toLowerCase() === trimmedName.toLowerCase())
-    ) {
+    const hasDuplicateName = authors.some(
+      (author) =>
+        author.name.toLowerCase() === trimmedName.toLowerCase() &&
+        (isAddingNew || author.id !== editingAuthorId),
+    );
+    if (hasDuplicateName) {
       alert("This author already exists in your database.");
       return;
     }
 
-    const updatedAuthor: AdminAuthor = {
+    const payload = {
       name: trimmedName,
+      bio: editForm.bio.trim(),
       goodreads_id: editForm.goodreads_id.trim(),
-      works_count: 0,
     };
 
-    if (isAddingNew) {
-      // Optimistic Update: Add to top of list
+    try {
+      const res = await request(
+        isAddingNew ? "/api/authors" : `/api/authors/${editingAuthorId}`,
+        {
+          method: isAddingNew ? "POST" : "PUT",
+          body: JSON.stringify(payload),
+        },
+      );
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !data.author) {
+        throw new Error(data.error || "Failed to save author.");
+      }
+
       this.setState((prev) => ({
-        authors: [updatedAuthor, ...prev.authors],
-        isModalOpen: false,
+        authors: isAddingNew
+          ? [data.author, ...prev.authors]
+          : prev.authors.map((author) =>
+              author.id === data.author.id ? data.author : author,
+            ),
       }));
-
-      request("/api/authors", {
-        method: "POST",
-        body: JSON.stringify(updatedAuthor),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (!data.success) alert("Failed to save changes. Check console.");
-        })
-        .catch(() => alert("Network error."));
-    } else {
-      if (!originalEditingName) return;
-
-      // Optimistic Update: Replace existing entry
-      this.setState((prev) => ({
-        authors: prev.authors.map((a) =>
-          a.name === originalEditingName ? updatedAuthor : a,
-        ),
-        isModalOpen: false,
-      }));
-
-      request(`/api/authors/${encodeURIComponent(originalEditingName)}`, {
-        method: "PUT",
-        body: JSON.stringify(updatedAuthor),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (!data.success) alert("Failed to save changes. Check console.");
-        })
-        .catch(() => alert("Network error."));
+      this.closeModal();
+    } catch (error) {
+      console.error("Failed to save author", error);
+      alert("Failed to save author.");
     }
   };
 
@@ -173,17 +185,15 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
     const { authors, loading, isModalOpen, isAddingNew, editForm, filterText } =
       this.state;
 
-    // --- NEW: The Filtering Logic ---
+    const lowerFilter = filterText.trim().toLowerCase();
     const filteredAuthors = authors.filter((author) => {
-      if (!filterText) return true; // Show all if filter is empty
+      if (!lowerFilter) return true;
 
-      // Search by ID
-      if ((author.goodreads_id || "").includes(filterText)) return true;
-
-      // Search by Title
-      if (author.name.includes(filterText)) return true;
-
-      return false;
+      return (
+        author.name.toLowerCase().includes(lowerFilter) ||
+        (author.bio || "").toLowerCase().includes(lowerFilter) ||
+        (author.goodreads_id || "").toLowerCase().includes(lowerFilter)
+      );
     });
 
     return (
@@ -195,7 +205,7 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
               <AppIcon name="search" title="Search" style={styles.searchIcon} />
               <input
                 type="text"
-                placeholder="Filter by ID or name..."
+                placeholder="Filter by name, bio, or ID..."
                 value={filterText}
                 onChange={(e) => this.setState({ filterText: e.target.value })}
                 style={styles.searchInput}
@@ -216,13 +226,16 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
         </div>
 
         {loading ? (
-          <p style={{ color: "var(--color-text-page-secondary)" }}>Loading database...</p>
+          <p style={{ color: "var(--color-text-page-secondary)" }}>
+            Loading database...
+          </p>
         ) : (
           <div style={styles.tableContainer}>
             <table style={styles.table}>
               <thead>
                 <tr>
                   <th style={styles.th}>Name</th>
+                  <th style={styles.th}>Bio</th>
                   <th style={styles.th}>Goodreads ID</th>
                   <th style={styles.th}>Actions</th>
                 </tr>
@@ -231,7 +244,7 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
                 {filteredAuthors.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={4}
                       style={{
                         padding: "30px",
                         textAlign: "center",
@@ -242,22 +255,39 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
                     </td>
                   </tr>
                 ) : (
-                  filteredAuthors.map((author, idx) => (
-                    <tr key={idx} style={styles.tr}>
+                  filteredAuthors.map((author) => (
+                    <tr key={author.id} style={styles.tr}>
                       <td style={styles.td}>
                         <b>{author.name}</b>
                       </td>
                       <td style={styles.td}>
-                        {author.goodreads_id || (
-                          <span style={{ color: "var(--color-text-muted-strong)" }}>None</span>
-                        )}
+                        <div style={styles.bioCell}>
+                          {author.bio || (
+                            <span style={{ color: "var(--color-text-muted-strong)" }}>
+                              No bio
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={styles.td}>
+                        {author.goodreads_id || (
+                          <span style={{ color: "var(--color-text-muted-strong)" }}>
+                            None
+                          </span>
+                        )}
+                      </td>
+                      <td style={styles.actionTd}>
                         <button
                           onClick={() => this.openEditModal(author)}
                           style={styles.iconBtn}
                         >
                           <AppIcon name="edit" title="Edit" style={styles.icon} />
+                        </button>
+                        <button
+                          onClick={() => this.handleDelete(author)}
+                          style={styles.iconBtn}
+                        >
+                          <AppIcon name="trash" title="Delete" style={styles.icon} />
                         </button>
                       </td>
                     </tr>
@@ -268,7 +298,6 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
           </div>
         )}
 
-        {/* --- DUAL-PURPOSE MODAL OVERLAY --- */}
         {isModalOpen && (
           <div style={styles.modalOverlay}>
             <div style={styles.modalContent}>
@@ -279,18 +308,13 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
               <form onSubmit={this.saveAuthor} style={styles.form}>
                 <div style={styles.grid2}>
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>Name (ID)</label>
+                    <label style={styles.label}>Name</label>
                     <input
                       name="name"
                       value={editForm.name}
                       onChange={this.handleInputChange}
-                      readOnly={!isAddingNew}
-                      style={{
-                        ...styles.input,
-                        backgroundColor: isAddingNew ? "var(--color-bg-page-admin)" : "var(--color-bg-panel-admin-alt)",
-                        color: isAddingNew ? "var(--color-text-page-inverse)" : "var(--color-text-page-secondary)",
-                      }}
-                      autoFocus={isAddingNew}
+                      style={styles.input}
+                      autoFocus
                     />
                   </div>
                   <div style={styles.inputGroup}>
@@ -302,6 +326,16 @@ export class AdminAuthorsPage extends React.Component<Record<string, never>, Sta
                       style={styles.input}
                     />
                   </div>
+                </div>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Bio</label>
+                  <textarea
+                    name="bio"
+                    value={editForm.bio}
+                    onChange={this.handleInputChange}
+                    style={styles.textarea}
+                    rows={5}
+                  />
                 </div>
 
                 <div style={styles.buttonRow}>
@@ -348,7 +382,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     pointerEvents: "none",
   },
   searchInput: {
-    width: "250px",
+    width: "280px",
     padding: "10px 32px",
     borderRadius: "6px",
     border: "1px solid var(--border-subtle)",
@@ -374,7 +408,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: "pointer",
     fontWeight: "bold",
   },
-
   tableContainer: {
     backgroundColor: "var(--color-bg-panel-admin)",
     borderRadius: "8px",
@@ -394,8 +427,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: "background-color 0.2s",
     borderBottom: "1px solid var(--border-subtle)",
   },
-  td: { padding: "16px", fontSize: "14px" },
-
+  td: { padding: "16px", fontSize: "14px", verticalAlign: "top" },
+  bioCell: {
+    maxWidth: "360px",
+    whiteSpace: "pre-wrap",
+    color: "var(--color-text-page-secondary)",
+  },
+  actionTd: {
+    padding: "16px",
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
+  },
   iconBtn: {
     backgroundColor: "transparent",
     border: "1px solid var(--border-subtle)",
@@ -407,7 +450,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: "4px",
   },
   icon: { width: "16px", height: "16px", color: "var(--text-main)" },
-
   modalOverlay: {
     position: "fixed",
     top: 0,
@@ -426,12 +468,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: "12px",
     border: "1px solid var(--border-subtle)",
     width: "100%",
-    maxWidth: "600px",
+    maxWidth: "640px",
     boxShadow: "0 10px 40px var(--color-bg-overlay-soft)",
   },
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" },
-  grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" },
   inputGroup: { display: "flex", flexDirection: "column", gap: "8px" },
   label: {
     color: "var(--color-text-page-secondary)",
@@ -448,7 +489,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: "14px",
     outline: "none",
   },
-
+  textarea: {
+    padding: "10px 12px",
+    borderRadius: "6px",
+    border: "1px solid var(--border-subtle)",
+    backgroundColor: "var(--color-bg-page-admin)",
+    color: "var(--color-text-page-inverse)",
+    fontSize: "14px",
+    outline: "none",
+    resize: "vertical",
+    minHeight: "120px",
+    fontFamily: "inherit",
+  },
   buttonRow: {
     display: "flex",
     justifyContent: "flex-end",

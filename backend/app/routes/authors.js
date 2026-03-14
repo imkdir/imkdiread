@@ -14,14 +14,54 @@ if (!fs.existsSync(authorAvatarsDir)) {
 
 function createAuthorsRouter({ db, workService }) {
   const router = express.Router();
+
+  const parseAuthorId = (value) => {
+    const authorId = Number(value);
+    if (!Number.isInteger(authorId) || authorId <= 0) return null;
+    return authorId;
+  };
+
+  const getAuthorById = (value) => {
+    const authorId = parseAuthorId(value);
+    if (!authorId) return null;
+    return db.prepare("SELECT * FROM authors WHERE id = ?").get(authorId) || null;
+  };
+
+  const getAvatarPath = (goodreadsId) => {
+    if (!goodreadsId) return null;
+    return path.join(authorAvatarsDir, `${goodreadsId}.png`);
+  };
+
+  const renameAuthorAvatarIfNeeded = (previousGoodreadsId, nextGoodreadsId) => {
+    if (
+      !previousGoodreadsId ||
+      !nextGoodreadsId ||
+      previousGoodreadsId === nextGoodreadsId
+    ) {
+      return;
+    }
+
+    const previousPath = getAvatarPath(previousGoodreadsId);
+    const nextPath = getAvatarPath(nextGoodreadsId);
+    if (!previousPath || !nextPath) return;
+
+    if (fs.existsSync(previousPath) && !fs.existsSync(nextPath)) {
+      fs.renameSync(previousPath, nextPath);
+    }
+  };
+
+  const removeAuthorAvatarIfItExists = (goodreadsId) => {
+    const avatarPath = getAvatarPath(goodreadsId);
+    if (avatarPath && fs.existsSync(avatarPath)) {
+      fs.unlinkSync(avatarPath);
+    }
+  };
+
   const authorAvatarUpload = multer({
     storage: multer.diskStorage({
       destination: (_req, _file, cb) => cb(null, authorAvatarsDir),
       filename: (req, _file, cb) => {
-        const authorName = req.params?.name;
-        const author = db
-          .prepare("SELECT goodreads_id FROM authors WHERE name = ?")
-          .get(authorName);
+        const author = getAuthorById(req.params?.id);
 
         if (!author?.goodreads_id) {
           cb(new Error("Author Goodreads ID is required."));
@@ -57,35 +97,46 @@ function createAuthorsRouter({ db, workService }) {
   router.post("/api/authors", authenticateToken, requireAdmin, (req, res) => {
     try {
       const authorName = asNonEmptyString(req.body?.name);
+      const bio = asOptionalString(req.body?.bio);
       const goodreadsId = asOptionalString(req.body?.goodreads_id) || "";
       if (!authorName) return jsonError(res, 400, "Author name is required.");
 
-      if (db.prepare("SELECT name FROM authors WHERE name = ?").get(authorName)) {
+      if (
+        db
+          .prepare("SELECT id FROM authors WHERE name = ? COLLATE NOCASE")
+          .get(authorName)
+      ) {
         return jsonError(res, 400, "Author already exists.");
       }
 
+      let authorId = null;
       db.transaction(() => {
         db.prepare(
-          "INSERT INTO authors (name, goodreads_id) VALUES (?, ?)",
-        ).run(authorName, goodreadsId);
+          "INSERT INTO authors (name, bio, goodreads_id) VALUES (?, ?, ?)",
+        ).run(authorName, bio, goodreadsId);
+        authorId = db.prepare("SELECT last_insert_rowid() as id").get().id;
       })();
-      res.json({ success: true });
+
+      const author = workService.processAuthor(
+        workService.getAuthorWithRelations(
+          db.prepare("SELECT * FROM authors WHERE id = ?").get(authorId),
+          req.user?.id,
+        ),
+      );
+      res.json({ success: true, author });
     } catch (error) {
       jsonError(res, 500, "Failed to add author");
     }
   });
 
   router.post(
-    "/api/authors/:name/avatar",
+    "/api/authors/:id/avatar",
     authenticateToken,
     requireAdmin,
     authorAvatarUpload.single("file"),
     (req, res) => {
       try {
-        const authorName = req.params.name;
-        const author = db
-          .prepare("SELECT goodreads_id FROM authors WHERE name = ?")
-          .get(authorName);
+        const author = getAuthorById(req.params.id);
 
         if (!author) {
           return jsonError(res, 404, "Author not found.");
@@ -111,67 +162,119 @@ function createAuthorsRouter({ db, workService }) {
   );
 
   router.post(
-    "/api/authors/:name/follow",
+    "/api/authors/:id/follow",
     authenticateToken,
     requireAdmin,
     (req, res) => {
-    try {
-      const authorName = req.params.name;
-      const userId = req.user.id;
-      if (typeof req.body?.followed !== "boolean") {
-        return jsonError(res, 400, "followed must be a boolean.");
-      }
-      const followed = req.body.followed ? 1 : 0;
+      try {
+        const author = getAuthorById(req.params.id);
+        const userId = req.user.id;
+        if (typeof req.body?.followed !== "boolean") {
+          return jsonError(res, 400, "followed must be a boolean.");
+        }
+        const followed = req.body.followed ? 1 : 0;
 
-      const exists = db
-        .prepare("SELECT name FROM authors WHERE name = ?")
-        .get(authorName);
-      if (!exists) return res.status(404).json({ error: "Author not found." });
+        if (!author) {
+          return res.status(404).json({ error: "Author not found." });
+        }
 
-      db.prepare(
-        `INSERT INTO user_author_interactions (user_id, author_name, followed)
+        db.prepare(
+          `INSERT INTO user_author_interactions (user_id, author_id, followed)
           VALUES (?, ?, ?)
-          ON CONFLICT(user_id, author_name)
+          ON CONFLICT(user_id, author_id)
           DO UPDATE SET followed = excluded.followed`,
-      ).run(userId, authorName, followed);
+        ).run(userId, author.id, followed);
 
-      res.json({ success: true, followed: !!followed });
-    } catch (error) {
-      console.error("Failed to update author follow:", error);
-      res.status(500).json({ error: "Failed to update follow status." });
-    }
-  });
+        res.json({ success: true, followed: !!followed });
+      } catch (error) {
+        console.error("Failed to update author follow:", error);
+        res.status(500).json({ error: "Failed to update follow status." });
+      }
+    },
+  );
 
   router.put(
-    "/api/authors/:name",
+    "/api/authors/:id",
     authenticateToken,
     requireAdmin,
     (req, res) => {
-    try {
-      const targetName = req.params.name;
-      const exists = db
-        .prepare("SELECT * FROM authors WHERE name = ?")
-        .get(targetName);
-      if (!exists) return res.status(404).json({ error: "Author not found." });
+      try {
+        const existingAuthor = getAuthorById(req.params.id);
+        if (!existingAuthor) {
+          return res.status(404).json({ error: "Author not found." });
+        }
 
-      const nextGoodreadsId = asOptionalString(req.body?.goodreads_id);
-      if (
-        req.body?.goodreads_id !== undefined &&
-        req.body?.goodreads_id !== null &&
-        typeof req.body?.goodreads_id !== "string"
-      ) {
-        return jsonError(res, 400, "goodreads_id must be a string when provided.");
+        const nextName = asNonEmptyString(req.body?.name);
+        const nextBio = asOptionalString(req.body?.bio);
+        const nextGoodreadsId = asOptionalString(req.body?.goodreads_id) || "";
+
+        if (!nextName) {
+          return jsonError(res, 400, "Author name is required.");
+        }
+        if (
+          req.body?.bio !== undefined &&
+          req.body?.bio !== null &&
+          typeof req.body?.bio !== "string"
+        ) {
+          return jsonError(res, 400, "bio must be a string when provided.");
+        }
+        if (
+          req.body?.goodreads_id !== undefined &&
+          req.body?.goodreads_id !== null &&
+          typeof req.body?.goodreads_id !== "string"
+        ) {
+          return jsonError(res, 400, "goodreads_id must be a string when provided.");
+        }
+
+        const nameConflict = db
+          .prepare(
+            "SELECT id FROM authors WHERE name = ? COLLATE NOCASE AND id != ?",
+          )
+          .get(nextName, existingAuthor.id);
+        if (nameConflict) {
+          return jsonError(res, 400, "Another author already uses that name.");
+        }
+
+        db.transaction(() => {
+          db.prepare(
+            "UPDATE authors SET name = ?, bio = ?, goodreads_id = ? WHERE id = ?",
+          ).run(nextName, nextBio, nextGoodreadsId, existingAuthor.id);
+        })();
+
+        renameAuthorAvatarIfNeeded(
+          existingAuthor.goodreads_id,
+          nextGoodreadsId || null,
+        );
+
+        const author = workService.processAuthor(
+          workService.getAuthorWithRelations(
+            db.prepare("SELECT * FROM authors WHERE id = ?").get(existingAuthor.id),
+            req.user?.id,
+          ),
+        );
+        res.json({ success: true, author });
+      } catch (error) {
+        jsonError(res, 500, "Failed to update author");
+      }
+    },
+  );
+
+  router.delete("/api/authors/:id", authenticateToken, requireAdmin, (req, res) => {
+    try {
+      const author = getAuthorById(req.params.id);
+      if (!author) {
+        return res.status(404).json({ error: "Author not found." });
       }
 
       db.transaction(() => {
-        db.prepare("UPDATE authors SET goodreads_id = ? WHERE name = ?").run(
-          nextGoodreadsId || exists.goodreads_id || "",
-          targetName,
-        );
+        db.prepare("DELETE FROM authors WHERE id = ?").run(author.id);
       })();
+
+      removeAuthorAvatarIfItExists(author.goodreads_id);
+
       res.json({ success: true });
     } catch (error) {
-      jsonError(res, 500, "Failed to update author");
+      jsonError(res, 500, "Failed to delete author");
     }
   });
 

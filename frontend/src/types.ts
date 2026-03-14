@@ -31,7 +31,9 @@ export interface Work {
 }
 
 export interface Author {
+  id: number;
   name: string;
+  bio?: string | null;
   goodreads_id?: string | null;
   followed?: boolean;
   avatar_img_url?: string | null;

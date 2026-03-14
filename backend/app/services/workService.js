@@ -100,19 +100,29 @@ function createWorkService({ db, BACKEND_URL }) {
   function syncAuthors(workId, authors) {
     if (!authors || !Array.isArray(authors)) return;
     db.prepare("DELETE FROM work_authors WHERE work_id = ?").run(workId);
-    for (const author of authors) {
-      db.prepare("INSERT OR IGNORE INTO authors (name) VALUES (?)").run(author);
+    for (const authorName of authors) {
+      db.prepare("INSERT OR IGNORE INTO authors (name) VALUES (?)").run(authorName);
+      const author = db
+        .prepare("SELECT id FROM authors WHERE name = ?")
+        .get(authorName);
+      if (!author) continue;
       db.prepare(
-        "INSERT OR IGNORE INTO work_authors (work_id, author_name) VALUES (?, ?)",
-      ).run(workId, author);
+        "INSERT OR IGNORE INTO work_authors (work_id, author_id) VALUES (?, ?)",
+      ).run(workId, author.id);
     }
   }
 
   function getWorkWithRelations(workRow, userId = null) {
     const authors = db
-      .prepare("SELECT author_name FROM work_authors WHERE work_id = ?")
+      .prepare(
+        `SELECT authors.name
+         FROM work_authors
+         JOIN authors ON work_authors.author_id = authors.id
+         WHERE work_authors.work_id = ?
+         ORDER BY authors.name ASC`,
+      )
       .all(workRow.id)
-      .map((r) => r.author_name);
+      .map((r) => r.name);
 
     const tags = db
       .prepare(
@@ -151,17 +161,17 @@ function createWorkService({ db, BACKEND_URL }) {
 
     const count = db
       .prepare(
-        "SELECT COUNT(*) as count FROM work_authors WHERE author_name = ?",
+        "SELECT COUNT(*) as count FROM work_authors WHERE author_id = ?",
       )
-      .get(authorRow.name).count;
+      .get(authorRow.id).count;
 
     let followed = false;
     if (userId) {
       const row = db
         .prepare(
-          "SELECT followed FROM user_author_interactions WHERE user_id = ? AND author_name = ?",
+          "SELECT followed FROM user_author_interactions WHERE user_id = ? AND author_id = ?",
         )
-        .get(userId, authorRow.name);
+        .get(userId, authorRow.id);
       followed = !!row?.followed;
     }
 

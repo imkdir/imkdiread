@@ -70,8 +70,8 @@ export class ExplorePage extends React.Component<
 
             {loading || (
               <div className="explore-page__sidebar-content">
-                {authors.map((author, index) => (
-                  <div key={index} className="explore-page__sidebar-item">
+                {authors.map((author) => (
+                  <div key={author.id} className="explore-page__sidebar-item">
                     {/* Left: Avatar */}
                     <GoodreadsAuthorAvatar
                       author={author}

@@ -102,7 +102,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
 
     this.setState({ optimisticFollow: newFollowState });
 
-    request(`/api/authors/${encodeURIComponent(profile.name)}/follow`, {
+    request(`/api/authors/${profile.id}/follow`, {
       method: "POST",
       body: JSON.stringify({ followed: newFollowState }),
     })
