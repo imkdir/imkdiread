@@ -81,7 +81,7 @@ These paths must survive deploys and restarts:
 - `backend/public/imgs/screensavers`
 - `backend/public/imgs/genres`
 
-Only `backend/public/imgs/genres/default.png` is tracked in git. Everything else in `public` should be treated as runtime data.
+Everything in `backend/public` should be treated as runtime data.
 
 ## First-Time Server Setup
 
@@ -107,41 +107,35 @@ rm -rf /srv/imkdiread/current/backend/public
 ln -s /srv/imkdiread/shared/public /srv/imkdiread/current/backend/public
 ```
 
-5. Copy the default genre background if needed:
-
-```bash
-cp /srv/imkdiread/current/backend/public/imgs/genres/default.png /srv/imkdiread/shared/public/imgs/genres/default.png 2>/dev/null || true
-```
-
-6. Install dependencies:
+5. Install dependencies:
 
 ```bash
 cd /srv/imkdiread/current
 npm install
 ```
 
-7. Build frontend:
+6. Build frontend:
 
 ```bash
 cd /srv/imkdiread/current
 npm run build --prefix frontend
 ```
 
-8. Ensure schema:
+7. Ensure schema:
 
 ```bash
 cd /srv/imkdiread/current/backend
 DB_PATH=/srv/imkdiread/shared/database.sqlite npm run db:ensure
 ```
 
-9. Create the first admin:
+8. Create the first admin:
 
 ```bash
 cd /srv/imkdiread/current/backend
 DB_PATH=/srv/imkdiread/shared/database.sqlite ADMIN_USERNAME=admin ADMIN_PASSWORD=change-me npm run create-admin
 ```
 
-10. Run smoke tests against a test database before go-live:
+9. Run smoke tests against a test database before go-live:
 
 ```bash
 cd /srv/imkdiread/current/backend
@@ -177,6 +171,21 @@ DB_PATH=/srv/imkdiread/shared/database.sqlite npm run db:ensure
 
 6. Restart backend.
 7. Verify the live site.
+
+You can automate the main release flow with:
+
+```bash
+cd /srv/imkdiread/current
+bash scripts/deploy.sh --health-url https://api.example.com/api/health
+```
+
+Useful variants:
+
+```bash
+bash scripts/deploy.sh --skip-restart
+bash scripts/deploy.sh --skip-smoke --service imkdiread
+HEALTHCHECK_URL=https://api.example.com/api/health SYSTEMD_SERVICE=imkdiread bash scripts/deploy.sh
+```
 
 ## Suggested Backend Service
 
@@ -230,7 +239,7 @@ Check these after each deploy:
 
 1. Frontend loads and login page renders.
 2. Admin login works.
-3. `GET /imgs/genres/default.png` returns `200`.
+3. `GET /api/health` returns `200`.
 4. Explore page loads.
 5. Detail page loads a work with:
    - cover

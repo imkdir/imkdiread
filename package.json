@@ -8,7 +8,8 @@
     "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
     "start": "npm run start --prefix backend",
     "build": "concurrently \"npm run build --prefix frontend\" \"npm run build --prefix backend --if-present\"",
-    "test": "npm run test:smoke --prefix backend && npm run lint --prefix frontend"
+    "test": "npm run test:smoke --prefix backend && npm run lint --prefix frontend",
+    "deploy": "bash scripts/deploy.sh"
   },
   "keywords": [],
   "author": "",

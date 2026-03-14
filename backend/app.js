@@ -33,6 +33,15 @@ function createApp(options = {}) {
   app.use(express.static(staticDir));
   app.use(express.json());
 
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      ok: true,
+      status: "healthy",
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   app.use(createAuthRouter({ db }));
   app.use(createTagsRouter({ db }));
   app.use(createAuthorsRouter({ db, workService }));

@@ -44,6 +44,3 @@ backend/data/
 backend/public/*
 !backend/public/imgs/
 backend/public/imgs/*
-!backend/public/imgs/genres/
-backend/public/imgs/genres/*
-!backend/public/imgs/genres/default.png

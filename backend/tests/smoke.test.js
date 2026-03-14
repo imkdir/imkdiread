@@ -817,6 +817,14 @@ test("profile routes support current user settings and avatar upload", async () 
 test("utility discovery routes return screensavers, explore, works, and collection data", async () => {
   const adminToken = await login("admin", "admin-pass");
   const token = await login("guest", "guest-pass");
+
+  const health = await requestJson("GET", "/api/health");
+  assert.equal(health.status, 200);
+  assert.equal(health.json?.ok, true);
+  assert.equal(health.json?.status, "healthy");
+  assert.equal(typeof health.json?.uptime, "number");
+  assert.equal(typeof health.json?.timestamp, "string");
+
   const screensaverFilename = `smoke-screen-${Date.now()}.png`;
   const screensaverPath = trackPublicArtifact(
     "imgs",
