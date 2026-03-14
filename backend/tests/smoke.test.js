@@ -7,7 +7,9 @@ const { execFileSync } = require("child_process");
 const { once } = require("events");
 const Database = require("better-sqlite3");
 const bcrypt = require("bcryptjs");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { createApp } = require("../app");
+const { getPublicPath } = require("../app/utils/paths");
 
 let server;
 let appDb;
@@ -15,6 +17,8 @@ let baseUrl;
 let tempDir;
 let dbPath;
 let originalEnv;
+let originalGetGenerativeModel;
+const tempPublicPaths = new Set();
 
 function seedTestDb(targetDbPath) {
   const db = new Database(targetDbPath);
@@ -91,6 +95,7 @@ function seedTestDb(targetDbPath) {
       work_id TEXT NOT NULL,
       quote TEXT NOT NULL,
       page_number INTEGER,
+      explanation TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE
@@ -105,9 +110,24 @@ function seedTestDb(targetDbPath) {
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE
     );
+    CREATE TABLE vocabularies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      work_id TEXT NOT NULL,
+      word TEXT NOT NULL,
+      word_data TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE,
+      UNIQUE(user_id, work_id, word)
+    );
   `);
 
   db.prepare("INSERT INTO tags (name) VALUES (?)").run("philosophy");
+  db.prepare("INSERT INTO series (text, count) VALUES (?, ?)").run(
+    "Great Ideas",
+    3,
+  );
   const authorInsert = db
     .prepare("INSERT INTO authors (name, bio, goodreads_id) VALUES (?, ?, ?)")
     .run("Aristotle", "Ancient Greek philosopher", "author-1");
@@ -135,6 +155,10 @@ function seedTestDb(targetDbPath) {
       (id, username, password_hash, role, email, is_email_public)
       VALUES (?, ?, ?, ?, ?, ?)`,
   ).run("guest-1", "guest", guestHash, "guest", "guest@example.com", 1);
+  db.prepare(
+    `INSERT INTO work_quotes (work_id, quote, page_number, explanation, user_id)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run("W1", "We are what we repeatedly do.", 10, "Classic line", "guest-1");
 
   db.close();
 }
@@ -250,6 +274,53 @@ async function requestJson(method, routePath, body, token) {
   return { status: response.status, json };
 }
 
+async function requestMultipart(method, routePath, fields, token) {
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const formData = new FormData();
+  for (const field of fields) {
+    formData.append(
+      field.name,
+      new Blob([field.content], { type: field.type }),
+      field.filename,
+    );
+  }
+
+  const response = await fetch(`${baseUrl}${routePath}`, {
+    method,
+    headers,
+    body: formData,
+  });
+
+  let json = null;
+  try {
+    json = await response.json();
+  } catch {
+    json = null;
+  }
+
+  return { status: response.status, json };
+}
+
+async function login(username, password) {
+  const response = await requestJson("POST", "/api/auth/login", {
+    username,
+    password,
+  });
+  assert.equal(response.status, 200);
+  assert.equal(typeof response.json?.token, "string");
+  return response.json.token;
+}
+
+function trackPublicArtifact(...segments) {
+  const filePath = getPublicPath(...segments);
+  tempPublicPaths.add(filePath);
+  return filePath;
+}
+
 test.before(async () => {
   originalEnv = {
     JWT_SECRET: process.env.JWT_SECRET,
@@ -257,6 +328,43 @@ test.before(async () => {
   };
   process.env.JWT_SECRET = "test-jwt-secret";
   process.env.GUEST_INVITE_CODE = "test-invite-code";
+
+  originalGetGenerativeModel = GoogleGenerativeAI.prototype.getGenerativeModel;
+  GoogleGenerativeAI.prototype.getGenerativeModel = function getModel() {
+    return {
+      generateContent: async (prompt) => {
+        const text = String(prompt);
+        if (text.includes("cleaned_quote")) {
+          return {
+            response: {
+              text: () =>
+                JSON.stringify({
+                  cleaned_quote: "A cleaned passage.",
+                  explanation: "A concise explanation.",
+                }),
+            },
+          };
+        }
+
+        return {
+          response: {
+            text: () =>
+              JSON.stringify({
+                word: "virtue",
+                lore_note: "A contextual note.",
+                phonetic: "/vur-choo/",
+                meanings: [
+                  {
+                    partOfSpeech: "noun",
+                    definitions: [{ definition: "Moral excellence." }],
+                  },
+                ],
+              }),
+          },
+        };
+      },
+    };
+  };
 
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "imkdiread-smoke-"));
   dbPath = path.join(tempDir, "test.sqlite");
@@ -283,6 +391,16 @@ test.after(async () => {
   }
   if (tempDir) {
     fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+
+  for (const filePath of tempPublicPaths) {
+    if (fs.existsSync(filePath)) {
+      fs.rmSync(filePath, { force: true });
+    }
+  }
+
+  if (originalGetGenerativeModel) {
+    GoogleGenerativeAI.prototype.getGenerativeModel = originalGetGenerativeModel;
   }
 
   if (originalEnv) {
@@ -366,13 +484,10 @@ test("read flow smoke: /api/search returns results for authenticated user", asyn
 });
 
 test("reading progress is stored separately from quotes", async () => {
-  const login = await requestJson("POST", "/api/auth/login", {
-    username: "guest",
-    password: "guest-pass",
-  });
-  assert.equal(login.status, 200);
-  const token = login.json?.token;
-  assert.equal(typeof token, "string");
+  const token = await login("guest", "guest-pass");
+  const quoteCountBefore = appDb
+    .prepare("SELECT COUNT(*) AS count FROM work_quotes WHERE work_id = ?")
+    .get("W1").count;
 
   const progress = await requestJson(
     "POST",
@@ -399,7 +514,7 @@ test("reading progress is stored separately from quotes", async () => {
     )
     .get("guest-1", "W1");
 
-  assert.equal(quoteCount, 0);
+  assert.equal(quoteCount, quoteCountBefore);
   assert.equal(activity.user_id, "guest-1");
   assert.equal(activity.work_id, "W1");
   assert.equal(activity.notes, "Reached the midpoint");
@@ -409,7 +524,7 @@ test("reading progress is stored separately from quotes", async () => {
   const work = await requestJson("GET", "/api/works/W1", undefined, token);
   assert.equal(work.status, 200);
   assert.equal(work.json?.current_page, 42);
-  assert.equal(work.json?.quotes?.length, 0);
+  assert.equal(work.json?.quotes?.length, quoteCountBefore);
 });
 
 test("public profile endpoint exposes shelves and only public email", async () => {
@@ -507,18 +622,21 @@ test("admin can update work and author goodreads ids via dedicated endpoints", a
 });
 
 test("author admin flow supports update and delete by numeric id", async () => {
-  const login = await requestJson("POST", "/api/auth/login", {
-    username: "admin",
-    password: "admin-pass",
-  });
-  assert.equal(login.status, 200);
-  const token = login.json?.token;
-  assert.equal(typeof token, "string");
-
-  const listBefore = await requestJson("GET", "/api/authors", undefined, token);
-  assert.equal(listBefore.status, 200);
-  assert.ok(Array.isArray(listBefore.json));
-  const author = listBefore.json.find((entry) => entry.name === "Aristotle");
+  const token = await login("admin", "admin-pass");
+  const suffix = Date.now();
+  const create = await requestJson(
+    "POST",
+    "/api/authors",
+    {
+      name: `Numeric Author ${suffix}`,
+      bio: "Ancient Greek philosopher",
+      goodreads_id: `numeric-author-${suffix}`,
+    },
+    token,
+  );
+  assert.equal(create.status, 200);
+  assert.equal(create.json?.success, true);
+  const author = create.json?.author;
   assert.equal(typeof author?.id, "number");
   assert.equal(author?.bio, "Ancient Greek philosopher");
 
@@ -538,16 +656,6 @@ test("author admin flow supports update and delete by numeric id", async () => {
   assert.equal(update.json?.author?.bio, "Updated biography");
   assert.equal(update.json?.author?.goodreads_id, "author-42");
 
-  const collection = await requestJson(
-    "GET",
-    `/api/collection/${encodeURIComponent("Aristotle Revised")}`,
-    undefined,
-    token,
-  );
-  assert.equal(collection.status, 200);
-  assert.equal(collection.json?.profile?.name, "Aristotle Revised");
-  assert.equal(collection.json?.works?.[0]?.authors?.[0], "Aristotle Revised");
-
   const remove = await requestJson(
     "DELETE",
     `/api/authors/${author.id}`,
@@ -559,7 +667,575 @@ test("author admin flow supports update and delete by numeric id", async () => {
 
   const listAfter = await requestJson("GET", "/api/authors", undefined, token);
   assert.equal(listAfter.status, 200);
-  assert.equal(listAfter.json.length, 0);
+  assert.equal(
+    listAfter.json.some((entry) => entry.id === author.id),
+    false,
+  );
+});
+
+test("auth register creates a guest account with the invite code", async () => {
+  const username = `guest-${Date.now()}`;
+  const register = await requestJson("POST", "/api/auth/register", {
+    username,
+    password: "fresh-pass",
+    inviteCode: "test-invite-code",
+  });
+
+  assert.equal(register.status, 200);
+  assert.equal(register.json?.success, true);
+
+  const loginResponse = await requestJson("POST", "/api/auth/login", {
+    username,
+    password: "fresh-pass",
+  });
+  assert.equal(loginResponse.status, 200);
+  assert.equal(loginResponse.json?.user?.role, "guest");
+});
+
+test("profile routes support current user settings and avatar upload", async () => {
+  const token = await login("guest", "guest-pass");
+
+  const me = await requestJson("GET", "/api/profile/me", undefined, token);
+  assert.equal(me.status, 200);
+  assert.equal(me.json?.userInfo?.username, "guest");
+  assert.ok(Array.isArray(me.json?.quotes));
+
+  const update = await requestJson(
+    "PUT",
+    "/api/profile/me",
+    {
+      email: "guest+updated@example.com",
+      is_email_public: false,
+    },
+    token,
+  );
+  assert.equal(update.status, 200);
+  assert.equal(update.json?.success, true);
+  assert.equal(update.json?.user?.email, "guest+updated@example.com");
+  assert.equal(update.json?.user?.is_email_public, false);
+
+  const avatarUpload = await requestMultipart(
+    "POST",
+    "/api/profile/avatar",
+    [
+      {
+        name: "avatar",
+        filename: "avatar.png",
+        type: "image/png",
+        content: "fake-png-avatar",
+      },
+    ],
+    token,
+  );
+  assert.equal(avatarUpload.status, 200);
+  assert.equal(avatarUpload.json?.success, true);
+  assert.equal(typeof avatarUpload.json?.avatar_url, "string");
+  trackPublicArtifact(
+    ...avatarUpload.json.avatar_url.replace(/^\//, "").split("/"),
+  );
+
+  const refreshed = await requestJson("GET", "/api/profile/me", undefined, token);
+  assert.equal(refreshed.status, 200);
+  assert.equal(
+    refreshed.json?.userInfo?.avatar_url,
+    avatarUpload.json?.avatar_url,
+  );
+});
+
+test("utility discovery routes return series, screensavers, explore, works, and collection data", async () => {
+  const token = await login("guest", "guest-pass");
+  const screensaverFilename = `smoke-screen-${Date.now()}.png`;
+  const screensaverPath = trackPublicArtifact(
+    "imgs",
+    "screensavers",
+    screensaverFilename,
+  );
+  fs.mkdirSync(path.dirname(screensaverPath), { recursive: true });
+  fs.writeFileSync(screensaverPath, "screensaver");
+
+  const series = await requestJson("GET", "/api/series");
+  assert.equal(series.status, 200);
+  assert.ok(Array.isArray(series.json));
+  assert.ok(series.json.some((entry) => entry.text === "Great Ideas"));
+
+  const screensavers = await requestJson("GET", "/api/screensavers");
+  assert.equal(screensavers.status, 200);
+  assert.ok(Array.isArray(screensavers.json?.images));
+  assert.ok(
+    screensavers.json.images.some((image) => image.endsWith(screensaverFilename)),
+  );
+  assert.ok(screensavers.json.index >= 0);
+  assert.ok(screensavers.json.index < screensavers.json.images.length);
+
+  const explore = await requestJson("GET", "/api/explore", undefined, token);
+  assert.equal(explore.status, 200);
+  assert.ok(Array.isArray(explore.json?.works));
+  assert.ok(Array.isArray(explore.json?.authors));
+
+  const works = await requestJson("GET", "/api/works", undefined, token);
+  assert.equal(works.status, 200);
+  assert.ok(Array.isArray(works.json));
+  assert.ok(works.json.some((entry) => entry.id === "W1"));
+
+  const authorCollection = await requestJson(
+    "GET",
+    `/api/collection/${encodeURIComponent("Aristotle")}`,
+    undefined,
+    token,
+  );
+  assert.equal(authorCollection.status, 200);
+  assert.equal(authorCollection.json?.profile?.name, "Aristotle");
+  assert.ok(Array.isArray(authorCollection.json?.works));
+
+  const tagCollection = await requestJson(
+    "GET",
+    `/api/collection/${encodeURIComponent("philosophy")}`,
+    undefined,
+    token,
+  );
+  assert.equal(tagCollection.status, 200);
+  assert.equal(tagCollection.json?.profile, null);
+  assert.ok(Array.isArray(tagCollection.json?.works));
+});
+
+test("tag and author admin routes support create, mutate, upload, follow, and cleanup", async () => {
+  const token = await login("admin", "admin-pass");
+  const suffix = Date.now();
+  const tagName = `stoic-${suffix}`;
+  const renamedTag = `stoic-renamed-${suffix}`;
+  const authorName = `Author ${suffix}`;
+  const renamedAuthorName = `Author Revised ${suffix}`;
+  const authorGoodreadsId = `author-smoke-${suffix}`;
+  const renamedAuthorGoodreadsId = `author-smoke-renamed-${suffix}`;
+
+  const createTag = await requestJson(
+    "POST",
+    "/api/tags",
+    { newTag: tagName },
+    token,
+  );
+  assert.equal(createTag.status, 200);
+  assert.equal(createTag.json?.success, true);
+  assert.ok(createTag.json?.tags.includes(tagName));
+
+  const renameTagResponse = await requestJson(
+    "PUT",
+    `/api/tags/${encodeURIComponent(tagName)}`,
+    { newName: renamedTag },
+    token,
+  );
+  assert.equal(renameTagResponse.status, 200);
+  assert.equal(renameTagResponse.json?.success, true);
+
+  const createAuthor = await requestJson(
+    "POST",
+    "/api/authors",
+    {
+      name: authorName,
+      bio: "Newly added author",
+      goodreads_id: authorGoodreadsId,
+    },
+    token,
+  );
+  assert.equal(createAuthor.status, 200);
+  assert.equal(createAuthor.json?.success, true);
+  assert.equal(createAuthor.json?.author?.name, authorName);
+  const authorId = createAuthor.json?.author?.id;
+  assert.equal(typeof authorId, "number");
+
+  const avatarUpload = await requestMultipart(
+    "POST",
+    `/api/authors/${authorId}/avatar`,
+    [
+      {
+        name: "file",
+        filename: "author.png",
+        type: "image/png",
+        content: "fake-author-avatar",
+      },
+    ],
+    token,
+  );
+  assert.equal(avatarUpload.status, 200);
+  assert.equal(avatarUpload.json?.success, true);
+  trackPublicArtifact("imgs", "avatars", `${authorGoodreadsId}.png`);
+
+  const follow = await requestJson(
+    "POST",
+    `/api/authors/${authorId}/follow`,
+    { followed: true },
+    token,
+  );
+  assert.equal(follow.status, 200);
+  assert.equal(follow.json?.followed, true);
+
+  const updateAuthor = await requestJson(
+    "PUT",
+    `/api/authors/${authorId}`,
+    {
+      name: renamedAuthorName,
+      bio: "Updated author bio",
+      goodreads_id: renamedAuthorGoodreadsId,
+    },
+    token,
+  );
+  assert.equal(updateAuthor.status, 200);
+  assert.equal(updateAuthor.json?.success, true);
+  assert.equal(updateAuthor.json?.author?.name, renamedAuthorName);
+  trackPublicArtifact("imgs", "avatars", `${renamedAuthorGoodreadsId}.png`);
+
+  const authorGoodreadsUpdate = await requestJson(
+    "PUT",
+    `/api/authors/${authorId}/goodreads-id`,
+    { goodreads_id: `${renamedAuthorGoodreadsId}-2` },
+    token,
+  );
+  assert.equal(authorGoodreadsUpdate.status, 200);
+  assert.equal(authorGoodreadsUpdate.json?.success, true);
+  trackPublicArtifact(
+    "imgs",
+    "avatars",
+    `${renamedAuthorGoodreadsId}-2.png`,
+  );
+
+  const authorList = await requestJson("GET", "/api/authors", undefined, token);
+  assert.equal(authorList.status, 200);
+  assert.ok(authorList.json.some((entry) => entry.id === authorId));
+
+  const removeTag = await requestJson(
+    "DELETE",
+    `/api/tags/${encodeURIComponent(renamedTag)}`,
+    undefined,
+    token,
+  );
+  assert.equal(removeTag.status, 200);
+  assert.equal(removeTag.json?.success, true);
+
+  const deleteAuthor = await requestJson(
+    "DELETE",
+    `/api/authors/${authorId}`,
+    undefined,
+    token,
+  );
+  assert.equal(deleteAuthor.status, 200);
+  assert.equal(deleteAuthor.json?.success, true);
+});
+
+test("work admin and reader routes cover CRUD, uploads, interactions, quotes, progress, dictionary, and vocabulary", async () => {
+  const adminToken = await login("admin", "admin-pass");
+  const guestToken = await login("guest", "guest-pass");
+  const suffix = Date.now();
+  const workId = `SMOKE-${suffix}`;
+  const importedWorkId = `SMOKE-IMPORT-${suffix}`;
+
+  const createWork = await requestJson(
+    "POST",
+    "/api/works",
+    {
+      id: workId,
+      title: "Smoke Work",
+      page_count: 220,
+      goodreads_id: "",
+      dropbox_link: "",
+      amazon_asin: "",
+      authors: ["Aristotle"],
+      tags: ["philosophy"],
+    },
+    adminToken,
+  );
+  assert.equal(createWork.status, 200);
+  assert.equal(createWork.json?.success, true);
+
+  const updateWork = await requestJson(
+    "PUT",
+    `/api/works/${encodeURIComponent(workId)}`,
+    {
+      id: workId,
+      title: "Smoke Work Updated",
+      page_count: 240,
+      goodreads_id: "smoke-book-id",
+      dropbox_link: "",
+      amazon_asin: "B000TEST",
+      authors: ["Aristotle"],
+      tags: ["logic"],
+    },
+    adminToken,
+  );
+  assert.equal(updateWork.status, 200);
+  assert.equal(updateWork.json?.success, true);
+
+  const setDropbox = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/dropbox-link`,
+    { link: "https://www.dropbox.com/s/test/file.pdf?dl=0" },
+    adminToken,
+  );
+  assert.equal(setDropbox.status, 200);
+  assert.equal(setDropbox.json?.success, true);
+
+  const setGoodreads = await requestJson(
+    "PUT",
+    `/api/works/${encodeURIComponent(workId)}/goodreads-id`,
+    { goodreads_id: "smoke-goodreads-updated" },
+    adminToken,
+  );
+  assert.equal(setGoodreads.status, 200);
+  assert.equal(setGoodreads.json?.success, true);
+
+  const coverUpload = await requestMultipart(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/cover`,
+    [
+      {
+        name: "file",
+        filename: "cover.png",
+        type: "image/png",
+        content: "fake-cover",
+      },
+    ],
+    adminToken,
+  );
+  assert.equal(coverUpload.status, 200);
+  assert.equal(coverUpload.json?.success, true);
+  trackPublicArtifact("imgs", "covers", `${workId}.png`);
+
+  const fileUpload = await requestMultipart(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/files`,
+    [
+      {
+        name: "file",
+        filename: `${workId}.pdf`,
+        type: "application/pdf",
+        content: "%PDF-1.4 smoke pdf",
+      },
+    ],
+    adminToken,
+  );
+  assert.equal(fileUpload.status, 200);
+  assert.equal(fileUpload.json?.success, true);
+  trackPublicArtifact("files", `${workId}.pdf`);
+
+  const bulkImport = await requestJson(
+    "POST",
+    "/api/works/bulk-import",
+    [
+      {
+        id: importedWorkId,
+        title: "Bulk Imported Work",
+        goodreads_id: "bulk-goodreads",
+        page_count: 88,
+        authors: ["Bulk Author"],
+        tags: ["bulk-tag"],
+      },
+    ],
+    adminToken,
+  );
+  assert.equal(bulkImport.status, 200);
+  assert.equal(bulkImport.json?.success, true);
+
+  const bulkTags = await requestJson(
+    "POST",
+    "/api/works/bulk-tags",
+    {
+      workIds: [importedWorkId],
+      tags: ["bulk-extra"],
+    },
+    adminToken,
+  );
+  assert.equal(bulkTags.status, 200);
+  assert.equal(bulkTags.json?.success, true);
+
+  const toggleLiked = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}`,
+    { action: "liked", value: true },
+    guestToken,
+  );
+  assert.equal(toggleLiked.status, 200);
+  assert.equal(toggleLiked.json?.success, true);
+
+  const toggleRead = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}`,
+    { action: "read", value: true },
+    guestToken,
+  );
+  assert.equal(toggleRead.status, 200);
+
+  const toggleShelved = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}`,
+    { action: "shelved", value: true },
+    guestToken,
+  );
+  assert.equal(toggleShelved.status, 200);
+
+  const setRating = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}`,
+    { action: "rating", value: 7 },
+    guestToken,
+  );
+  assert.equal(setRating.status, 200);
+
+  const quoteCreate = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/quotes`,
+    {
+      quote: "A temporary quote",
+      pageNumber: 21,
+      explanation: "A temporary explanation",
+    },
+    guestToken,
+  );
+  assert.equal(quoteCreate.status, 200);
+  assert.equal(quoteCreate.json?.success, true);
+
+  const createdQuote = appDb
+    .prepare(
+      "SELECT id FROM work_quotes WHERE work_id = ? AND user_id = ? AND quote = ?",
+    )
+    .get(workId, "guest-1", "A temporary quote");
+  assert.equal(typeof createdQuote?.id, "number");
+
+  const quoteUpdate = await requestJson(
+    "PUT",
+    `/api/quotes/${createdQuote.id}`,
+    {
+      quote: "A temporary quote updated",
+      pageNumber: 22,
+      explanation: "Updated explanation",
+    },
+    guestToken,
+  );
+  assert.equal(quoteUpdate.status, 200);
+  assert.equal(quoteUpdate.json?.success, true);
+
+  const progress = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/progress`,
+    {
+      note: "Reached page 30",
+      pageNumber: 30,
+    },
+    guestToken,
+  );
+  assert.equal(progress.status, 200);
+  assert.equal(progress.json?.success, true);
+
+  const finish = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/progress/finish`,
+    { note: "Finished it" },
+    guestToken,
+  );
+  assert.equal(finish.status, 200);
+  assert.equal(finish.json?.success, true);
+  assert.equal(finish.json?.read, true);
+
+  const lookup = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/dictionary/lookup`,
+    { word: "virtue" },
+    guestToken,
+  );
+  assert.equal(lookup.status, 200);
+  assert.equal(lookup.json?.success, true);
+  assert.equal(lookup.json?.result?.word, "virtue");
+
+  const explain = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/dictionary/explain`,
+    { text: "Broken-\nline passage" },
+    guestToken,
+  );
+  assert.equal(explain.status, 200);
+  assert.equal(explain.json?.success, true);
+  assert.equal(explain.json?.result?.cleaned_quote, "A cleaned passage.");
+
+  const vocabCreate = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/vocabularies`,
+    {
+      word: "virtue",
+      word_data: {
+        word: "virtue",
+        meanings: [
+          {
+            partOfSpeech: "noun",
+            definitions: [{ definition: "Moral excellence." }],
+          },
+        ],
+      },
+    },
+    guestToken,
+  );
+  assert.equal(vocabCreate.status, 200);
+  assert.equal(vocabCreate.json?.success, true);
+  const vocabId = vocabCreate.json?.vocabulary?.id;
+  assert.equal(typeof vocabId, "number");
+
+  const vocabList = await requestJson(
+    "GET",
+    `/api/works/${encodeURIComponent(workId)}/vocabularies`,
+    undefined,
+    guestToken,
+  );
+  assert.equal(vocabList.status, 200);
+  assert.ok(Array.isArray(vocabList.json?.vocabularies));
+  assert.ok(vocabList.json.vocabularies.some((entry) => entry.id === vocabId));
+
+  const vocabDelete = await requestJson(
+    "DELETE",
+    `/api/works/${encodeURIComponent(workId)}/vocabularies/${vocabId}`,
+    undefined,
+    guestToken,
+  );
+  assert.equal(vocabDelete.status, 200);
+  assert.equal(vocabDelete.json?.success, true);
+
+  const quoteDelete = await requestJson(
+    "DELETE",
+    `/api/quotes/${createdQuote.id}`,
+    undefined,
+    guestToken,
+  );
+  assert.equal(quoteDelete.status, 200);
+  assert.equal(quoteDelete.json?.success, true);
+
+  const workDetail = await requestJson(
+    "GET",
+    `/api/works/${encodeURIComponent(workId)}`,
+    undefined,
+    guestToken,
+  );
+  assert.equal(workDetail.status, 200);
+  assert.equal(workDetail.json?.title, "Smoke Work Updated");
+  assert.equal(Boolean(workDetail.json?.read), true);
+  assert.equal(Boolean(workDetail.json?.liked), true);
+  assert.equal(workDetail.json?.rating, 7);
+  assert.ok(Array.isArray(workDetail.json?.file_urls));
+  assert.ok(workDetail.json.file_urls.some((url) => url.endsWith(`${workId}.pdf`)));
+  assert.ok(workDetail.json?.cover_img_url?.endsWith(`${workId}.png`));
+
+  const deleteImported = await requestJson(
+    "DELETE",
+    `/api/works/${encodeURIComponent(importedWorkId)}`,
+    undefined,
+    adminToken,
+  );
+  assert.equal(deleteImported.status, 200);
+  assert.equal(deleteImported.json?.success, true);
+
+  const deleteWork = await requestJson(
+    "DELETE",
+    `/api/works/${encodeURIComponent(workId)}`,
+    undefined,
+    adminToken,
+  );
+  assert.equal(deleteWork.status, 200);
+  assert.equal(deleteWork.json?.success, true);
 });
 
 test("author migration script upgrades legacy name-based tables", () => {

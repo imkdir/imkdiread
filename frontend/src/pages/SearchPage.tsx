@@ -3,6 +3,8 @@ import Masonry from "react-masonry-css";
 import { useNavigate } from "react-router-dom";
 import type { User, Work, Series } from "../types";
 import { request } from "../utils/APIClient";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 import { useAuth } from "../components/AuthContext";
 import { FloatingDrawer } from "../components/FloatingDrawer";
 import { AppIcon } from "../components/AppIcon";
@@ -76,27 +78,40 @@ class SearchPageClass extends React.Component<Props, State> {
     }
 
     request(`/api/search?q=${encodeURIComponent(q)}`)
-      .then((res) => res.json())
-      .then((data: { results?: Work[] }) => {
+      .then(async (res) => {
+        const data = await readJsonSafe<{ error?: string; results?: Work[] }>(
+          res,
+        );
+        if (!res.ok) {
+          throw new Error(getApiErrorMessage(data, "Search failed."));
+        }
+        return data;
+      })
+      .then((data) => {
         this.setState({
-          searchResults: data.results || [],
+          searchResults: data?.results || [],
           loading: false,
         });
       })
       .catch((err) => {
         console.error("Search failed", err);
         this.setState({ loading: false });
+        showToast("Search failed.", { tone: "error" });
       });
   };
 
   fetchSeries() {
     request("/api/series")
-      .then((res) => res.json())
-      .then((data: Series[]) => {
+      .then(async (res) => {
+        const data = await readJsonSafe<Series[] | { error?: string }>(res);
+        if (!res.ok || !Array.isArray(data)) {
+          throw new Error(getApiErrorMessage(data, "Failed to load series."));
+        }
         this.setState({ series: data });
       })
       .catch((err) => {
         console.error("Failed to load series:", err);
+        showToast("Failed to load series.", { tone: "error" });
       });
   }
 
@@ -146,21 +161,34 @@ class SearchPageClass extends React.Component<Props, State> {
         tags: newTags,
       }),
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          // Re-trigger the current search to show the updated tags
-          this.performSearch(this.state.query);
-          this.setState({
-            bulkTagInput: "",
-            selectedIds: [],
-            isEditMode: false,
-          });
-        } else {
-          alert("Failed to save tags.");
+      .then(async (res) => {
+        const data = await readJsonSafe<{
+          success?: boolean;
+          error?: string;
+        }>(res);
+        if (!res.ok || !data?.success) {
+          throw new Error(getApiErrorMessage(data, "Failed to save tags."));
         }
+        return data;
       })
-      .catch(() => alert("Network error."));
+      .then((data) => {
+        void data;
+        this.performSearch(this.state.query);
+        this.setState({
+          bulkTagInput: "",
+          selectedIds: [],
+          isEditMode: false,
+        });
+        showToast("Tags updated.", { tone: "success" });
+      })
+      .catch((error) =>
+        showToast(
+          error instanceof Error ? error.message : "Network error.",
+          {
+            tone: "error",
+          },
+        ),
+      );
   };
 
   render() {

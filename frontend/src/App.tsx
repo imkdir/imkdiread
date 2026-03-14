@@ -12,6 +12,7 @@ import { SplashPage } from "./components/SplashPage";
 import { SidebarLayout } from "./components/SidebarLayout";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { NotFound } from "./components/NotFound";
+import { ToastViewport } from "./components/ToastViewport";
 
 import { AuthProvider } from "./components/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -24,6 +25,7 @@ export default class App extends React.Component<Record<string, never>> {
       <AuthProvider>
         <BrowserRouter>
           <ScrollToTop />
+          <ToastViewport />
           <Routes>
             {/* --- PUBLIC ROUTE --- */}
             <Route path="/login" element={<LoginPageWrapper />} />

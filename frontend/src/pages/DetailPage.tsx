@@ -18,6 +18,7 @@ import { DetailFileUploadModal } from "../components/detail/DetailFileUploadModa
 import { useAuth } from "../components/AuthContext";
 import { useDetailPage } from "../hooks/useDetailPage";
 import { uploadWorkCover } from "../services/detailPageService";
+import { showToast } from "../utils/toast";
 
 import noCover from "../assets/imgs/no_cover.png";
 
@@ -115,6 +116,10 @@ function DetailPage({ workId, initialWork }: Props) {
     } catch (error) {
       console.error("Failed to upload cover:", error);
       setCoverUploadError("Failed to upload cover.");
+      showToast(
+        error instanceof Error ? error.message : "Failed to upload cover.",
+        { tone: "error" },
+      );
     } finally {
       setIsUploadingCover(false);
     }

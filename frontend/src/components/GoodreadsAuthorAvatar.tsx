@@ -2,6 +2,8 @@ import React from "react";
 import type { Author } from "../types";
 import noAvatar from "../assets/imgs/no_avatar.png";
 import { request } from "../utils/APIClient";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 
 import "./GoodreadsImages.css";
 
@@ -96,16 +98,23 @@ export class GoodreadsAuthorAvatar extends React.Component<
           body: formData,
         },
       );
-      const data = (await res.json()) as {
+      const data = await readJsonSafe<{
         success?: boolean;
         error?: string;
         avatar_img_url?: string;
-      };
+      }>(res);
 
-      if (!data.success || !data.avatar_img_url) {
+      if (!res.ok || !data?.success || !data.avatar_img_url) {
         this.setState({
-          uploadError: data.error || "Failed to upload author avatar.",
+          uploadError: getApiErrorMessage(
+            data,
+            "Failed to upload author avatar.",
+          ),
         });
+        showToast(
+          getApiErrorMessage(data, "Failed to upload author avatar."),
+          { tone: "error" },
+        );
         return;
       }
 
@@ -114,12 +123,14 @@ export class GoodreadsAuthorAvatar extends React.Component<
         uploadError: null,
         uploadedAvatarUrl: `${data.avatar_img_url}?t=${Date.now()}`,
       });
+      showToast("Author avatar uploaded.", { tone: "success" });
     } catch (error) {
       console.error("Failed to upload author avatar:", error);
       this.setState({
         isUploading: false,
         uploadError: "Failed to upload author avatar.",
       });
+      showToast("Failed to upload author avatar.", { tone: "error" });
       return;
     }
 

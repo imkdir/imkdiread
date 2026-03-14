@@ -7,6 +7,8 @@ import {
 } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
 import type { User } from "../types";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 
 import "./LoginPage.css";
 
@@ -71,10 +73,19 @@ class LoginPage extends Component<PageProps, PageState> {
         body: JSON.stringify({ username, password, inviteCode }),
       });
 
-      const data = await response.json();
+      const data = await readJsonSafe<{
+        error?: string;
+        user?: User;
+        token?: string;
+      }>(response);
 
       if (!response.ok) {
-        throw new Error(data.error || "Login failed");
+        throw new Error(
+          getApiErrorMessage(
+            data,
+            isSignup ? "Sign up failed." : "Login failed.",
+          ),
+        );
       }
 
       if (isSignup) {
@@ -83,12 +94,19 @@ class LoginPage extends Component<PageProps, PageState> {
           isSignup: false,
           alreadySignedUp: true,
         });
+        showToast("Account created. You can log in now.", { tone: "success" });
       } else {
+        if (!data?.user || !data?.token) {
+          throw new Error("Login failed.");
+        }
         auth.login(data.user, data.token);
         navigate(from, { replace: true });
       }
     } catch (err: unknown) {
       console.error("Login failed:", err);
+      showToast(err instanceof Error ? err.message : "Login failed.", {
+        tone: "error",
+      });
     }
   };
 
@@ -105,12 +123,26 @@ class LoginPage extends Component<PageProps, PageState> {
 
   loadData() {
     fetch(`/api/screensavers`)
-      .then((res) => res.json())
-      .then((data: { images: string[]; index: number }) => {
-        this.setState({ ...data });
+      .then(async (res) => {
+        const data = await readJsonSafe<{ images?: string[]; index?: number }>(
+          res,
+        );
+        if (!res.ok || !data?.images) {
+          throw new Error(getApiErrorMessage(data, "Failed to load imagery."));
+        }
+        return data;
+      })
+      .then((data) => {
+        this.setState({
+          images: data.images || [],
+          index: data.index || 0,
+        });
       })
       .catch((err) => {
         console.error("Failed to load data:", err);
+        showToast("Failed to load login background images.", {
+          tone: "error",
+        });
       });
   }
 

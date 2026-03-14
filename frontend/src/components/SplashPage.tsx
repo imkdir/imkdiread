@@ -1,6 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { AppIcon } from "./AppIcon";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 
 interface PageState {
   images: string[];
@@ -49,12 +51,28 @@ export class SplashPage extends React.Component<
 
   loadData() {
     fetch(`/api/screensavers`)
-      .then((res) => res.json())
-      .then((data: { images: string[]; index: number }) => {
-        this.setState({ ...data });
+      .then(async (res) => {
+        const data = await readJsonSafe<{
+          images?: string[];
+          index?: number;
+          error?: string;
+        }>(res);
+        if (!res.ok || !data?.images) {
+          throw new Error(
+            getApiErrorMessage(data, "Failed to load screensavers."),
+          );
+        }
+        return data;
+      })
+      .then((data) => {
+        this.setState({
+          images: data.images || [],
+          index: data.index || 0,
+        });
       })
       .catch((err) => {
         console.error("Failed to load data:", err);
+        showToast("Failed to load screensavers.", { tone: "error" });
       });
   }
 

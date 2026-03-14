@@ -1,8 +1,10 @@
 import React, { PureComponent } from "react";
 import { AppIcon } from "./AppIcon";
 import { request } from "../utils/APIClient";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { Modal } from "./Modal";
 import goodreadsIcon from "../assets/imgs/goodreads.png";
+import { showToast } from "../utils/toast";
 
 interface Props {
   category: "book" | "author";
@@ -141,7 +143,7 @@ export class GoodreadsButton extends PureComponent<Props, State> {
     event.preventDefault();
     const goodreadsId = this.state.draftId.trim();
     if (!goodreadsId) {
-      alert("Goodreads ID is required.");
+      showToast("Goodreads ID is required.", { tone: "error" });
       return;
     }
 
@@ -156,10 +158,14 @@ export class GoodreadsButton extends PureComponent<Props, State> {
           method: "PUT",
           body: JSON.stringify({ goodreads_id: goodreadsId }),
         });
-        const data = await res.json();
+        const data = await readJsonSafe<{ success?: boolean; error?: string }>(
+          res,
+        );
 
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || "Failed to save Goodreads ID.");
+        if (!res.ok || !data?.success) {
+          throw new Error(
+            getApiErrorMessage(data, "Failed to save Goodreads ID."),
+          );
         }
       }
 
@@ -169,7 +175,10 @@ export class GoodreadsButton extends PureComponent<Props, State> {
     } catch (error) {
       console.error("Failed to save Goodreads ID:", error);
       this.setState({ isSaving: false });
-      alert("Failed to save Goodreads ID.");
+      showToast(
+        error instanceof Error ? error.message : "Failed to save Goodreads ID.",
+        { tone: "error" },
+      );
     }
   };
 }

@@ -18,6 +18,7 @@ import {
 } from "../services/detailPageService";
 import type { DetailFilePickerOption } from "../components/detail/DetailFilePickerModal";
 import type { DetailEditingForm } from "../components/detail/DetailQuoteModal";
+import { showToast } from "../utils/toast";
 
 interface UseDetailPageOptions {
   workId: string;
@@ -125,6 +126,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
       setRating(loadedWork.rating || 0);
     } catch (err) {
       console.error("Failed to fetch work:", err);
+      showToast("Failed to load this work.", { tone: "error" });
       setLoading(false);
     }
   }, [workId]);
@@ -186,9 +188,13 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
       if (action === "liked") setLiked(newValue);
       if (action === "shelved") setShelved(newValue);
 
-      updateWorkAction(workId, action, newValue).catch((err) =>
-        console.error("Failed to update action:", err),
-      );
+      updateWorkAction(workId, action, newValue).catch((err) => {
+        console.error("Failed to update action:", err);
+        showToast(
+          err instanceof Error ? err.message : "Failed to update action.",
+          { tone: "error" },
+        );
+      });
     },
     [liked, read, shelved, workId],
   );
@@ -210,9 +216,13 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     const newRating = hoverRating;
     setRating(newRating);
 
-    updateWorkRating(workId, newRating).catch((err) =>
-      console.error("Failed to update rating:", err),
-    );
+    updateWorkRating(workId, newRating).catch((err) => {
+      console.error("Failed to update rating:", err);
+      showToast(
+        err instanceof Error ? err.message : "Failed to update rating.",
+        { tone: "error" },
+      );
+    });
   }, [hoverRating, workId]);
 
   const openEditFormModal = useCallback(
@@ -265,6 +275,10 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
         void fetchData();
       } catch (err) {
         console.error("Failed to save quote:", err);
+        showToast(
+          err instanceof Error ? err.message : "Failed to save quote.",
+          { tone: "error" },
+        );
         setIsSavingQuote(false);
       }
     },
@@ -289,6 +303,10 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
         void fetchData();
       } catch (err) {
         console.error("Failed to save progress:", err);
+        showToast(
+          err instanceof Error ? err.message : "Failed to save progress.",
+          { tone: "error" },
+        );
       }
     },
     [fetchData, getEditEmptyForm, workId],
@@ -325,6 +343,10 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
       void fetchData();
     } catch (err) {
       console.error("Failed to finish work:", err);
+      showToast(
+        err instanceof Error ? err.message : "Failed to finish work.",
+        { tone: "error" },
+      );
     }
   }, [fetchData, getEditEmptyForm, workId]);
 
@@ -344,10 +366,12 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
             explanation: data.explanation || "",
           }));
         } else {
-          alert(data.error || "Failed to analyze passage.");
+          showToast(data.error || "Failed to analyze passage.", {
+            tone: "error",
+          });
         }
       } catch {
-        alert("Network error while analyzing passage.");
+        showToast("Network error while analyzing passage.", { tone: "error" });
       } finally {
         setIsExplaining(false);
       }
@@ -409,6 +433,10 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     } catch (error) {
       console.error("Failed to save Dropbox link:", error);
       setDropboxLinkError("Failed to save Dropbox link.");
+      showToast(
+        error instanceof Error ? error.message : "Failed to save Dropbox link.",
+        { tone: "error" },
+      );
     } finally {
       setIsDropboxSaving(false);
     }
@@ -482,6 +510,10 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
       } catch (error) {
         console.error("Failed to upload work file:", error);
         setUploadError("Failed to upload file.");
+        showToast(
+          error instanceof Error ? error.message : "Failed to upload file.",
+          { tone: "error" },
+        );
       } finally {
         setIsUploadingFile(false);
       }

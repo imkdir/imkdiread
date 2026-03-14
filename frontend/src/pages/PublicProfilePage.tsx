@@ -4,6 +4,8 @@ import { AppIcon } from "../components/AppIcon";
 import { request } from "../utils/APIClient";
 import type { Work, User } from "../types";
 import { profilePageStyles as styles } from "./profilePageStyles";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 
 import "./ProfilePage.css";
 
@@ -60,24 +62,36 @@ export class PublicProfilePage extends Component<
         `/api/profiles/${encodeURIComponent(this.props.username)}`,
       );
 
+      const data = await readJsonSafe<{
+        error?: string;
+        userInfo?: User | null;
+        reading?: Work[];
+        favorites?: Work[];
+        shelved?: Work[];
+      }>(res);
+
       if (res.status === 404) {
         this.setState({ isLoading: false, notFound: true });
         return;
       }
-
-      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          getApiErrorMessage(data, "Failed to load public profile."),
+        );
+      }
 
       this.setState({
-        user: data.userInfo,
-        reading: data.reading || [],
-        favorites: data.favorites || [],
-        shelved: data.shelved || [],
+        user: data?.userInfo || null,
+        reading: data?.reading || [],
+        favorites: data?.favorites || [],
+        shelved: data?.shelved || [],
         isLoading: false,
         notFound: false,
       });
     } catch (err: unknown) {
       console.error("Failed to load public profile", err);
       this.setState({ isLoading: false, notFound: true });
+      showToast("Failed to load public profile.", { tone: "error" });
     }
   };
 

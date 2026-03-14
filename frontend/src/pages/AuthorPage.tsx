@@ -9,6 +9,8 @@ import { GoodreadsButton } from "../components/GoodreadsButton";
 import { AppIcon } from "../components/AppIcon";
 import { Modal } from "../components/Modal";
 import { request } from "../utils/APIClient";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 import { QuoteCard } from "../components/QuoteCard";
 
 import "./AuthorPage.css";
@@ -80,17 +82,30 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
     const keyword = encodeURIComponent(this.props.keyword);
 
     request(`/api/collection/${keyword}`)
-      .then((res) => res.json())
-      .then((data: { works: Work[]; profile: Author | null }) => {
+      .then(async (res) => {
+        const data = await readJsonSafe<{
+          works?: Work[];
+          profile?: Author | null;
+          error?: string;
+        }>(res);
+        if (!res.ok) {
+          throw new Error(
+            getApiErrorMessage(data, "Failed to load author page."),
+          );
+        }
+        return data;
+      })
+      .then((data) => {
         this.setState({
-          works: data.works || [],
-          profile: data.profile,
+          works: data?.works || [],
+          profile: data?.profile || null,
           loading: false,
         });
       })
       .catch((err) => {
         console.error("Failed to fetch data", err);
         this.setState({ loading: false });
+        showToast("Failed to load author page.", { tone: "error" });
       });
   };
 
@@ -144,10 +159,14 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
           goodreads_id: profile.goodreads_id || "",
         }),
       });
-      const data = await res.json();
+      const data = await readJsonSafe<{
+        success?: boolean;
+        error?: string;
+        author?: Author;
+      }>(res);
 
-      if (!res.ok || !data.success || !data.author) {
-        throw new Error(data.error || "Failed to update author bio.");
+      if (!res.ok || !data?.success || !data.author) {
+        throw new Error(getApiErrorMessage(data, "Failed to update author bio."));
       }
 
       this.setState({
@@ -156,10 +175,14 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
         bioDraft: "",
         isSavingBio: false,
       });
+      showToast("Author bio updated.", { tone: "success" });
     } catch (error) {
       console.error("Failed to update author bio", error);
       this.setState({ isSavingBio: false });
-      alert("Failed to update author bio.");
+      showToast(
+        error instanceof Error ? error.message : "Failed to update author bio.",
+        { tone: "error" },
+      );
     }
   };
 

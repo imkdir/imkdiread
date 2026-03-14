@@ -5,6 +5,8 @@ import { AppIcon } from "../components/AppIcon";
 import { request } from "../utils/APIClient";
 import type { Work, Quote, User } from "../types";
 import { profilePageStyles as styles } from "./profilePageStyles";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 
 import "./ProfilePage.css";
 
@@ -50,7 +52,17 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
   fetchProfileData = async () => {
     try {
       const res = await request("/api/profile/me");
-      const data = await res.json();
+      const data = await readJsonSafe<{
+        error?: string;
+        userInfo?: User | null;
+        reading?: Work[];
+        favorites?: Work[];
+        shelved?: Work[];
+        quotes?: RichQuote[];
+      }>(res);
+      if (!res.ok || !data?.userInfo) {
+        throw new Error(getApiErrorMessage(data, "Failed to load profile."));
+      }
 
       this.setState(
         {
@@ -68,6 +80,7 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
     } catch (err: unknown) {
       console.error("Failed to load profile", err);
       this.setState({ isLoading: false });
+      showToast("Failed to load profile.", { tone: "error" });
     }
   };
 
@@ -84,16 +97,25 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
         body: formData,
       });
 
-      const data = await res.json();
-      if (data.success) {
-        this.setState((prevState) => ({
-          user: prevState.user
-            ? { ...prevState.user, avatar_url: data.avatar_url }
-            : null,
-        }));
+      const data = await readJsonSafe<{
+        success?: boolean;
+        error?: string;
+        avatar_url?: string;
+      }>(res);
+      if (!res.ok || !data?.success || !data.avatar_url) {
+        throw new Error(getApiErrorMessage(data, "Failed to upload avatar."));
       }
-    } catch {
-      alert("Failed to upload avatar, reason");
+      this.setState((prevState) => ({
+        user: prevState.user
+          ? { ...prevState.user, avatar_url: data.avatar_url }
+          : null,
+      }));
+      showToast("Avatar updated.", { tone: "success" });
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to upload avatar.",
+        { tone: "error" },
+      );
     }
   };
 
@@ -125,20 +147,26 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to save settings.");
+      const data = await readJsonSafe<{
+        error?: string;
+        user?: User;
+      }>(res);
+      if (!res.ok || !data?.user) {
+        throw new Error(getApiErrorMessage(data, "Failed to save settings."));
       }
 
-      alert("Settings saved successfully.");
+      showToast("Settings saved successfully.", { tone: "success" });
       this.setState((prevState) => ({
         user: data.user || prevState.user,
         isEditing: false,
         email: data.user?.email ?? email,
         isEmailPublic: data.user?.is_email_public ?? is_email_public,
       }));
-    } catch {
-      alert("Failed to save settings.");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to save settings.",
+        { tone: "error" },
+      );
     }
   };
 

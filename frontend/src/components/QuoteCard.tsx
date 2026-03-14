@@ -4,8 +4,10 @@ import { Link } from "react-router-dom";
 import { motion, type Transition } from "framer-motion";
 import type { Quote, User } from "../types";
 import { request } from "../utils/APIClient";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { AppIcon } from "./AppIcon";
 import { useAuth } from "./AuthContext";
+import { showToast } from "../utils/toast";
 import "./QuoteCard.css";
 
 interface Props {
@@ -194,12 +196,27 @@ class QuoteCardClass extends React.Component<Props, State> {
         pageNumber: Number(this.state.editPageNum) || null,
       }),
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          this.setState({ isFlipped: false, isSaving: false });
-          this.props.onRefresh();
+      .then(async (res) => {
+        const data = await readJsonSafe<{ success?: boolean; error?: string }>(
+          res,
+        );
+        if (!res.ok || !data?.success) {
+          throw new Error(getApiErrorMessage(data, "Failed to save quote."));
         }
+        return data;
+      })
+      .then((data) => {
+        void data;
+        this.setState({ isFlipped: false, isSaving: false });
+        this.props.onRefresh();
+        showToast("Quote updated.", { tone: "success" });
+      })
+      .catch((error) => {
+        this.setState({ isSaving: false });
+        showToast(
+          error instanceof Error ? error.message : "Failed to save quote.",
+          { tone: "error" },
+        );
       });
   };
 
@@ -207,10 +224,25 @@ class QuoteCardClass extends React.Component<Props, State> {
     if (!window.confirm("Permanently delete this quote?")) return;
 
     request(`/api/quotes/${this.props.quote.id}`, { method: "DELETE" })
-      .then((res) => res.json())
+      .then(async (res) => {
+        const data = await readJsonSafe<{ success?: boolean; error?: string }>(
+          res,
+        );
+        if (!res.ok || !data?.success) {
+          throw new Error(getApiErrorMessage(data, "Failed to delete quote."));
+        }
+      })
       .then((data) => {
-        if (data.success) this.props.onRefresh();
-      });
+        void data;
+        this.props.onRefresh();
+        showToast("Quote deleted.", { tone: "success" });
+      })
+      .catch((error) =>
+        showToast(
+          error instanceof Error ? error.message : "Failed to delete quote.",
+          { tone: "error" },
+        ),
+      );
   };
 
   getFaceClassName = (

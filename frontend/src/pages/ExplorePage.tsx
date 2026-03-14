@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import Masonry from "react-masonry-css";
 import { request } from "../utils/APIClient";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 
 import { type Author, type Work } from "../types";
 import { GoodreadsAuthorAvatar } from "../components/GoodreadsAuthorAvatar";
@@ -27,16 +29,30 @@ export class ExplorePage extends React.Component<
 
   componentDidMount() {
     request("/api/explore")
-      .then((res) => res.json())
-      .then((data: { works: Work[]; authors: Author[] }) => {
+      .then(async (res) => {
+        const data = await readJsonSafe<{
+          works?: Work[];
+          authors?: Author[];
+          error?: string;
+        }>(res);
+        if (!res.ok) {
+          throw new Error(
+            getApiErrorMessage(data, "Failed to fetch explore data."),
+          );
+        }
+        return data;
+      })
+      .then((data) => {
         this.setState({
-          ...data,
+          works: data?.works || [],
+          authors: data?.authors || [],
           loading: false,
         });
       })
       .catch((err) => {
         console.error("Failed to fetch explore data", err);
         this.setState({ loading: false });
+        showToast("Failed to load explore data.", { tone: "error" });
       });
   }
 

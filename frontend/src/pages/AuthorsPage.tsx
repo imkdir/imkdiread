@@ -2,6 +2,8 @@ import React from "react";
 import { type Author } from "../types";
 import { AuthorCard } from "../components/AuthorCard";
 import { request } from "../utils/APIClient";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 
 import "./AuthorsPage.css";
 
@@ -21,8 +23,14 @@ export class AuthorsPage extends React.Component<
 
   componentDidMount() {
     request("/api/authors")
-      .then((res) => res.json())
-      .then((data: Author[]) => {
+      .then(async (res) => {
+        const data = await readJsonSafe<Author[] | { error?: string }>(res);
+        if (!res.ok || !Array.isArray(data)) {
+          throw new Error(getApiErrorMessage(data, "Failed to load authors."));
+        }
+        return data;
+      })
+      .then((data) => {
         this.setState({
           authors: data,
           loading: false,
@@ -31,6 +39,7 @@ export class AuthorsPage extends React.Component<
       .catch((err) => {
         console.error("Failed to fetch explore data", err);
         this.setState({ loading: false });
+        showToast("Failed to load authors.", { tone: "error" });
       });
   }
 

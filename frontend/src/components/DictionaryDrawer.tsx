@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { request } from "../utils/APIClient";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 import { FloatingDrawer } from "./FloatingDrawer";
 
 interface DictResult {
@@ -76,12 +78,21 @@ export const DictionaryDrawer: React.FC<Props> = ({
   const fetchVocabularies = useCallback(async () => {
     try {
       const res = await request(`/api/works/${workId}/vocabularies`);
-      const data = await res.json();
-      if (data.vocabularies) {
+      const data = await readJsonSafe<{
+        error?: string;
+        vocabularies?: SavedVocab[];
+      }>(res);
+      if (!res.ok) {
+        throw new Error(
+          getApiErrorMessage(data, "Failed to load vocabularies."),
+        );
+      }
+      if (data?.vocabularies) {
         setSavedVocabs(data.vocabularies);
       }
     } catch (err) {
       console.error("Failed to load vocabularies", err);
+      showToast("Failed to load vocabularies.", { tone: "error" });
     }
   }, [workId]);
 
@@ -162,13 +173,16 @@ export const DictionaryDrawer: React.FC<Props> = ({
         const res = await request(
           `/api/profiles/${encodeURIComponent(username)}`,
         );
+        const data = await readJsonSafe<UserPreviewResponse & { error?: string }>(
+          res,
+        );
 
         if (!res.ok) {
-          throw new Error("Failed to load profile preview.");
+          throw new Error(
+            getApiErrorMessage(data, "Failed to load profile preview."),
+          );
         }
-
-        const data = (await res.json()) as UserPreviewResponse;
-        const preview = data.userInfo
+        const preview = data?.userInfo
           ? {
               username: data.userInfo.username,
               avatar_url: data.userInfo.avatar_url || null,
@@ -186,6 +200,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
         setHoveredUserPreview(preview);
       } catch (error) {
         console.error("Failed to load user preview", error);
+        showToast("Failed to load profile preview.", { tone: "error" });
         setHoveredUsername(null);
         setHoveredUserPreview(null);
         setUserPreviewPosition(null);
@@ -227,17 +242,21 @@ export const DictionaryDrawer: React.FC<Props> = ({
         body: JSON.stringify({ word: searchQuery.trim() }),
       });
 
-      const data = await res.json();
+      const data = await readJsonSafe<{
+        success?: boolean;
+        error?: string;
+        result?: DictResult;
+      }>(res);
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Word not found");
+      if (!res.ok || !data?.success || !data.result) {
+        throw new Error(getApiErrorMessage(data, "Word not found."));
       }
 
       setDictResult(data.result);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Word not found in dictionary.";
-      alert(message);
+      showToast(message, { tone: "error" });
     } finally {
       setIsSearching(false);
     }
@@ -255,17 +274,26 @@ export const DictionaryDrawer: React.FC<Props> = ({
         }),
       });
 
-      const data = await res.json();
-      if (data.success) {
-        setSavedVocabs((prev) => [
-          data.vocabulary,
-          ...prev.filter((v) => v.word !== data.vocabulary.word),
-        ]);
-        setDictResult(null);
-        setSearchQuery("");
+      const data = await readJsonSafe<{
+        success?: boolean;
+        error?: string;
+        vocabulary?: SavedVocab;
+      }>(res);
+      if (!res.ok || !data?.success || !data.vocabulary) {
+        throw new Error(getApiErrorMessage(data, "Failed to save vocabulary."));
       }
-    } catch {
-      alert("Failed to save vocabulary.");
+      setSavedVocabs((prev) => [
+        data.vocabulary as SavedVocab,
+        ...prev.filter((v) => v.word !== data.vocabulary!.word),
+      ]);
+      setDictResult(null);
+      setSearchQuery("");
+      showToast("Saved to vocabulary.", { tone: "success" });
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to save vocabulary.",
+        { tone: "error" },
+      );
     }
   };
 

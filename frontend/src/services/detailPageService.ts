@@ -1,5 +1,6 @@
 import type { Work } from "../types";
 import { request } from "../utils/APIClient";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 
 export type DetailToggleAction = "read" | "liked" | "shelved";
 
@@ -25,8 +26,11 @@ type WorkResponse = Work & {
 
 export async function fetchWorkById(workId: string): Promise<Work | null> {
   const res = await request(`/api/works/${encodeURIComponent(workId)}`);
-  const data = (await res.json()) as WorkResponse;
-  return data.error ? null : data;
+  const data = await readJsonSafe<WorkResponse>(res);
+  if (!res.ok || data?.error) {
+    return null;
+  }
+  return data;
 }
 
 export async function updateWorkAction(
@@ -34,20 +38,28 @@ export async function updateWorkAction(
   action: DetailToggleAction,
   value: boolean,
 ): Promise<void> {
-  await request(`/api/works/${encodeURIComponent(workId)}`, {
+  const res = await request(`/api/works/${encodeURIComponent(workId)}`, {
     method: "POST",
     body: JSON.stringify({ action, value }),
   });
+  const data = await readJsonSafe<ApiSuccessResponse>(res);
+  if (!res.ok || !data?.success) {
+    throw new Error(getApiErrorMessage(data, `Failed to update ${action}.`));
+  }
 }
 
 export async function updateWorkRating(
   workId: string,
   rating: number,
 ): Promise<void> {
-  await request(`/api/works/${encodeURIComponent(workId)}`, {
+  const res = await request(`/api/works/${encodeURIComponent(workId)}`, {
     method: "POST",
     body: JSON.stringify({ action: "rating", value: rating }),
   });
+  const data = await readJsonSafe<ApiSuccessResponse>(res);
+  if (!res.ok || !data?.success) {
+    throw new Error(getApiErrorMessage(data, "Failed to update rating."));
+  }
 }
 
 export async function saveQuote(
@@ -62,8 +74,11 @@ export async function saveQuote(
     method: "POST",
     body: JSON.stringify(payload),
   });
-  const data = (await res.json()) as ApiSuccessResponse;
-  return !!data.success;
+  const data = await readJsonSafe<ApiSuccessResponse>(res);
+  if (!res.ok) {
+    throw new Error(getApiErrorMessage(data, "Failed to save quote."));
+  }
+  return !!data?.success;
 }
 
 export async function saveProgress(
@@ -80,7 +95,11 @@ export async function saveProgress(
       body: JSON.stringify(payload),
     },
   );
-  return (await res.json()) as ProgressResponse;
+  const data = await readJsonSafe<ProgressResponse>(res);
+  if (!res.ok || !data) {
+    throw new Error(getApiErrorMessage(data, "Failed to save progress."));
+  }
+  return data;
 }
 
 export async function finishWorkProgress(
@@ -94,8 +113,11 @@ export async function finishWorkProgress(
       body: JSON.stringify({ note }),
     },
   );
-  const data = (await res.json()) as ApiSuccessResponse;
-  return !!data.success;
+  const data = await readJsonSafe<ApiSuccessResponse>(res);
+  if (!res.ok) {
+    throw new Error(getApiErrorMessage(data, "Failed to finish work."));
+  }
+  return !!data?.success;
 }
 
 export async function explainPassage(
@@ -111,13 +133,13 @@ export async function explainPassage(
     method: "POST",
     body: JSON.stringify({ text }),
   });
-  const data = (await res.json()) as ExplainResponse;
+  const data = await readJsonSafe<ExplainResponse>(res);
 
   return {
-    success: !!data.success,
-    error: data.error,
-    cleanedQuote: data.result?.cleaned_quote,
-    explanation: data.result?.explanation,
+    success: !!data?.success && res.ok,
+    error: getApiErrorMessage(data, "Failed to analyze passage."),
+    cleanedQuote: data?.result?.cleaned_quote,
+    explanation: data?.result?.explanation,
   };
 }
 
@@ -178,8 +200,11 @@ export async function saveDropboxLink(
       body: JSON.stringify({ link }),
     },
   );
-
-  return (await res.json()) as DropboxLinkResponse;
+  const data = await readJsonSafe<DropboxLinkResponse>(res);
+  if (!res.ok || !data) {
+    throw new Error(getApiErrorMessage(data, "Failed to save Dropbox link."));
+  }
+  return data;
 }
 
 export async function uploadWorkFile(
@@ -196,8 +221,11 @@ export async function uploadWorkFile(
       body: formData,
     },
   );
-
-  return (await res.json()) as WorkFileUploadResponse;
+  const data = await readJsonSafe<WorkFileUploadResponse>(res);
+  if (!res.ok || !data) {
+    throw new Error(getApiErrorMessage(data, "Failed to upload file."));
+  }
+  return data;
 }
 
 export async function uploadWorkCover(
@@ -214,6 +242,9 @@ export async function uploadWorkCover(
       body: formData,
     },
   );
-
-  return (await res.json()) as WorkFileUploadResponse;
+  const data = await readJsonSafe<WorkFileUploadResponse>(res);
+  if (!res.ok || !data) {
+    throw new Error(getApiErrorMessage(data, "Failed to upload cover."));
+  }
+  return data;
 }

@@ -11,6 +11,8 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
 import type { Quote, Work } from "../types";
 import { request } from "../utils/APIClient";
+import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
+import { showToast } from "../utils/toast";
 
 import { AppIcon } from "./AppIcon";
 import { DictionaryDrawer } from "./DictionaryDrawer";
@@ -167,15 +169,15 @@ export const SidebarLayout: React.FC = () => {
   const handleExportQuotes = async () => {
     try {
       const res = await request("/api/profile/me");
-      const data = (await res.json()) as ProfileResponse;
+      const data = await readJsonSafe<ProfileResponse & { error?: string }>(res);
 
       if (!res.ok) {
-        throw new Error("Failed to load quotes.");
+        throw new Error(getApiErrorMessage(data, "Failed to load quotes."));
       }
 
-      const quotes = Array.isArray(data.quotes) ? data.quotes : [];
+      const quotes = Array.isArray(data?.quotes) ? data.quotes : [];
       if (!quotes.length) {
-        alert("No quotes to export yet.");
+        showToast("No quotes to export yet.");
         return;
       }
 
@@ -192,7 +194,10 @@ export const SidebarLayout: React.FC = () => {
       );
     } catch (error) {
       console.error("Failed to export quotes", error);
-      alert("Failed to export quotes.");
+      showToast(
+        error instanceof Error ? error.message : "Failed to export quotes.",
+        { tone: "error" },
+      );
     }
   };
 
@@ -201,14 +206,14 @@ export const SidebarLayout: React.FC = () => {
 
     try {
       const res = await request("/api/works");
-      const works = (await res.json()) as Work[];
+      const works = await readJsonSafe<Work[] | { error?: string }>(res);
 
-      if (!res.ok) {
-        throw new Error("Failed to load works.");
+      if (!res.ok || !Array.isArray(works)) {
+        throw new Error(getApiErrorMessage(works, "Failed to load works."));
       }
 
       if (!works.length) {
-        alert("No works to export yet.");
+        showToast("No works to export yet.");
         return;
       }
 
@@ -227,7 +232,10 @@ export const SidebarLayout: React.FC = () => {
       );
     } catch (error) {
       console.error("Failed to export works", error);
-      alert("Failed to export works.");
+      showToast(
+        error instanceof Error ? error.message : "Failed to export works.",
+        { tone: "error" },
+      );
     }
   };
 
@@ -264,22 +272,33 @@ export const SidebarLayout: React.FC = () => {
           method: "POST",
           body: JSON.stringify(importedWorks),
         })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.success) {
-              alert(data.message || "Imported works successfully.");
-            } else {
-              alert(data.error || "Import failed.");
+          .then(async (res) => {
+            const data = await readJsonSafe<{
+              success?: boolean;
+              error?: string;
+              message?: string;
+            }>(res);
+            if (!res.ok || !data?.success) {
+              throw new Error(getApiErrorMessage(data, "Import failed."));
             }
+            return data;
+          })
+          .then((data) => {
+            showToast(data.message || "Imported works successfully.", {
+              tone: "success",
+            });
           })
           .catch((error) => {
             console.error("Failed to import works", error);
-            alert("Failed to import works.");
+            showToast(
+              error instanceof Error ? error.message : "Failed to import works.",
+              { tone: "error" },
+            );
           });
       },
       error: (error) => {
         console.error("CSV Parse Error:", error);
-        alert("Failed to read the CSV file.");
+        showToast("Failed to read the CSV file.", { tone: "error" });
       },
     });
 
