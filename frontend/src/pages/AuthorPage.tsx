@@ -224,11 +224,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
               works.length ? (
                 <div className="author-page__works-grid">
                   {works.map((work) => (
-                    <GoodreadsCover
-                      key={work.id}
-                      work={work}
-                      className="author-page__cover"
-                    />
+                    <GoodreadsCover key={work.id} work={work} />
                   ))}
                 </div>
               ) : (

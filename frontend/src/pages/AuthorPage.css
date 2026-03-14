@@ -61,11 +61,6 @@
     gap: 40px;
 }
 
-.author-page__cover {
-    width: 100%;
-    aspect-ratio: 0.66;
-}
-
 .author-page__follow-button--default {
     background-color: var(--color-text-page-inverse);
     color: var(--color-bg-page-reader);

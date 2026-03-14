@@ -5,6 +5,7 @@
    ========================================================= */
 :root {
     --app-menu-bar-height: 60px;
+    --goodreads-cover-aspect-ratio: 690 / 1048;
 
     /* --- Layering / z-index scale --- */
     --z-content-raised: 1;

@@ -291,7 +291,7 @@
 }
 
 .detail-action-panel {
-    background-color: var(--overlay-black-30);
+    background-color: var(--overlay-black-85);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-radius: 6px;
