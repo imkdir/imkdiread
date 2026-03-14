@@ -16,7 +16,7 @@ const { ensureDatabaseSchema } = require("./app/utils/databaseSchema");
 
 function createApp(options = {}) {
   const app = express();
-  const staticDir = options.staticDir || path.join(__dirname, "public.noindex");
+  const staticDir = options.staticDir || path.join(__dirname, "public");
   const dbPath =
     options.dbPath ||
     process.env.DB_PATH ||

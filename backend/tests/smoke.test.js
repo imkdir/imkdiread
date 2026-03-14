@@ -815,6 +815,7 @@ test("profile routes support current user settings and avatar upload", async () 
 });
 
 test("utility discovery routes return screensavers, explore, works, and collection data", async () => {
+  const adminToken = await login("admin", "admin-pass");
   const token = await login("guest", "guest-pass");
   const screensaverFilename = `smoke-screen-${Date.now()}.png`;
   const screensaverPath = trackPublicArtifact(
@@ -833,6 +834,32 @@ test("utility discovery routes return screensavers, explore, works, and collecti
   );
   assert.ok(screensavers.json.index >= 0);
   assert.ok(screensavers.json.index < screensavers.json.images.length);
+
+  const uploadedFilenamePrefix = `upload-screen-${Date.now()}`;
+  const uploadScreensaver = await requestMultipart(
+    "POST",
+    "/api/screensavers",
+    [
+      {
+        name: "file",
+        filename: `${uploadedFilenamePrefix}.png`,
+        type: "image/png",
+        content: "new-screensaver",
+      },
+    ],
+    adminToken,
+  );
+  assert.equal(uploadScreensaver.status, 200);
+  assert.equal(uploadScreensaver.json?.success, true);
+  assert.match(
+    uploadScreensaver.json?.filename,
+    new RegExp(`^${uploadedFilenamePrefix}`),
+  );
+  trackPublicArtifact(
+    "imgs",
+    "screensavers",
+    uploadScreensaver.json.filename,
+  );
 
   const explore = await requestJson("GET", "/api/explore", undefined, token);
   assert.equal(explore.status, 200);
