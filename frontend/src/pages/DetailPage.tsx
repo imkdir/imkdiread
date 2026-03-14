@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import Masonry from "react-masonry-css";
 import type { Work } from "../types";
 
+import { AppIcon } from "../components/AppIcon";
 import { GoodreadsButton } from "../components/GoodreadsButton";
 import { DropboxButton } from "../components/DropboxButton";
 import { ProgressBar } from "../components/ProgressBar";
@@ -15,9 +16,11 @@ import { DetailQuoteModal } from "../components/detail/DetailQuoteModal";
 import { DetailFilePickerModal } from "../components/detail/DetailFilePickerModal";
 import { DetailDropboxLinkModal } from "../components/detail/DetailDropboxLinkModal";
 import { DetailFileUploadModal } from "../components/detail/DetailFileUploadModal";
+import { Modal } from "../components/Modal";
 import { useAuth } from "../components/AuthContext";
 import { useDetailPage } from "../hooks/useDetailPage";
-import { uploadWorkCover } from "../services/detailPageService";
+import { updateWorkTags, uploadWorkCover } from "../services/detailPageService";
+import { formatTagLabel, isGenreTag } from "../utils/tags";
 import { showToast } from "../utils/toast";
 
 import noCover from "../assets/imgs/no_cover.png";
@@ -27,6 +30,31 @@ import "./DetailPage.css";
 interface Props {
   workId: string;
   initialWork?: Work;
+}
+
+interface TagDraft {
+  id: string;
+  value: string;
+  isGenre: boolean;
+}
+
+function buildTagDrafts(tags: string[]): TagDraft[] {
+  return tags.map((tag, index) => ({
+    id: `${tag}-${index}`,
+    value: formatTagLabel(tag),
+    isGenre: isGenreTag(tag),
+  }));
+}
+
+function normalizeTagValue(tag: TagDraft): string {
+  const trimmed = tag.value.trim().toLowerCase();
+  if (!trimmed) return "";
+
+  if (tag.isGenre) {
+    return `genre:${trimmed.replace(/\s+/g, "-")}`;
+  }
+
+  return trimmed;
 }
 
 export function DetailPageWrapper() {
@@ -41,8 +69,14 @@ function DetailPage({ workId, initialWork }: Props) {
   const { user } = useAuth();
   const detail = useDetailPage({ workId, initialWork });
   const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const tagDropdownRef = useRef<HTMLDivElement | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
+  const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+  const [tagDrafts, setTagDrafts] = useState<TagDraft[]>([]);
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [isSavingTags, setIsSavingTags] = useState(false);
   const isAdmin = user?.role === "admin";
 
   const {
@@ -94,6 +128,29 @@ function DetailPage({ workId, initialWork }: Props) {
     handleWorkFileUpload,
   } = detail;
 
+  useEffect(() => {
+    if (!work) return;
+    setTagDrafts(buildTagDrafts(work.tags || []));
+    setEditingTagId(null);
+    setIsTagDropdownOpen(false);
+  }, [work]);
+
+  useEffect(() => {
+    if (!isTagDropdownOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        tagDropdownRef.current &&
+        !tagDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsTagDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isTagDropdownOpen]);
+
   const handleCoverUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -125,13 +182,92 @@ function DetailPage({ workId, initialWork }: Props) {
     }
   };
 
+  const openTagsModal = () => {
+    if (!work) return;
+    setTagDrafts(buildTagDrafts(work.tags || []));
+    setEditingTagId(null);
+    setIsTagsModalOpen(true);
+  };
+
+  const closeTagsModal = () => {
+    if (!work) return;
+    if (isSavingTags) return;
+    setTagDrafts(buildTagDrafts(work.tags || []));
+    setEditingTagId(null);
+    setIsTagsModalOpen(false);
+  };
+
+  const addTagDraft = () => {
+    const draft: TagDraft = {
+      id: `new-${Date.now()}`,
+      value: "",
+      isGenre: false,
+    };
+    setTagDrafts((prev) => [...prev, draft]);
+    setEditingTagId(draft.id);
+  };
+
+  const updateTagDraftValue = (tagId: string, value: string) => {
+    setTagDrafts((prev) =>
+      prev.map((tag) => (tag.id === tagId ? { ...tag, value } : tag)),
+    );
+  };
+
+  const removeTagDraft = (tagId: string) => {
+    setTagDrafts((prev) => prev.filter((tag) => tag.id !== tagId));
+    setEditingTagId((current) => (current === tagId ? null : current));
+  };
+
+  const handleSaveTags = async () => {
+    if (!work) return;
+    const normalizedTags = tagDrafts
+      .map(normalizeTagValue)
+      .filter(Boolean);
+    const uniqueTags = Array.from(new Set(normalizedTags));
+
+    if (normalizedTags.length !== uniqueTags.length) {
+      showToast("Tags must be unique.", { tone: "error" });
+      return;
+    }
+
+    setIsSavingTags(true);
+
+    try {
+      await updateWorkTags(work, uniqueTags);
+      await fetchData();
+      setIsTagsModalOpen(false);
+      setEditingTagId(null);
+      showToast("Tags updated.", { tone: "success" });
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to update tags.",
+        { tone: "error" },
+      );
+    } finally {
+      setIsSavingTags(false);
+    }
+  };
+
   if (loading || !work) return null;
 
   const canUseDropbox = Boolean(work.dropbox_link) || isAdmin;
   const canUseFinder = Boolean(work.file_urls?.length) || isAdmin;
+  const visibleTags = work.tags || [];
+  const firstTag = visibleTags[0];
+  const extraTags = visibleTags.slice(1);
+  const extraTagCount = Math.max(0, visibleTags.length - 1);
 
   return (
-    <div className="detail-page">
+    <div
+      className="detail-page"
+      style={
+        {
+          "--detail-page-border-image": work.background_img_url
+            ? `url("${work.background_img_url}")`
+            : "none",
+        } as React.CSSProperties
+      }
+    >
       <div className="detail-split-view-container">
         <div className="detail-main-content-pane">
           <div
@@ -214,21 +350,91 @@ function DetailPage({ workId, initialWork }: Props) {
                     <Link
                       key={author}
                       to={`/collection/${encodeURIComponent(author)}`}
-                      className="pill-button detail-author-pill"
+                      className="detail-meta-pill detail-author-pill"
                     >
-                      {author}
+                      <span className="detail-meta-pill__inner">
+                        <span className="detail-meta-pill__content">{author}</span>
+                        <span className="detail-meta-pill__glare" />
+                      </span>
                     </Link>
                   ))}
 
-                  {work.tags.map((tag) => (
-                    <Link
-                      key={tag}
-                      to={`/search?q=${encodeURIComponent(tag)}`}
-                      className="pill-button detail-tag-pill"
+                  {firstTag ? (
+                    <div
+                      className="detail-tag-pill-wrap"
+                      ref={tagDropdownRef}
                     >
-                      {tag}
-                    </Link>
-                  ))}
+                      <div className="detail-meta-pill detail-tag-pill">
+                        <span className="detail-meta-pill__inner">
+                          <span className="detail-meta-pill__glare" />
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className="detail-tag-pill__icon-button"
+                              onClick={openTagsModal}
+                              aria-label="Edit tags"
+                            >
+                              <AppIcon name="edit" title="Edit tags" size={13} />
+                            </button>
+                          )}
+                          <Link
+                            to={`/search?q=${encodeURIComponent(formatTagLabel(firstTag))}`}
+                            className="detail-tag-pill__link"
+                          >
+                            {formatTagLabel(firstTag)}
+                          </Link>
+                          {extraTagCount > 0 && (
+                            <button
+                              type="button"
+                              className="detail-tag-pill__more-button"
+                              onClick={() =>
+                                setIsTagDropdownOpen((current) => !current)
+                              }
+                              aria-label={`Show ${extraTagCount} more tags`}
+                              aria-expanded={isTagDropdownOpen}
+                            >
+                              {extraTagCount}+
+                            </button>
+                          )}
+                        </span>
+                      </div>
+                      {extraTagCount > 0 && isTagDropdownOpen && (
+                        <div className="detail-tag-dropdown">
+                          {extraTags.map((tag) => (
+                            <Link
+                              key={tag}
+                              to={`/search?q=${encodeURIComponent(formatTagLabel(tag))}`}
+                              className="detail-tag-dropdown__item"
+                              onClick={() => setIsTagDropdownOpen(false)}
+                            >
+                              {formatTagLabel(tag)}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    isAdmin && (
+                      <button
+                        type="button"
+                        className="detail-meta-pill detail-tag-pill detail-tag-pill--empty"
+                        onClick={openTagsModal}
+                      >
+                        <span className="detail-meta-pill__inner">
+                          <span className="detail-meta-pill__content detail-tag-pill__empty-content">
+                            <AppIcon
+                              name="close"
+                              title="Add tag"
+                              size={12}
+                              style={{ transform: "rotate(45deg)" }}
+                            />
+                            <span>Add tag</span>
+                          </span>
+                          <span className="detail-meta-pill__glare" />
+                        </span>
+                      </button>
+                    )
+                  )}
 
                   {canUseFinder && (
                     <FinderButton onClick={handleFinderButtonClick} />
@@ -346,6 +552,104 @@ function DetailPage({ workId, initialWork }: Props) {
         onUpload={handleWorkFileUpload}
         onClose={closeUploadModal}
       />
+
+      <Modal
+        isOpen={isAdmin && isTagsModalOpen}
+        onClose={closeTagsModal}
+        cardClassName="modal-card--wide detail-tags-modal"
+      >
+        <div className="modal-header">
+          <AppIcon name="tag" title="Tags" size={16} />
+          <p className="modal-subtitle">
+            Edit this work's tags
+          </p>
+        </div>
+
+        <div className="detail-tag-editor">
+          {tagDrafts.map((tag) => (
+            <div
+              key={tag.id}
+              className={`detail-tag-editor__pill ${editingTagId === tag.id ? "detail-tag-editor__pill--editing" : ""}`}
+              onClick={() => setEditingTagId(tag.id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setEditingTagId(tag.id);
+                }
+              }}
+            >
+              {editingTagId === tag.id ? (
+                <input
+                  value={tag.value}
+                  onChange={(event) =>
+                    updateTagDraftValue(tag.id, event.target.value)
+                  }
+                  onClick={(event) => event.stopPropagation()}
+                  onBlur={() => setEditingTagId(null)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      setEditingTagId(null);
+                    }
+                  }}
+                  className="detail-tag-editor__input"
+                  autoFocus
+                />
+              ) : (
+                <span className="detail-tag-editor__label">
+                  {tag.value || "Untitled tag"}
+                </span>
+              )}
+              <button
+                type="button"
+                className="detail-tag-editor__remove"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  removeTagDraft(tag.id);
+                }}
+                aria-label={`Delete ${tag.value || "tag"}`}
+              >
+                <AppIcon name="close" title="Delete tag" size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="detail-tag-editor__pill detail-tag-editor__pill--add"
+            onClick={addTagDraft}
+          >
+            <AppIcon
+              name="close"
+              title="Add tag"
+              size={12}
+              style={{ transform: "rotate(45deg)" }}
+            />
+          </button>
+        </div>
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            onClick={closeTagsModal}
+            className="modal-btn modal-btn--cancel"
+            disabled={isSavingTags}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void handleSaveTags();
+            }}
+            className="modal-btn modal-btn--save"
+            disabled={isSavingTags}
+          >
+            {isSavingTags ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

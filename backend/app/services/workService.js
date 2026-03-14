@@ -3,6 +3,8 @@ const { getPublicPath } = require("../utils/paths");
 const path = require("path");
 
 function createWorkService({ db, BACKEND_URL }) {
+  const GENRE_TAG_PREFIX = "genre:";
+
   const getStaticUrlIfItExists = (subDirs, filename) => {
     if (!filename) return null;
     const filepath = getPublicPath(...subDirs, filename);
@@ -10,6 +12,21 @@ function createWorkService({ db, BACKEND_URL }) {
       ? `${BACKEND_URL}/${subDirs.join("/")}/${filename}`
       : null;
   };
+
+  function getGenreBackgroundUrl(tags = []) {
+    const genreTags = Array.isArray(tags)
+      ? tags
+          .filter((tag) => typeof tag === "string" && tag.startsWith(GENRE_TAG_PREFIX))
+          .map((tag) => tag.slice(GENRE_TAG_PREFIX.length))
+      : [];
+
+    for (const genreTag of genreTags) {
+      const match = getStaticUrlIfItExists(["imgs", "genres"], `${genreTag}.png`);
+      if (match) return match;
+    }
+
+    return getStaticUrlIfItExists(["imgs", "genres"], "default.png");
+  }
 
   function getWorkFileNames(workId) {
     const filesDir = getPublicPath("files");
@@ -41,6 +58,7 @@ function createWorkService({ db, BACKEND_URL }) {
         ["imgs", "covers"],
         `${work.id}.png`,
       ),
+      background_img_url: getGenreBackgroundUrl(work.tags),
       file_urls: fileUrls,
     };
   }
@@ -99,7 +117,11 @@ function createWorkService({ db, BACKEND_URL }) {
 
     const tags = db
       .prepare(
-        "SELECT tags.name FROM work_tags JOIN tags ON work_tags.tag_id = tags.id WHERE work_id = ?",
+        `SELECT tags.name
+         FROM work_tags
+         JOIN tags ON work_tags.tag_id = tags.id
+         WHERE work_id = ?
+         ORDER BY work_tags.rowid ASC`,
       )
       .all(workRow.id)
       .map((r) => r.name);
@@ -253,6 +275,7 @@ function createWorkService({ db, BACKEND_URL }) {
     normalizeProgressNotes,
     ensureUserWorkInteraction,
     recordReadingActivity,
+    getGenreBackgroundUrl,
   };
 }
 

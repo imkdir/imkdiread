@@ -152,11 +152,15 @@ function createWorksRouter({ db, workService }) {
       LEFT JOIN tags ON work_tags.tag_id = tags.id
       LEFT JOIN work_authors ON works.id = work_authors.work_id
       LEFT JOIN authors ON work_authors.author_id = authors.id
-      WHERE works.id LIKE ? COLLATE NOCASE OR works.title LIKE ? COLLATE NOCASE OR tags.name LIKE ? COLLATE NOCASE OR authors.name LIKE ? COLLATE NOCASE
+      WHERE works.id LIKE ? COLLATE NOCASE
+         OR works.title LIKE ? COLLATE NOCASE
+         OR tags.name LIKE ? COLLATE NOCASE
+         OR REPLACE(REPLACE(tags.name, 'genre:', ''), '-', ' ') LIKE ? COLLATE NOCASE
+         OR authors.name LIKE ? COLLATE NOCASE
       ORDER BY works.id ASC LIMIT 100
     `,
         )
-        .all(term, term, term, term)
+        .all(term, term, term, term, term)
         .map((row) => workService.getWorkWithRelations(row, req.user?.id))
         .map(workService.processWork);
 

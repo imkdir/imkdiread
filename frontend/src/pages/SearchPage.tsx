@@ -1,7 +1,7 @@
 import React from "react";
 import Masonry from "react-masonry-css";
 import { useNavigate } from "react-router-dom";
-import type { User, Work, Series } from "../types";
+import type { User, Work } from "../types";
 import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
@@ -35,7 +35,6 @@ interface Props {
 
 interface State {
   query: string;
-  series: Series[];
   searchResults: Work[];
   loading: boolean;
   isEditMode: boolean;
@@ -47,7 +46,6 @@ interface State {
 class SearchPageClass extends React.Component<Props, State> {
   state: State = {
     query: "",
-    series: [],
     searchResults: [],
     loading: false, // We don't load anything until a search happens
     isEditMode: false,
@@ -57,8 +55,6 @@ class SearchPageClass extends React.Component<Props, State> {
 
   componentDidMount() {
     const initialQuery = this.props.initialQuery || "";
-
-    this.fetchSeries();
 
     if (initialQuery) {
       this.setState({ query: initialQuery, loading: true });
@@ -99,21 +95,6 @@ class SearchPageClass extends React.Component<Props, State> {
         showToast("Search failed.", { tone: "error" });
       });
   };
-
-  fetchSeries() {
-    request("/api/series")
-      .then(async (res) => {
-        const data = await readJsonSafe<Series[] | { error?: string }>(res);
-        if (!res.ok || !Array.isArray(data)) {
-          throw new Error(getApiErrorMessage(data, "Failed to load series."));
-        }
-        this.setState({ series: data });
-      })
-      .catch((err) => {
-        console.error("Failed to load series:", err);
-        showToast("Failed to load series.", { tone: "error" });
-      });
-  }
 
   handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newQuery = event.target.value;
@@ -194,7 +175,6 @@ class SearchPageClass extends React.Component<Props, State> {
   render() {
     const {
       query,
-      series,
       searchResults,
       loading,
       isEditMode,
@@ -386,24 +366,10 @@ class SearchPageClass extends React.Component<Props, State> {
                   </ul>
                 </div>
               ) : (
-                <div style={styles.seriesGrid}>
-                  {series.map((s) => (
-                    <div
-                      key={s.id}
-                      style={styles.seriesCard}
-                      onClick={() => {
-                        this.setState({ query: s.text });
-                        this.performSearch(s.text);
-                      }}
-                    >
-                      <img
-                        src={s.img_url}
-                        style={styles.seriesBackground}
-                        alt={s.text}
-                      />
-                      <span style={styles.seriesText}>{s.text}</span>
-                    </div>
-                  ))}
+                <div style={styles.emptyPrompt}>
+                  Search by title, author, existing tags, or your new
+                  <code style={styles.inlineCode}> genre:</code>
+                  tags.
                 </div>
               )}
             </div>
@@ -602,33 +568,21 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: "2px solid var(--search-page-selected-border)",
   },
 
-  seriesGrid: {
-    padding: "40px 20px",
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(25%, 1fr))",
-    gap: "20px",
+  emptyPrompt: {
+    padding: "64px 20px",
+    textAlign: "center",
+    color: "var(--search-page-input-text)",
+    fontSize: "16px",
+    lineHeight: 1.8,
   },
-
-  seriesCard: {
-    borderRadius: "12px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  seriesBackground: {
-    width: "100%",
-    aspectRatio: 1.77,
-    objectFit: "cover",
-    filter: "blur(1px) brightness(60%)",
-    transition: "filter 0.3s ease-in-out",
-  },
-
-  seriesText: {
-    position: "absolute",
-    zIndex: 1,
-    fontSize: "2vw",
-    color: "var(--search-page-series-text)",
-    fontWeight: "bold",
+  inlineCode: {
+    marginLeft: "6px",
+    marginRight: "6px",
+    padding: "2px 8px",
+    borderRadius: "999px",
+    backgroundColor: "var(--search-page-input-bg)",
+    border: "1px solid var(--search-page-input-border)",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontSize: "14px",
   },
 };

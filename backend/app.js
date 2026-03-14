@@ -12,6 +12,7 @@ const { createWorksRouter } = require("./app/routes/works");
 const { createProfileRouter } = require("./app/routes/profile");
 const { createScreensaverRouter } = require("./app/routes/screensavers");
 const { jsonError } = require("./app/utils/errorHelpers");
+const { ensureDatabaseSchema } = require("./app/utils/databaseSchema");
 
 function createApp(options = {}) {
   const app = express();
@@ -23,6 +24,7 @@ function createApp(options = {}) {
 
   const db = new Database(dbPath);
   db.pragma("foreign_keys = ON");
+  ensureDatabaseSchema(db);
 
   const BACKEND_URL = options.backendUrl ?? process.env.BACKEND_URL ?? "";
   const workService = createWorkService({ db, BACKEND_URL });
@@ -32,7 +34,7 @@ function createApp(options = {}) {
   app.use(express.json());
 
   app.use(createAuthRouter({ db }));
-  app.use(createTagsRouter({ db, workService }));
+  app.use(createTagsRouter({ db }));
   app.use(createAuthorsRouter({ db, workService }));
   app.use(createWorksRouter({ db, workService }));
   app.use(createProfileRouter({ db, workService }));

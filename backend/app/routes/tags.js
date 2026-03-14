@@ -3,7 +3,7 @@ const { jsonError } = require("../utils/errorHelpers");
 const { asNonEmptyString } = require("../utils/validators");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 
-function createTagsRouter({ db, workService }) {
+function createTagsRouter({ db }) {
   const router = express.Router();
 
   router.get("/api/tags", authenticateToken, requireAdmin, (req, res) => {
@@ -94,20 +94,6 @@ function createTagsRouter({ db, workService }) {
       res.json({ success: true });
     } catch (error) {
       jsonError(res, 500, "Failed to delete tag.");
-    }
-  });
-
-  router.get("/api/series", (req, res) => {
-    try {
-      const rows = db.prepare("SELECT * FROM series ORDER BY count DESC").all();
-      res.json(
-        rows.map((s) => ({
-          ...s,
-          img_url: workService.getStaticUrlIfItExists(["imgs", "series"], `${s.text}.png`),
-        })),
-      );
-    } catch (error) {
-      res.status(500).json({ error: "Failed to read series data" });
     }
   });
 

@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
 import type { User } from "../types";
+import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
 
@@ -67,9 +68,8 @@ class LoginPage extends Component<PageProps, PageState> {
 
     try {
       const url = isSignup ? "/api/auth/register" : "/api/auth/login";
-      const response = await fetch(url, {
+      const response = await request(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password, inviteCode }),
       });
 
@@ -122,7 +122,7 @@ class LoginPage extends Component<PageProps, PageState> {
   };
 
   loadData() {
-    fetch(`/api/screensavers`)
+    request("/api/screensavers")
       .then(async (res) => {
         const data = await readJsonSafe<{ images?: string[]; index?: number }>(
           res,

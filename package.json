@@ -5,9 +5,10 @@
   "main": "index.js",
   "scripts": {
     "install": "npm install --prefix frontend && npm install --prefix backend",
-    "start": "concurrently \"npm run dev --prefix frontend\" \"npm start --prefix backend\"",
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
+    "start": "npm run start --prefix backend",
     "build": "concurrently \"npm run build --prefix frontend\" \"npm run build --prefix backend --if-present\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run test:smoke --prefix backend && npm run lint --prefix frontend"
   },
   "keywords": [],
   "author": "",

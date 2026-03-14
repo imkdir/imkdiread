@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { AppIcon } from "./AppIcon";
+import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
 
@@ -50,7 +51,7 @@ export class SplashPage extends React.Component<
   }
 
   loadData() {
-    fetch(`/api/screensavers`)
+    request("/api/screensavers")
       .then(async (res) => {
         const data = await readJsonSafe<{
           images?: string[];

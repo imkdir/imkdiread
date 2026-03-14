@@ -16,11 +16,11 @@ export interface Work {
   current_page?: number;
   goodreads_id?: string | null;
   cover_img_url?: string | null;
+  background_img_url?: string | null;
   dropbox_link?: string | null;
   amazon_asin?: string | null;
   tags: string[];
   authors: string[];
-  series?: string | null;
   page_count: number;
   file_id?: string | null;
   read?: boolean;
@@ -38,12 +38,6 @@ export interface Author {
   followed?: boolean;
   avatar_img_url?: string | null;
   works_count: number;
-}
-
-export interface Series {
-  id: string;
-  text: string;
-  img_url: string;
 }
 
 export interface User {

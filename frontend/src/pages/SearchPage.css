@@ -12,7 +12,6 @@
     --search-page-selected-border: var(--color-bg-danger);
     --search-page-checkbox-border: var(--theme-border);
     --search-page-checkbox-bg: var(--color-bg-input-dark);
-    --search-page-series-text: var(--color-text-page-primary);
 }
 
 .search-page__cover {

@@ -1,3 +1,30 @@
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+
+export const resolveApiUrl = (url: string) => {
+  if (!apiBaseUrl || /^https?:\/\//.test(url) || url.startsWith("//")) {
+    return url;
+  }
+
+  return url.startsWith("/") ? `${apiBaseUrl}${url}` : `${apiBaseUrl}/${url}`;
+};
+
+const shouldForceLogout = async (response: Response) => {
+  if (response.status === 401) {
+    return true;
+  }
+
+  if (response.status !== 403) {
+    return false;
+  }
+
+  try {
+    const data = (await response.clone().json()) as { error?: string };
+    return data?.error === "Invalid or expired token.";
+  } catch {
+    return false;
+  }
+};
+
 export const request = async (url: string, options: RequestInit = {}) => {
   const token = localStorage.getItem("token");
   const headers = new Headers(options.headers || {});
@@ -11,16 +38,14 @@ export const request = async (url: string, options: RequestInit = {}) => {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(url, {
+  const response = await fetch(resolveApiUrl(url), {
     ...options,
     headers,
   });
 
-  // 401 = Unauthorized (No token), 403 = Forbidden (Token expired/Invalid)
-  if (response.status === 401 || response.status === 403) {
+  if (await shouldForceLogout(response)) {
     console.warn("Session expired or unauthorized. Logging out...");
 
-    // Wipe the dead token
     localStorage.removeItem("token");
     localStorage.removeItem("user");
 

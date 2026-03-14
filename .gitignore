@@ -41,4 +41,9 @@ Thumbs.db
 
 # --- Optional: Local Database/Media ---
 backend/data/
-backend/public.noindex/
+backend/public.noindex/*
+!backend/public.noindex/imgs/
+backend/public.noindex/imgs/*
+!backend/public.noindex/imgs/genres/
+backend/public.noindex/imgs/genres/*
+!backend/public.noindex/imgs/genres/default.png

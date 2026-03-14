@@ -1,16 +1,26 @@
 const Database = require("better-sqlite3");
 const bcrypt = require("bcryptjs");
-const { v4: uuidv4 } = require("uuid"); // Make sure you ran: npm install uuid
+const { v4: uuidv4 } = require("uuid");
 const path = require("path");
+const { ensureDatabaseSchema } = require("../app/utils/databaseSchema");
 
-const dbPath = path.join(__dirname, "..", "db", "database.sqlite");
+const dbPath =
+  process.env.DB_PATH || path.join(__dirname, "..", "db", "database.sqlite");
 const db = new Database(dbPath);
+ensureDatabaseSchema(db);
 
 async function createAdmin() {
-  // --- CHANGE THESE TWO VARIABLES ---
-  const username = "admin";
-  const password = "my_secure_password";
-  // ----------------------------------
+  const username = process.argv[2] || process.env.ADMIN_USERNAME;
+  const password = process.argv[3] || process.env.ADMIN_PASSWORD;
+
+  if (!username || !password) {
+    console.error(
+      "Usage: node scripts/create-admin.js <username> <password> or set ADMIN_USERNAME / ADMIN_PASSWORD.",
+    );
+    process.exitCode = 1;
+    db.close();
+    return;
+  }
 
   console.log(`Generating hash for ${username}...`);
 
@@ -37,6 +47,8 @@ async function createAdmin() {
     } else {
       console.error("❌ Database Error:", error.message);
     }
+  } finally {
+    db.close();
   }
 }
 

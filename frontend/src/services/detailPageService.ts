@@ -248,3 +248,26 @@ export async function uploadWorkCover(
   }
   return data;
 }
+
+export async function updateWorkTags(
+  work: Work,
+  tags: string[],
+): Promise<void> {
+  const res = await request(`/api/works/${encodeURIComponent(work.id)}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      id: work.id,
+      title: work.title,
+      goodreads_id: work.goodreads_id || "",
+      page_count: work.page_count,
+      dropbox_link: work.dropbox_link || "",
+      amazon_asin: work.amazon_asin || "",
+      authors: work.authors || [],
+      tags,
+    }),
+  });
+  const data = await readJsonSafe<ApiSuccessResponse>(res);
+  if (!res.ok || !data?.success) {
+    throw new Error(getApiErrorMessage(data, "Failed to update tags."));
+  }
+}

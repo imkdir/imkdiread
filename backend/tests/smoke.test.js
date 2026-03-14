@@ -29,11 +29,6 @@ function seedTestDb(targetDbPath) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL
     );
-    CREATE TABLE series (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      text TEXT UNIQUE NOT NULL,
-      count INTEGER DEFAULT 0
-    );
     CREATE TABLE authors (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
@@ -124,10 +119,6 @@ function seedTestDb(targetDbPath) {
   `);
 
   db.prepare("INSERT INTO tags (name) VALUES (?)").run("philosophy");
-  db.prepare("INSERT INTO series (text, count) VALUES (?, ?)").run(
-    "Great Ideas",
-    3,
-  );
   const authorInsert = db
     .prepare("INSERT INTO authors (name, bio, goodreads_id) VALUES (?, ?, ?)")
     .run("Aristotle", "Ancient Greek philosopher", "author-1");
@@ -245,6 +236,87 @@ function seedLegacyProgressSchemaDb(targetDbPath) {
     `INSERT INTO work_quotes (work_id, quote, page_number, created_at, user_id)
      VALUES (?, ?, ?, ?, ?)`,
   ).run("W1", "A real quote", 124, "2026-03-14 10:00:00", "user-1");
+
+  db.close();
+}
+
+function seedDriftedModernSchemaDb(targetDbPath) {
+  const db = new Database(targetDbPath);
+  db.exec(`
+    PRAGMA foreign_keys = ON;
+
+    CREATE TABLE tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL
+    );
+    CREATE TABLE series (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      text TEXT UNIQUE NOT NULL,
+      count INTEGER DEFAULT 0
+    );
+    CREATE TABLE authors (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      bio TEXT,
+      goodreads_id TEXT
+    );
+    CREATE TABLE works (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      page_count INTEGER DEFAULT 0,
+      goodreads_id TEXT,
+      dropbox_link TEXT,
+      amazon_asin TEXT
+    );
+    CREATE TABLE users (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'guest'
+    );
+    CREATE TABLE user_work_interactions (
+      user_id TEXT,
+      work_id TEXT,
+      read BOOLEAN DEFAULT 0,
+      liked BOOLEAN DEFAULT 0,
+      shelved BOOLEAN DEFAULT 0,
+      rating INTEGER DEFAULT 0,
+      PRIMARY KEY (user_id, work_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE
+    );
+    CREATE TABLE user_author_interactions (
+      user_id TEXT,
+      author_id INTEGER,
+      followed BOOLEAN DEFAULT 0,
+      PRIMARY KEY (user_id, author_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE CASCADE
+    );
+    CREATE TABLE work_tags (
+      work_id TEXT,
+      tag_id INTEGER,
+      FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE,
+      FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+      UNIQUE(work_id, tag_id)
+    );
+    CREATE TABLE work_authors (
+      work_id TEXT,
+      author_id INTEGER,
+      FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE,
+      FOREIGN KEY(author_id) REFERENCES authors(id) ON DELETE CASCADE,
+      UNIQUE(work_id, author_id)
+    );
+    CREATE TABLE work_quotes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      work_id TEXT NOT NULL,
+      quote TEXT NOT NULL,
+      page_number INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE
+    );
+  `);
 
   db.close();
 }
@@ -742,7 +814,7 @@ test("profile routes support current user settings and avatar upload", async () 
   );
 });
 
-test("utility discovery routes return series, screensavers, explore, works, and collection data", async () => {
+test("utility discovery routes return screensavers, explore, works, and collection data", async () => {
   const token = await login("guest", "guest-pass");
   const screensaverFilename = `smoke-screen-${Date.now()}.png`;
   const screensaverPath = trackPublicArtifact(
@@ -752,11 +824,6 @@ test("utility discovery routes return series, screensavers, explore, works, and 
   );
   fs.mkdirSync(path.dirname(screensaverPath), { recursive: true });
   fs.writeFileSync(screensaverPath, "screensaver");
-
-  const series = await requestJson("GET", "/api/series");
-  assert.equal(series.status, 200);
-  assert.ok(Array.isArray(series.json));
-  assert.ok(series.json.some((entry) => entry.text === "Great Ideas"));
 
   const screensavers = await requestJson("GET", "/api/screensavers");
   assert.equal(screensavers.status, 200);
@@ -1345,5 +1412,54 @@ test("reading progress migration script moves legacy progress rows out of work_q
     migratedDb.close();
   } finally {
     fs.rmSync(tempMigrationDir, { recursive: true, force: true });
+  }
+});
+
+test("ensure database schema script bootstraps missing tables and columns", () => {
+  const tempSchemaDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "imkdiread-schema-ensure-"),
+  );
+  const driftedDbPath = path.join(tempSchemaDir, "drifted.sqlite");
+
+  try {
+    seedDriftedModernSchemaDb(driftedDbPath);
+
+    execFileSync("node", ["scripts/ensure-database-schema.js"], {
+      cwd: path.join(__dirname, ".."),
+      env: { ...process.env, DB_PATH: driftedDbPath },
+      stdio: "pipe",
+    });
+
+    const ensuredDb = new Database(driftedDbPath, { readonly: true });
+    const userColumns = ensuredDb.prepare("PRAGMA table_info(users)").all();
+    const quoteColumns = ensuredDb.prepare("PRAGMA table_info(work_quotes)").all();
+    const vocabTable = ensuredDb
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'vocabularies'",
+      )
+      .get();
+    const activityTable = ensuredDb
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_reading_activities'",
+      )
+      .get();
+
+    const seriesTable = ensuredDb
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'series'",
+      )
+      .get();
+
+    assert.ok(userColumns.some((column) => column.name === "email"));
+    assert.ok(userColumns.some((column) => column.name === "avatar_url"));
+    assert.ok(userColumns.some((column) => column.name === "is_email_public"));
+    assert.ok(quoteColumns.some((column) => column.name === "explanation"));
+    assert.ok(vocabTable);
+    assert.ok(activityTable);
+    assert.equal(seriesTable, undefined);
+
+    ensuredDb.close();
+  } finally {
+    fs.rmSync(tempSchemaDir, { recursive: true, force: true });
   }
 });

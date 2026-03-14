@@ -4,11 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon server.js",
+    "dev": "nodemon server.js",
+    "start": "node server.js",
     "test:smoke": "node --test tests/smoke.test.js",
+    "db:ensure": "node scripts/ensure-database-schema.js",
+    "genres:assign": "node scripts/assign-work-genre-tags.js",
+    "series:drop": "node scripts/drop-series-table.js",
     "migrate:legacy-schema": "node scripts/migrate-legacy-pdf-schema.js",
     "migrate:authors-id": "node scripts/migrate-authors-to-id-schema.js",
-    "migrate:reading-activities": "node scripts/migrate-reading-progress-to-activities.js"
+    "migrate:reading-activities": "node scripts/migrate-reading-progress-to-activities.js",
+    "create-admin": "node scripts/create-admin.js"
   },
   "keywords": [],
   "author": "",

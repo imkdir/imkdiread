@@ -1,7 +1,8 @@
 const path = require("path");
 const Database = require("better-sqlite3");
 const {
-  migrateReadingProgressToActivities,
+  ensureDatabaseSchema,
+  dropSeriesTable,
 } = require("../app/utils/databaseSchema");
 
 const dbPath =
@@ -9,14 +10,15 @@ const dbPath =
 const db = new Database(dbPath);
 
 try {
-  const changed = migrateReadingProgressToActivities(db);
+  const removed = dropSeriesTable(db);
+  ensureDatabaseSchema(db);
   console.log(
-    changed
-      ? "Reading progress migration completed."
-      : "No quote-backed reading progress found. Nothing to migrate.",
+    removed
+      ? "Series table removed."
+      : "Series table was already absent.",
   );
 } catch (error) {
-  console.error("Reading progress migration failed:", error.message);
+  console.error("Failed to drop series table:", error.message);
   process.exitCode = 1;
 } finally {
   db.close();
