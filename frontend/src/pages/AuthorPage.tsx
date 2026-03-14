@@ -6,7 +6,8 @@ import { type Work, type Author, type Quote } from "../types";
 import { GoodreadsAuthorAvatar } from "../components/GoodreadsAuthorAvatar";
 import { GoodreadsCover } from "../components/GoodreadsCover";
 import { GoodreadsButton } from "../components/GoodreadsButton";
-import { SegmentedControl } from "../components/SegmentedControl";
+import { AppIcon } from "../components/AppIcon";
+import { Modal } from "../components/Modal";
 import { request } from "../utils/APIClient";
 import { QuoteCard } from "../components/QuoteCard";
 
@@ -20,8 +21,10 @@ interface State {
   works: Work[];
   profile: Author | null;
   loading: boolean;
-  optimisticFollow: boolean | null;
   activeTab: "works" | "quotes";
+  isBioModalOpen: boolean;
+  bioDraft: string;
+  isSavingBio: boolean;
 }
 
 export function AuthorPageWrapper() {
@@ -34,8 +37,10 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
     works: [],
     profile: null,
     loading: true,
-    optimisticFollow: null,
     activeTab: "works",
+    isBioModalOpen: false,
+    bioDraft: "",
+    isSavingBio: false,
   };
 
   componentDidMount() {
@@ -47,15 +52,29 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
       this.setState(
         {
           loading: true,
-          optimisticFollow: null,
           activeTab: "works",
           works: [],
           profile: null,
+          isBioModalOpen: false,
+          bioDraft: "",
+          isSavingBio: false,
         },
         this.fetchData,
       );
     }
   }
+
+  getIsAdmin = () => {
+    try {
+      const rawUser = localStorage.getItem("user");
+      if (!rawUser) return false;
+
+      const user = JSON.parse(rawUser) as { role?: string };
+      return user.role === "admin";
+    } catch {
+      return false;
+    }
+  };
 
   fetchData = () => {
     const keyword = encodeURIComponent(this.props.keyword);
@@ -67,7 +86,6 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
           works: data.works || [],
           profile: data.profile,
           loading: false,
-          optimisticFollow: null,
         });
       })
       .catch((err) => {
@@ -92,37 +110,57 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
     );
   };
 
-  toggleFollow = () => {
-    const { profile, optimisticFollow } = this.state;
+  openBioModal = () => {
+    const { profile } = this.state;
+    if (!profile || !this.getIsAdmin()) return;
+
+    this.setState({
+      isBioModalOpen: true,
+      bioDraft: profile.bio || "",
+    });
+  };
+
+  closeBioModal = () => {
+    this.setState({
+      isBioModalOpen: false,
+      bioDraft: "",
+      isSavingBio: false,
+    });
+  };
+
+  saveBio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { profile, bioDraft } = this.state;
     if (!profile) return;
 
-    const isCurrentlyFollowing =
-      optimisticFollow !== null ? optimisticFollow : !!profile.followed;
-    const newFollowState = !isCurrentlyFollowing;
+    this.setState({ isSavingBio: true });
 
-    this.setState({ optimisticFollow: newFollowState });
-
-    request(`/api/authors/${profile.id}/follow`, {
-      method: "POST",
-      body: JSON.stringify({ followed: newFollowState }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.success) {
-          throw new Error(data.error || "Failed to update follow status.");
-        }
-
-        this.setState((prev) => ({
-          profile: prev.profile
-            ? { ...prev.profile, followed: !!data.followed }
-            : null,
-          optimisticFollow: null,
-        }));
-      })
-      .catch((err) => {
-        console.error("Failed to update follow status", err);
-        this.setState({ optimisticFollow: null });
+    try {
+      const res = await request(`/api/authors/${profile.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name: profile.name,
+          bio: bioDraft,
+          goodreads_id: profile.goodreads_id || "",
+        }),
       });
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !data.author) {
+        throw new Error(data.error || "Failed to update author bio.");
+      }
+
+      this.setState({
+        profile: data.author,
+        isBioModalOpen: false,
+        bioDraft: "",
+        isSavingBio: false,
+      });
+    } catch (error) {
+      console.error("Failed to update author bio", error);
+      this.setState({ isSavingBio: false });
+      alert("Failed to update author bio.");
+    }
   };
 
   renderQuoteCard = (entry: Quote) => {
@@ -130,8 +168,17 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
   };
 
   render() {
-    const { works, profile, loading, optimisticFollow, activeTab } = this.state;
+    const {
+      works,
+      profile,
+      loading,
+      activeTab,
+      isBioModalOpen,
+      bioDraft,
+      isSavingBio,
+    } = this.state;
     const authorQuotes = this.getAuthorQuotes();
+    const isAdmin = this.getIsAdmin();
 
     if (loading) {
       return <div className="author-page__loading">Loading author…</div>;
@@ -148,73 +195,87 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
       );
     }
 
-    const isFollowing =
-      optimisticFollow !== null ? optimisticFollow : !!profile.followed;
+    const hasBio = !!profile.bio?.trim();
 
     return (
       <div className="author-page">
-        <div className="collection-container">
-          <div className="profile-header">
-            <div className="avatar-container">
+        <div className="author-page__container">
+          <div className="author-page__header">
+            <div className="author-page__avatar-container">
               <GoodreadsAuthorAvatar
                 author={profile}
                 className="author-page__avatar"
               />
-              {!profile.goodreads_id || (
-                <GoodreadsButton
-                  category="author"
-                  goodreadsId={profile.goodreads_id}
-                  style={{
-                    backgroundColor: "var(--author-page-goodreads-button-bg)",
-                  }}
-                  className="author-page__goodreads-button"
-                />
-              )}
+              <GoodreadsButton
+                category="author"
+                goodreadsId={profile.goodreads_id}
+                resourceId={profile.id}
+                onSavedId={(goodreadsId) =>
+                  this.setState((prev) => ({
+                    profile: prev.profile
+                      ? { ...prev.profile, goodreads_id: goodreadsId }
+                      : null,
+                  }))
+                }
+                style={{
+                  backgroundColor: "var(--author-page-goodreads-button-bg)",
+                }}
+                className="author-page__goodreads-button"
+              />
             </div>
 
-            <div className="info-container">
+            <div className="author-page__info">
               <span className="author-page__name">{profile.name}</span>
               <div className="author-page__meta-line">
-                <span>{profile.works_count} works</span>
-                <span>•</span>
-                <span>{authorQuotes.length} quotes</span>
+                <button
+                  type="button"
+                  className={`author-page__meta-button ${activeTab === "works" ? "author-page__meta-button--active" : ""}`}
+                  onClick={() => this.setState({ activeTab: "works" })}
+                >
+                  {profile.works_count} works
+                </button>
+                <span>·</span>
+                <button
+                  type="button"
+                  className={`author-page__meta-button ${activeTab === "quotes" ? "author-page__meta-button--active" : ""}`}
+                  onClick={() => this.setState({ activeTab: "quotes" })}
+                >
+                  {authorQuotes.length} quotes
+                </button>
               </div>
 
-              <SegmentedControl
-                style={styles.segmentedControl}
-                theme={{
-                  backgroundColor: "var(--author-page-segment-bg)",
-                  activeBackgroundColor: "var(--author-page-segment-active-bg)",
-                  activeTextColor: "var(--author-page-segment-active-text)",
-                  inactiveTextColor: "var(--author-page-segment-inactive-text)",
-                }}
-                value={activeTab}
-                onChange={(val) =>
-                  this.setState({
-                    activeTab: val as "works" | "quotes",
-                  })
+              <div
+                className={`author-page__bio-block ${!hasBio ? "author-page__bio-block--empty" : ""} ${isAdmin ? "author-page__bio-block--editable" : ""}`}
+                onClick={isAdmin ? this.openBioModal : undefined}
+                role={isAdmin ? "button" : undefined}
+                tabIndex={isAdmin ? 0 : undefined}
+                onKeyDown={
+                  isAdmin
+                    ? (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          this.openBioModal();
+                        }
+                      }
+                    : undefined
                 }
-                options={[
-                  {
-                    label: "Works",
-                    value: "works",
-                    count: works.length,
-                  },
-                  {
-                    label: "Quotes",
-                    value: "quotes",
-                    count: authorQuotes.length,
-                  },
-                ]}
-              />
-
-              <div className="action-row">
-                <button
-                  className={`follow-button ${isFollowing ? "author-page__follow-button--following" : "author-page__follow-button--default"}`}
-                  onClick={this.toggleFollow}
-                >
-                  {isFollowing ? "Following" : "Follow"}
-                </button>
+              >
+                <p className="author-page__bio-text">
+                  {hasBio ? profile.bio : "More about..."}
+                </p>
+                {!isAdmin || (
+                  <button
+                    type="button"
+                    className="author-page__bio-edit"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      this.openBioModal();
+                    }}
+                    aria-label="Edit author bio"
+                  >
+                    <AppIcon name="edit" title="Edit bio" size={16} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -224,7 +285,11 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
               works.length ? (
                 <div className="author-page__works-grid">
                   {works.map((work) => (
-                    <GoodreadsCover key={work.id} work={work} />
+                    <GoodreadsCover
+                      key={work.id}
+                      work={work}
+                      className="author-page__cover"
+                    />
                   ))}
                 </div>
               ) : (
@@ -256,14 +321,47 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
             )}
           </div>
         </div>
+
+        <Modal
+          isOpen={isBioModalOpen}
+          onClose={this.closeBioModal}
+          cardClassName="modal-card--wide"
+        >
+          <div className="modal-header">
+            <AppIcon name="edit" title="Edit bio" size={16} />
+            <p className="modal-subtitle">
+              Add a short public bio for this author
+            </p>
+          </div>
+
+          <form onSubmit={this.saveBio} className="author-page__bio-modal-form">
+            <textarea
+              value={bioDraft}
+              onChange={(event) => this.setState({ bioDraft: event.target.value })}
+              className="modal-input author-page__bio-modal-textarea"
+              placeholder="Write a short author bio..."
+              rows={8}
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button
+                type="button"
+                onClick={this.closeBioModal}
+                className="modal-btn modal-btn--cancel"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingBio}
+                className="modal-btn modal-btn--save"
+              >
+                {isSavingBio ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </form>
+        </Modal>
       </div>
     );
   }
 }
-
-const styles: { [key: string]: React.CSSProperties } = {
-  segmentedControl: {
-    marginBottom: "20px",
-    flex: 1,
-  },
-};

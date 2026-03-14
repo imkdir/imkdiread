@@ -29,41 +29,45 @@ const upload = multer({
 function createProfileRouter({ db, workService }) {
   const router = express.Router();
 
-  router.get("/api/profile/me", authenticateToken, (req, res) => {
-    try {
-      const userId = req.user.id;
+  const loadProfileData = (userId, options = {}) => {
+    const includeQuotes = options.includeQuotes !== false;
+    const publicView = !!options.publicView;
 
-      const userInfo = db
-        .prepare(
-          `
-      SELECT username, role, email, avatar_url, is_email_public
+    const userInfo = db
+      .prepare(
+        `
+      SELECT id, username, role, email, avatar_url, is_email_public
       FROM users WHERE id = ?
     `,
-        )
-        .get(userId);
+      )
+      .get(userId);
 
-      const interactedBookRows = db
-        .prepare(
-          `
+    if (!userInfo) return null;
+
+    const interactedBookRows = db
+      .prepare(
+        `
       SELECT DISTINCT p.* FROM works p
       LEFT JOIN user_work_interactions i ON p.id = i.work_id AND i.user_id = ?
       LEFT JOIN work_quotes q ON p.id = q.work_id AND q.user_id = ?
       LEFT JOIN user_reading_activities a ON p.id = a.work_id AND a.user_id = ?
       WHERE i.user_id IS NOT NULL OR q.user_id IS NOT NULL OR a.user_id IS NOT NULL
     `,
-        )
-        .all(userId, userId, userId);
+      )
+      .all(userId, userId, userId);
 
-      const processedBooks = interactedBookRows
-        .map((row) => workService.getWorkWithRelations(row, userId))
-        .map(workService.processWork);
+    const processedBooks = interactedBookRows
+      .map((row) => workService.getWorkWithRelations(row, userId))
+      .map(workService.processWork);
 
-      const reading = processedBooks.filter(
-        (b) => b.current_page > 0 && !b.read && !b.shelved,
-      );
-      const shelved = processedBooks.filter((b) => b.shelved);
-      const favorites = processedBooks.filter((b) => b.liked);
+    const reading = processedBooks.filter(
+      (b) => b.current_page > 0 && !b.read && !b.shelved,
+    );
+    const shelved = processedBooks.filter((b) => b.shelved);
+    const favorites = processedBooks.filter((b) => b.liked);
 
+    let quotes = [];
+    if (includeQuotes) {
       const rawQuotes = db
         .prepare(
           `
@@ -74,7 +78,7 @@ function createProfileRouter({ db, workService }) {
         )
         .all(userId);
 
-      const richQuotes = rawQuotes
+      quotes = rawQuotes
         .filter((r) => r.quote.length)
         .map((quote) => {
           const matchingBook = processedBooks.find(
@@ -85,17 +89,57 @@ function createProfileRouter({ db, workService }) {
             work: matchingBook || null,
           };
         });
+    }
 
-      res.json({
-        userInfo,
-        reading,
-        shelved,
-        favorites,
-        quotes: richQuotes,
-      });
+    return {
+      userInfo: publicView
+        ? {
+            ...userInfo,
+            email:
+              userInfo.email && userInfo.is_email_public ? userInfo.email : null,
+          }
+        : userInfo,
+      reading,
+      shelved,
+      favorites,
+      quotes,
+    };
+  };
+
+  router.get("/api/profile/me", authenticateToken, (req, res) => {
+    try {
+      const data = loadProfileData(req.user.id, { includeQuotes: true });
+      res.json(data);
     } catch (error) {
       console.error("Profile Fetch Error:", error);
       res.status(500).json({ error: "Failed to load profile data." });
+    }
+  });
+
+  router.get("/api/profiles/:username", authenticateToken, (req, res) => {
+    try {
+      const targetUser = db
+        .prepare("SELECT id FROM users WHERE username = ?")
+        .get(req.params.username);
+
+      if (!targetUser) {
+        return res.status(404).json({ error: "Profile not found." });
+      }
+
+      const data = loadProfileData(targetUser.id, {
+        includeQuotes: false,
+        publicView: true,
+      });
+
+      res.json({
+        userInfo: data.userInfo,
+        reading: data.reading,
+        shelved: data.shelved,
+        favorites: data.favorites,
+      });
+    } catch (error) {
+      console.error("Public Profile Fetch Error:", error);
+      res.status(500).json({ error: "Failed to load public profile data." });
     }
   });
 

@@ -1,5 +1,5 @@
-import { AnimatePresence, motion } from "framer-motion";
 import { AppIcon } from "../AppIcon";
+import { Modal } from "../Modal";
 
 interface DetailDropboxLinkModalProps {
   isOpen: boolean;
@@ -21,59 +21,40 @@ export function DetailDropboxLinkModal({
   onSubmit,
 }: DetailDropboxLinkModalProps) {
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="detail-modal-overlay"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <div className="modal-header">
+        <AppIcon name="dropbox" />
+        <p className="modal-subtitle">Paste a Dropbox share link here</p>
+      </div>
+
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="modal-input"
+        placeholder="https://www.dropbox.com/s/…?dl=0"
+        autoFocus
+      />
+
+      {error && <p className="modal-error">{error}</p>}
+
+      <div className="modal-actions">
+        <button
+          type="button"
+          className="modal-btn modal-btn--cancel"
+          onClick={onClose}
         >
-          <motion.div
-            className="detail-inline-modal-card"
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 150, damping: 20 }}
-          >
-            <div className="detail-inline-modal-header">
-              <AppIcon name="dropbox" />
-              <p className="detail-inline-modal-subtitle">
-                Paste a Dropbox share link here
-              </p>
-            </div>
-
-            <input
-              type="text"
-              value={value}
-              onChange={(event) => onChange(event.target.value)}
-              className="detail-inline-input"
-              placeholder="https://www.dropbox.com/s/…?dl=0"
-              autoFocus
-            />
-
-            {error && <p className="detail-inline-modal-error">{error}</p>}
-
-            <div className="detail-inline-modal-actions">
-              <button
-                type="button"
-                className="detail-btn detail-btn-inverse--cancel"
-                onClick={onClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="detail-btn detail-btn-inverse--save"
-                onClick={onSubmit}
-                disabled={isSaving}
-              >
-                {isSaving ? "Saving..." : "Save & Open"}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="modal-btn modal-btn--save"
+          onClick={onSubmit}
+          disabled={isSaving}
+        >
+          {isSaving ? "Saving..." : "Save & Open"}
+        </button>
+      </div>
+    </Modal>
   );
 }

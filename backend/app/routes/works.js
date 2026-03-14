@@ -375,6 +375,38 @@ function createWorksRouter({ db, workService }) {
     },
   );
 
+  router.put(
+    "/api/works/:id/goodreads-id",
+    authenticateToken,
+    requireAdmin,
+    (req, res) => {
+      try {
+        const workId = req.params.id;
+        const goodreadsId = asNonEmptyString(req.body?.goodreads_id);
+        if (!goodreadsId) {
+          return jsonError(res, 400, "goodreads_id is required.");
+        }
+
+        const workRow = db
+          .prepare("SELECT id FROM works WHERE id = ?")
+          .get(workId);
+        if (!workRow) {
+          return jsonError(res, 404, "Work not found.");
+        }
+
+        db.prepare("UPDATE works SET goodreads_id = ? WHERE id = ?").run(
+          goodreadsId,
+          workId,
+        );
+
+        res.json({ success: true, goodreads_id: goodreadsId });
+      } catch (error) {
+        console.error("Failed to save Goodreads ID:", error);
+        jsonError(res, 500, "Failed to save Goodreads ID.");
+      }
+    },
+  );
+
   router.post(
     "/api/works/:id/cover",
     authenticateToken,

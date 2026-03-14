@@ -126,11 +126,15 @@ function seedTestDb(targetDbPath) {
   const adminHash = bcrypt.hashSync("admin-pass", 10);
   const guestHash = bcrypt.hashSync("guest-pass", 10);
   db.prepare(
-    "INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-  ).run("admin-1", "admin", adminHash, "admin");
+    `INSERT INTO users
+      (id, username, password_hash, role, email, is_email_public)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run("admin-1", "admin", adminHash, "admin", "admin@example.com", 0);
   db.prepare(
-    "INSERT INTO users (id, username, password_hash, role) VALUES (?, ?, ?, ?)",
-  ).run("guest-1", "guest", guestHash, "guest");
+    `INSERT INTO users
+      (id, username, password_hash, role, email, is_email_public)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run("guest-1", "guest", guestHash, "guest", "guest@example.com", 1);
 
   db.close();
 }
@@ -406,6 +410,100 @@ test("reading progress is stored separately from quotes", async () => {
   assert.equal(work.status, 200);
   assert.equal(work.json?.current_page, 42);
   assert.equal(work.json?.quotes?.length, 0);
+});
+
+test("public profile endpoint exposes shelves and only public email", async () => {
+  const login = await requestJson("POST", "/api/auth/login", {
+    username: "guest",
+    password: "guest-pass",
+  });
+  assert.equal(login.status, 200);
+  const token = login.json?.token;
+  assert.equal(typeof token, "string");
+
+  await requestJson(
+    "POST",
+    "/api/works/W1/progress",
+    {
+      note: "Continuing",
+      pageNumber: 12,
+    },
+    token,
+  );
+
+  const guestProfile = await requestJson(
+    "GET",
+    "/api/profiles/guest",
+    undefined,
+    token,
+  );
+  assert.equal(guestProfile.status, 200);
+  assert.equal(guestProfile.json?.userInfo?.username, "guest");
+  assert.equal(guestProfile.json?.userInfo?.email, "guest@example.com");
+  assert.ok(Array.isArray(guestProfile.json?.reading));
+  assert.ok(Array.isArray(guestProfile.json?.favorites));
+  assert.ok(Array.isArray(guestProfile.json?.shelved));
+  assert.equal("quotes" in guestProfile.json, false);
+
+  const adminProfile = await requestJson(
+    "GET",
+    "/api/profiles/admin",
+    undefined,
+    token,
+  );
+  assert.equal(adminProfile.status, 200);
+  assert.equal(adminProfile.json?.userInfo?.username, "admin");
+  assert.equal(adminProfile.json?.userInfo?.email, null);
+});
+
+test("admin can update work and author goodreads ids via dedicated endpoints", async () => {
+  const login = await requestJson("POST", "/api/auth/login", {
+    username: "admin",
+    password: "admin-pass",
+  });
+  assert.equal(login.status, 200);
+  const token = login.json?.token;
+  assert.equal(typeof token, "string");
+
+  const authors = await requestJson("GET", "/api/authors", undefined, token);
+  assert.equal(authors.status, 200);
+  const author = authors.json.find((entry) => entry.name === "Aristotle");
+  assert.equal(typeof author?.id, "number");
+
+  const authorUpdate = await requestJson(
+    "PUT",
+    `/api/authors/${author.id}/goodreads-id`,
+    { goodreads_id: "author-updated" },
+    token,
+  );
+  assert.equal(authorUpdate.status, 200);
+  assert.equal(authorUpdate.json?.success, true);
+  assert.equal(authorUpdate.json?.goodreads_id, "author-updated");
+
+  const workUpdate = await requestJson(
+    "PUT",
+    "/api/works/W1/goodreads-id",
+    { goodreads_id: "work-updated" },
+    token,
+  );
+  assert.equal(workUpdate.status, 200);
+  assert.equal(workUpdate.json?.success, true);
+  assert.equal(workUpdate.json?.goodreads_id, "work-updated");
+
+  const work = await requestJson("GET", "/api/works/W1", undefined, token);
+  assert.equal(work.status, 200);
+  assert.equal(work.json?.goodreads_id, "work-updated");
+
+  const refreshedAuthors = await requestJson(
+    "GET",
+    "/api/authors",
+    undefined,
+    token,
+  );
+  const refreshedAuthor = refreshedAuthors.json.find(
+    (entry) => entry.id === author.id,
+  );
+  assert.equal(refreshedAuthor?.goodreads_id, "author-updated");
 });
 
 test("author admin flow supports update and delete by numeric id", async () => {

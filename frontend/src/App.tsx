@@ -6,13 +6,10 @@ import { AuthorsPage } from "./pages/AuthorsPage";
 import { SearchPage } from "./pages/SearchPage";
 import { ExplorePage } from "./pages/ExplorePage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { PublicProfilePageWrapper } from "./pages/PublicProfilePage";
 import { DetailPageWrapper } from "./pages/DetailPage";
-import { AdminWorksPage } from "./pages/admin/AdminWorksPage";
 import { SplashPage } from "./components/SplashPage";
 import { SidebarLayout } from "./components/SidebarLayout";
-import { AdminAuthorsPage } from "./pages/admin/AdminAuthorsPage";
-import { AdminLayout } from "./components/AdminLayout";
-import { AdminTagsPage } from "./pages/admin/AdminTagsPage";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { NotFound } from "./components/NotFound";
 
@@ -43,26 +40,20 @@ export default class App extends React.Component<Record<string, never>> {
               <Route path="/search" element={<SearchPage />} />
               <Route path="/explore" element={<ExplorePage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/users/:username" element={<PublicProfilePageWrapper />} />
               <Route
                 path="/collection/:keyword"
                 element={<AuthorPageWrapper />}
               />
               <Route path="/work/:id" element={<DetailPageWrapper />} />
-              <Route path="/authors" element={<AuthorsPage />} />
-            </Route>
-
-            {/* --- ADMIN ONLY ROUTES --- */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute requireAdmin={true}>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="works" element={<AdminWorksPage />} />
-              <Route path="authors" element={<AdminAuthorsPage />} />
-              <Route path="tags" element={<AdminTagsPage />} />
+              <Route
+                path="/authors"
+                element={
+                  <ProtectedRoute requireAdmin={true}>
+                    <AuthorsPage />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
 
             {/* --- 404 CATCH-ALL --- */}

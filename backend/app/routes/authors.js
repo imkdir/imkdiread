@@ -259,6 +259,35 @@ function createAuthorsRouter({ db, workService }) {
     },
   );
 
+  router.put(
+    "/api/authors/:id/goodreads-id",
+    authenticateToken,
+    requireAdmin,
+    (req, res) => {
+      try {
+        const author = getAuthorById(req.params.id);
+        if (!author) {
+          return res.status(404).json({ error: "Author not found." });
+        }
+
+        const goodreadsId = asNonEmptyString(req.body?.goodreads_id);
+        if (!goodreadsId) {
+          return jsonError(res, 400, "goodreads_id is required.");
+        }
+
+        db.prepare("UPDATE authors SET goodreads_id = ? WHERE id = ?").run(
+          goodreadsId,
+          author.id,
+        );
+        renameAuthorAvatarIfNeeded(author.goodreads_id, goodreadsId);
+
+        res.json({ success: true, goodreads_id: goodreadsId });
+      } catch (error) {
+        jsonError(res, 500, "Failed to update author Goodreads ID");
+      }
+    },
+  );
+
   router.delete("/api/authors/:id", authenticateToken, requireAdmin, (req, res) => {
     try {
       const author = getAuthorById(req.params.id);

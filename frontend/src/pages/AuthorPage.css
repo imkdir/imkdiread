@@ -1,10 +1,9 @@
 .author-page {
-    --author-page-avatar-border: var(--color-border-default);
+    --author-page-avatar-border: var(--theme-border);
     --author-page-goodreads-button-bg: var(--color-text-page-inverse);
-    --author-page-segment-bg: var(--color-bg-card-soft-strong);
-    --author-page-segment-active-bg: var(--color-text-page-inverse);
-    --author-page-segment-active-text: var(--color-text-page-inverse-strong);
-    --author-page-segment-inactive-text: var(--color-text-page-inverse);
+    --author-page-bio-bg: var(--color-bg-card-soft-strong);
+    --author-page-bio-border: rgba(255, 255, 255, 0.08);
+    --author-page-bio-placeholder: var(--color-text-muted-mid);
 
     min-height: 100vh;
     background-color: var(--color-bg-page-reader);
@@ -17,6 +16,39 @@
     color: var(--color-text-link-primary);
     font-size: 14px;
     text-align: center;
+}
+
+.author-page__container {
+    max-width: 935px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.author-page__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    box-sizing: border-box;
+    max-width: 648px;
+    margin: 32px auto;
+    padding: 40px;
+    border-radius: 24px;
+    background: var(--overlay-white-05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px 0 var(--overlay-black-30);
+}
+
+.author-page__avatar-container {
+    position: relative;
+    flex-shrink: 0;
+    margin-right: 40px;
+}
+
+.author-page__info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
 }
 
 .author-page__name {
@@ -45,13 +77,80 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 14px;
+    margin-bottom: 18px;
     color: var(--color-text-muted-mid);
     font-size: 14px;
 }
 
+.author-page__meta-button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    transition: color 0.18s ease;
+}
+
+.author-page__meta-button:hover,
+.author-page__meta-button--active {
+    color: var(--color-text-page-inverse);
+}
+
+.author-page__bio-block {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 680px;
+    padding: 16px 18px;
+    border: 1px solid var(--author-page-bio-border);
+    border-radius: 16px;
+    background: var(--author-page-bio-bg);
+}
+
+.author-page__bio-block--editable {
+    cursor: pointer;
+}
+
+.author-page__bio-block--editable:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.author-page__bio-block--empty .author-page__bio-text {
+    color: var(--author-page-bio-placeholder);
+    font-style: italic;
+}
+
+.author-page__bio-text {
+    margin: 0;
+    color: var(--color-text-page-secondary);
+    font-size: 14px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+
+.author-page__bio-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-text-page-inverse);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.author-page__bio-edit:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.05);
+}
+
 .author-page__grid-container {
-    padding-top: 20px;
+    padding-top: 24px;
     padding-bottom: 50px;
 }
 
@@ -61,14 +160,9 @@
     gap: 40px;
 }
 
-.author-page__follow-button--default {
-    background-color: var(--color-text-page-inverse);
-    color: var(--color-bg-page-reader);
-}
-
-.author-page__follow-button--following {
-    background-color: var(--color-bg-card-soft-strong);
-    color: var(--color-text-page-inverse);
+.author-page__cover {
+    width: 100%;
+    aspect-ratio: 0.66;
 }
 
 .author-page__empty-state {
@@ -96,6 +190,19 @@
     font-size: 14px;
 }
 
+.author-page__bio-modal-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.author-page__bio-modal-textarea {
+    min-height: 220px;
+    resize: vertical;
+    box-sizing: border-box;
+    margin-top: 4px;
+    line-height: 1.6;
+}
+
 @media (max-width: 1100px) {
     .author-page__works-grid {
         grid-template-columns: repeat(3, 1fr);
@@ -109,8 +216,36 @@
     }
 }
 
+@media (max-width: 700px) {
+    .author-page__bio-block {
+        padding: 14px 16px;
+    }
+}
+
 @media (max-width: 560px) {
+    .author-page__header {
+        flex-direction: column;
+        align-items: center;
+        margin: 32px 20px;
+        text-align: center;
+    }
+
+    .author-page__avatar-container {
+        margin-right: 0;
+        margin-bottom: 24px;
+    }
+
+    .author-page__info {
+        min-width: 100%;
+        align-items: center;
+        padding-top: 0;
+    }
+
     .author-page__works-grid {
         grid-template-columns: 1fr;
+    }
+
+    .author-page__meta-line {
+        flex-wrap: wrap;
     }
 }

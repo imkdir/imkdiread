@@ -18,6 +18,7 @@
     --z-overlay-detail-drawer: 5000;
     --z-shell-menu-bar: 6000;
     --z-overlay-floating-drawer: 7000;
+    --z-overlay-user-profile-card: 7050;
     --z-overlay-file-picker: 7100;
 
     /* --- Shared Theme Tokens --- */
@@ -73,7 +74,7 @@
     --theme-explore-sidebar-muted: var(--color-text-muted-soft);
     --theme-explore-sidebar-footer: var(--color-text-muted-strong);
     --theme-explore-sidebar-avatar-bg: var(--color-bg-card-base);
-    --theme-explore-sidebar-avatar-border: var(--color-border-default);
+    --theme-explore-sidebar-avatar-border: var(--theme-border);
 
     --text-main: var(--theme-page-text); /* Primary page text */
     --text-muted: #9aa0a6; /* Gray icons and secondary text */
@@ -148,8 +149,6 @@
     --color-bg-card-soft-strong: rgba(255, 255, 255, 0.188);
 
     /* --- Semantic Border Colors (element-level) --- */
-    --color-border-default: var(--theme-border);
-    --color-border-input: var(--theme-border);
     --color-border-card-soft: var(--overlay-white-10);
     --color-border-paper-medium: var(--paper-ink-line-medium);
     --color-border-paper-strong: var(--paper-ink-line-strong);
@@ -288,30 +287,65 @@ html {
         -webkit-backdrop-filter 0.2s ease;
 }
 
-.sidebar:hover {
-    background-color: var(--overlay-white-05);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-}
-
 .sidebar-link {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px;
     margin-bottom: 0;
     border-radius: 8px;
     color: var(--text-main);
     text-decoration: none;
     font-size: 16px;
     opacity: 1;
+    overflow: hidden;
     transition:
         background-color 0.2s ease,
         opacity 0.2s ease;
 }
 
-.sidebar-link:hover {
+.sidebar-link__inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 8px;
+    border-radius: inherit;
+    overflow: hidden;
+    color: inherit;
+    text-decoration: none;
+}
+
+.sidebar-link__content {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+}
+
+.sidebar-link__glare {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    transition: opacity 0.25s ease;
+}
+
+.sidebar-link:hover .sidebar-link__inner {
     background-color: var(--color-bg-card-base);
+    background:
+        linear-gradient(
+            160deg,
+            rgba(255, 255, 255, 0.12),
+            rgba(255, 255, 255, 0.03)
+        ),
+        rgba(0, 0, 0, 0.1);
+    box-shadow:
+        0 10px 22px rgba(0, 0, 0, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-icon {
@@ -331,27 +365,10 @@ html {
     gap: 16px;
 }
 
-.logo-link {
-    text-decoration: none;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    opacity: 1;
-    transition: opacity 0.2s ease;
-}
-
-.logo-link img,
-.logo-link svg {
-    height: 24px;
-    width: 24px;
-}
-
-.sidebar:not(:hover) .logo-link,
 .sidebar:not(:hover) .sidebar-link {
-    opacity: 0.5;
+    opacity: 0.4;
 }
 
-.sidebar:hover .logo-link,
 .sidebar:hover .sidebar-link {
     opacity: 1;
 }
@@ -371,40 +388,8 @@ html {
 }
 
 /* =========================================================
-   6. COLLECTION & PROFILE PAGE
+   6. PROFILE PAGE
    ========================================================= */
-.collection-container {
-    max-width: 935px;
-    margin: 0 auto;
-    padding: 40px 20px;
-}
-
-.profile-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    background: var(--overlay-parchment-10);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 24px;
-    padding: 40px;
-    border: 1px solid var(--overlay-white-10);
-    box-shadow: 0 8px 32px 0 var(--overlay-black-30);
-    box-sizing: border-box;
-    max-width: 648px;
-    margin: 32px auto;
-}
-
-.avatar-container {
-    position: relative;
-    flex-shrink: 0;
-    margin-right: 40px;
-}
-
-.info-container {
-    display: flex;
-    flex-direction: column;
-}
 
 .action-row {
     display: flex;
@@ -424,21 +409,6 @@ html {
 }
 
 @media (max-width: 768px) {
-    .profile-header {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        margin: 32px 20px;
-    }
-    .avatar-container {
-        margin-right: 0;
-        margin-bottom: 24px;
-    }
-    .info-container {
-        min-width: 100%;
-        align-items: center;
-        padding-top: 0;
-    }
     .action-row {
         width: 200px;
     }

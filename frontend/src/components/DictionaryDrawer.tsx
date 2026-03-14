@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { request } from "../utils/APIClient";
 import { FloatingDrawer } from "./FloatingDrawer";
 
@@ -17,6 +19,30 @@ interface SavedVocab {
   word: string;
   word_data: DictResult;
   username: string;
+  avatar_url?: string | null;
+}
+
+interface UserPreviewData {
+  username: string;
+  avatar_url?: string | null;
+  readingCount: number;
+  favoritesCount: number;
+  shelvedCount: number;
+}
+
+interface UserPreviewResponse {
+  userInfo?: {
+    username: string;
+    avatar_url?: string | null;
+  } | null;
+  reading?: unknown[];
+  favorites?: unknown[];
+  shelved?: unknown[];
+}
+
+interface UserPreviewPosition {
+  top: number;
+  left: number;
 }
 
 interface Props {
@@ -32,10 +58,20 @@ export const DictionaryDrawer: React.FC<Props> = ({
   onClose,
   anchorRect,
 }) => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [dictResult, setDictResult] = useState<DictResult | null>(null);
   const [savedVocabs, setSavedVocabs] = useState<SavedVocab[]>([]);
+  const [hoveredUsername, setHoveredUsername] = useState<string | null>(null);
+  const [hoveredUserPreview, setHoveredUserPreview] =
+    useState<UserPreviewData | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [userPreviewPosition, setUserPreviewPosition] =
+    useState<UserPreviewPosition | null>(null);
+  const previewCacheRef = useRef<Record<string, UserPreviewData>>({});
+  const showPreviewTimerRef = useRef<number | null>(null);
+  const hidePreviewTimerRef = useRef<number | null>(null);
 
   const fetchVocabularies = useCallback(async () => {
     try {
@@ -54,6 +90,129 @@ export const DictionaryDrawer: React.FC<Props> = ({
       void fetchVocabularies();
     }
   }, [fetchVocabularies, isOpen, workId]);
+
+  const clearShowPreviewTimer = () => {
+    if (showPreviewTimerRef.current !== null) {
+      window.clearTimeout(showPreviewTimerRef.current);
+      showPreviewTimerRef.current = null;
+    }
+  };
+
+  const clearHidePreviewTimer = () => {
+    if (hidePreviewTimerRef.current !== null) {
+      window.clearTimeout(hidePreviewTimerRef.current);
+      hidePreviewTimerRef.current = null;
+    }
+  };
+
+  const closeUserPreview = useCallback(() => {
+    clearShowPreviewTimer();
+    clearHidePreviewTimer();
+    setHoveredUsername(null);
+    setHoveredUserPreview(null);
+    setUserPreviewPosition(null);
+    setIsPreviewLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      closeUserPreview();
+    }
+  }, [closeUserPreview, isOpen]);
+
+  useEffect(() => {
+    return () => {
+      clearShowPreviewTimer();
+      clearHidePreviewTimer();
+    };
+  }, []);
+
+  const positionUserPreview = (rect: DOMRect) => {
+    const cardWidth = 280;
+    const cardHeight = 168;
+    const padding = 16;
+    const nextLeft = Math.min(
+      Math.max(padding, rect.left),
+      window.innerWidth - cardWidth - padding,
+    );
+    const nextTop =
+      rect.bottom + 12 + cardHeight < window.innerHeight - padding
+        ? rect.bottom + 12
+        : Math.max(padding, rect.top - cardHeight - 12);
+
+    setUserPreviewPosition({ top: nextTop, left: nextLeft });
+  };
+
+  const openUserPreview = useCallback(
+    async (username: string, rect: DOMRect) => {
+      positionUserPreview(rect);
+      setHoveredUsername(username);
+
+      const cachedPreview = previewCacheRef.current[username];
+      if (cachedPreview) {
+        setHoveredUserPreview(cachedPreview);
+        setIsPreviewLoading(false);
+        return;
+      }
+
+      setHoveredUserPreview(null);
+      setIsPreviewLoading(true);
+
+      try {
+        const res = await request(
+          `/api/profiles/${encodeURIComponent(username)}`,
+        );
+
+        if (!res.ok) {
+          throw new Error("Failed to load profile preview.");
+        }
+
+        const data = (await res.json()) as UserPreviewResponse;
+        const preview = data.userInfo
+          ? {
+              username: data.userInfo.username,
+              avatar_url: data.userInfo.avatar_url || null,
+              readingCount: data.reading?.length || 0,
+              favoritesCount: data.favorites?.length || 0,
+              shelvedCount: data.shelved?.length || 0,
+            }
+          : null;
+
+        if (!preview) {
+          throw new Error("Profile preview not found.");
+        }
+
+        previewCacheRef.current[username] = preview;
+        setHoveredUserPreview(preview);
+      } catch (error) {
+        console.error("Failed to load user preview", error);
+        setHoveredUsername(null);
+        setHoveredUserPreview(null);
+        setUserPreviewPosition(null);
+      } finally {
+        setIsPreviewLoading(false);
+      }
+    },
+    [],
+  );
+
+  const scheduleUserPreview = (username: string, element: HTMLElement) => {
+    clearShowPreviewTimer();
+    clearHidePreviewTimer();
+    const rect = element.getBoundingClientRect();
+
+    showPreviewTimerRef.current = window.setTimeout(() => {
+      void openUserPreview(username, rect);
+    }, 2000);
+  };
+
+  const scheduleUserPreviewHide = () => {
+    clearShowPreviewTimer();
+    clearHidePreviewTimer();
+    hidePreviewTimerRef.current = window.setTimeout(() => {
+      closeUserPreview();
+    }, 140);
+  };
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -194,7 +353,21 @@ export const DictionaryDrawer: React.FC<Props> = ({
               >
                 <div style={styles.tagRow}>
                   <span style={styles.tagName}>{vocab.word}</span>
-                  <span style={styles.tagAuthor}>by {vocab.username}</span>
+                  <button
+                    type="button"
+                    style={styles.tagAuthor}
+                    onClick={(event) => event.stopPropagation()}
+                    onMouseEnter={(event) =>
+                      scheduleUserPreview(vocab.username, event.currentTarget)
+                    }
+                    onMouseLeave={scheduleUserPreviewHide}
+                    onFocus={(event) =>
+                      scheduleUserPreview(vocab.username, event.currentTarget)
+                    }
+                    onBlur={scheduleUserPreviewHide}
+                  >
+                    by {vocab.username}
+                  </button>
                 </div>
                 {vocab.word_data?.meanings?.[0]?.definitions?.[0]
                   ?.definition && (
@@ -207,6 +380,65 @@ export const DictionaryDrawer: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      {!hoveredUsername ||
+        !userPreviewPosition ||
+        typeof document === "undefined" ||
+        createPortal(
+          <div
+            style={{
+              ...styles.userPreviewCard,
+              top: `${userPreviewPosition.top}px`,
+              left: `${userPreviewPosition.left}px`,
+            }}
+            onMouseEnter={() => {
+              clearHidePreviewTimer();
+              clearShowPreviewTimer();
+            }}
+            onMouseLeave={scheduleUserPreviewHide}
+          >
+            <div style={styles.userPreviewHeader}>
+              {hoveredUserPreview?.avatar_url ? (
+                <img
+                  src={hoveredUserPreview.avatar_url}
+                  alt={hoveredUserPreview.username}
+                  style={styles.userPreviewAvatar}
+                />
+              ) : (
+                <div style={styles.userPreviewAvatarFallback}>
+                  {(hoveredUserPreview?.username || hoveredUsername)
+                    .slice(0, 1)
+                    .toUpperCase()}
+                </div>
+              )}
+              <div style={styles.userPreviewText}>
+                <strong style={styles.userPreviewName}>
+                  {hoveredUserPreview?.username || hoveredUsername}
+                </strong>
+                <p style={styles.userPreviewMeta}>
+                  {isPreviewLoading
+                    ? "Loading activity..."
+                    : `${hoveredUserPreview?.readingCount || 0} · ${hoveredUserPreview?.favoritesCount || 0} · ${hoveredUserPreview?.shelvedCount || 0}`}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              style={styles.userPreviewAction}
+              onClick={(event) => {
+                event.stopPropagation();
+                closeUserPreview();
+                onClose();
+                navigate(
+                  `/users/${encodeURIComponent(hoveredUserPreview?.username || hoveredUsername)}`,
+                );
+              }}
+            >
+              Go to profile
+            </button>
+          </div>,
+          document.body,
+        )}
     </FloatingDrawer>
   );
 };
@@ -279,30 +511,34 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontFamily: "monospace",
   },
   loreBox: {
-    backgroundColor: "var(--theme-dictionary-panel-bg)",
-    border: "1px solid var(--theme-dictionary-panel-border)",
-    borderLeft: "4px solid var(--theme-dictionary-accent)",
-    padding: "16px 18px",
+    background:
+      "radial-gradient(circle at left center, rgba(212, 187, 122, 0.18), transparent 24%), radial-gradient(circle at right center, rgba(214, 196, 146, 0.14), transparent 26%), linear-gradient(180deg, rgba(247, 240, 222, 0.98), rgba(241, 233, 214, 0.96))",
+    border: "1px solid rgba(114, 91, 54, 0.24)",
+    borderLeft: "3px solid rgba(127, 97, 48, 0.42)",
+    padding: "18px 20px",
     marginBottom: "20px",
-    borderRadius: "0 14px 14px 0",
-    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+    borderRadius: "2px 14px 14px 2px",
+    boxShadow:
+      "0 10px 24px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 251, 240, 0.8), inset 0 0 30px rgba(147, 118, 59, 0.08)",
   },
   loreLabel: {
     display: "inline-block",
-    marginBottom: "8px",
-    fontSize: "11px",
+    marginBottom: "10px",
+    fontSize: "10px",
     textTransform: "uppercase",
-    color: "var(--theme-dictionary-accent)",
+    color: "rgba(106, 74, 28, 0.82)",
     fontWeight: "bold",
-    letterSpacing: "0.08em",
+    letterSpacing: "0.14em",
+    fontFamily: "Fredoka",
   },
   loreBody: {
     margin: 0,
     fontSize: "17px",
-    lineHeight: "1.8",
-    color: "var(--theme-dictionary-body)",
+    lineHeight: "1.82",
+    color: "rgba(41, 29, 18, 0.92)",
     fontFamily: "Libre Baskerville",
     textWrap: "pretty",
+    textShadow: "0 1px 0 rgba(255, 250, 240, 0.45)",
   },
   dictBody: {
     marginBottom: "16px",
@@ -373,8 +609,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontFamily: "Libre Baskerville",
   },
   tagAuthor: {
+    padding: 0,
+    border: "none",
+    background: "transparent",
     fontSize: "12px",
     color: "var(--text-muted)",
+    cursor: "pointer",
+    fontFamily: "Fredoka",
   },
   tagLabel: {
     fontSize: "13px",
@@ -382,5 +623,77 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "var(--theme-dictionary-card-text)",
     marginTop: "8px",
     marginBottom: 0,
+  },
+  userPreviewCard: {
+    position: "fixed",
+    zIndex: 7050,
+    width: "280px",
+    padding: "16px",
+    borderRadius: "18px",
+    border: "1px solid rgba(255, 255, 255, 0.14)",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)), rgba(30, 25, 20, 0.96)",
+    boxShadow:
+      "0 24px 50px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+  },
+  userPreviewHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  userPreviewAvatar: {
+    width: "52px",
+    height: "52px",
+    borderRadius: "50%",
+    objectFit: "cover",
+    border: "1px solid rgba(255, 255, 255, 0.14)",
+    flexShrink: 0,
+  },
+  userPreviewAvatarFallback: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "52px",
+    height: "52px",
+    borderRadius: "50%",
+    border: "1px solid rgba(255, 255, 255, 0.14)",
+    background: "rgba(255, 255, 255, 0.06)",
+    color: "var(--theme-dictionary-title)",
+    fontFamily: "Fredoka",
+    fontSize: "18px",
+    fontWeight: 700,
+    flexShrink: 0,
+  },
+  userPreviewText: {
+    minWidth: 0,
+  },
+  userPreviewName: {
+    display: "block",
+    marginBottom: "4px",
+    color: "var(--theme-dictionary-title)",
+    fontFamily: "Fredoka",
+    fontSize: "16px",
+  },
+  userPreviewMeta: {
+    margin: 0,
+    color: "var(--theme-dictionary-card-text)",
+    fontSize: "13px",
+    lineHeight: "1.5",
+  },
+  userPreviewAction: {
+    marginTop: "14px",
+    width: "100%",
+    padding: "11px 14px",
+    borderRadius: "12px",
+    border: "1px solid rgba(255, 255, 255, 0.1)",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)), rgba(255, 255, 255, 0.02)",
+    color: "var(--theme-dictionary-title)",
+    cursor: "pointer",
+    fontFamily: "Fredoka",
+    fontSize: "13px",
+    fontWeight: 600,
   },
 };

@@ -38,7 +38,7 @@ const SITE_SECTION: ThemeSection = {
       defaultHex: "#faf8f6",
     },
     {
-      ids: ["--theme-border", "--color-border-default", "--color-border-input"],
+      ids: ["--theme-border"],
       label: "Border",
       defaultHex: "#262626",
     },
@@ -286,15 +286,7 @@ function normalizeHexForInput(value: string, fallback: string): string {
   return fallback;
 }
 
-function isAdminRoute(pathname: string): boolean {
-  return /^\/admin(?:\/|$)/.test(pathname);
-}
-
 function resolveThemeRoute(pathname: string): ThemeRouteConfig {
-  if (isAdminRoute(pathname)) {
-    return { label: "Admin", sections: [] };
-  }
-
   const sections: ThemeSection[] = [SITE_SECTION];
 
   if (/^\/work\/[^/]+/.test(pathname)) {

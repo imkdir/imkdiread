@@ -145,8 +145,11 @@ export class GoodreadsAuthorAvatar extends React.Component<
     return (
       <div
         className={joinClasses("goodreads-author-avatar", className)}
-        style={style}
-        onClick={() => this.fileInputRef.current?.click()}
+        style={{
+          ...style,
+          cursor: isAdmin ? "pointer" : style?.cursor,
+        }}
+        onClick={isAdmin ? () => this.fileInputRef.current?.click() : undefined}
       >
         {isFallback && (
           <>

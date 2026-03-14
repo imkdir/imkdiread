@@ -45,7 +45,7 @@ export function DetailQuoteModal({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="detail-modal-overlay"
+          className="modal-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

@@ -42,6 +42,7 @@ function DetailPage({ workId, initialWork }: Props) {
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
+  const isAdmin = user?.role === "admin";
 
   const {
     work,
@@ -121,6 +122,9 @@ function DetailPage({ workId, initialWork }: Props) {
 
   if (loading || !work) return null;
 
+  const canUseDropbox = Boolean(work.dropbox_link) || isAdmin;
+  const canUseFinder = Boolean(work.file_urls?.length) || isAdmin;
+
   return (
     <div className="detail-page">
       <div className="detail-split-view-container">
@@ -189,16 +193,17 @@ function DetailPage({ workId, initialWork }: Props) {
                 </h1>
 
                 <div className="detail-metadata">
-                  {work.goodreads_id && (
-                    <GoodreadsButton
-                      category="book"
-                      goodreadsId={work.goodreads_id}
-                      style={{
-                        backgroundColor:
-                          "var(--detail-page-goodreads-button-bg)",
-                      }}
-                    />
-                  )}
+                  <GoodreadsButton
+                    category="book"
+                    goodreadsId={work.goodreads_id}
+                    resourceId={work.id}
+                    onSavedId={() => {
+                      void fetchData();
+                    }}
+                    style={{
+                      backgroundColor: "var(--detail-page-goodreads-button-bg)",
+                    }}
+                  />
 
                   {work.authors.map((author) => (
                     <Link
@@ -220,14 +225,19 @@ function DetailPage({ workId, initialWork }: Props) {
                     </Link>
                   ))}
 
-                  <FinderButton onClick={handleFinderButtonClick} />
+                  {canUseFinder && (
+                    <FinderButton onClick={handleFinderButtonClick} />
+                  )}
 
-                  <DropboxButton
-                    onClick={() => togglePDFViewer("dropbox")}
-                    style={{
-                      backgroundColor: "var(--detail-page-dropbox-button-bg)",
-                    }}
-                  />
+                  {canUseDropbox && (
+                    <DropboxButton
+                      onClick={() => togglePDFViewer("dropbox")}
+                      style={{
+                        backgroundColor:
+                          "var(--detail-page-dropbox-button-bg)",
+                      }}
+                    />
+                  )}
 
                   {work.amazon_asin && <KindleButton asin={work.amazon_asin} />}
                 </div>
