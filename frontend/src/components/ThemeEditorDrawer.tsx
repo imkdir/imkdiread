@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FloatingDrawer } from "./FloatingDrawer";
 
 interface ThemeEditorDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  routePath: string;
   anchorRect?: DOMRect | null;
 }
 
@@ -14,27 +13,9 @@ interface ThemeTokenDefinition {
   defaultHex: string;
 }
 
-interface ThemeSection {
-  title: string;
-  items: ThemeTokenDefinition[];
-}
-
-interface ThemeRouteConfig {
-  label: string;
-  sections: ThemeSection[];
-}
-
 type ThemeTokens = Record<string, string>;
 
 const CUSTOM_STYLES_STORAGE_KEY = "app-custom-styles";
-const REMOVED_THEME_TOKENS = new Set([
-  "--theme-action-panel-tint",
-  "--theme-detail-action-color",
-  "--theme-detail-progress-fill",
-  "--theme-detail-progress-fill-hover",
-  "--theme-detail-progress-text",
-  "--theme-detail-progress-text-hover",
-]);
 
 const GOODREADS_DARK_THEME: ThemeTokens = {
   "--theme-page-background": "#19120d",
@@ -73,227 +54,62 @@ const GOODREADS_DARK_THEME: ThemeTokens = {
   "--theme-explore-sidebar-avatar-border": "rgba(241, 231, 214, 0.12)",
 };
 
-const SITE_SECTION: ThemeSection = {
-  title: "Site",
-  items: [
-    {
-      ids: ["--theme-page-background"],
-      label: "Page Background",
-      defaultHex: "#1e1914",
-    },
-    {
-      ids: ["--theme-page-text"],
-      label: "Page Text",
-      defaultHex: "#faf8f6",
-    },
-    {
-      ids: ["--theme-border"],
-      label: "Border",
-      defaultHex: "#262626",
-    },
-  ],
-};
+const QUOTE_THEME_ITEMS: ThemeTokenDefinition[] = [
+  {
+    ids: ["--theme-quote-card-front-bg"],
+    label: "Front Background",
+    defaultHex: "#fdfbf7",
+  },
+  {
+    ids: ["--theme-quote-card-back-bg"],
+    label: "Back Background",
+    defaultHex: "#e6e1d6",
+  },
+  {
+    ids: ["--theme-quote-card-front-border", "--theme-quote-card-back-border"],
+    label: "Border",
+    defaultHex: "#ccc5b3",
+  },
+  {
+    ids: ["--theme-quote-card-front-text", "--theme-quote-card-explanation-text"],
+    label: "Text",
+    defaultHex: "#2c2825",
+  },
+  {
+    ids: ["--theme-quote-card-input-bg"],
+    label: "Input Background",
+    defaultHex: "#ffffff",
+  },
+  {
+    ids: ["--theme-quote-card-input-text"],
+    label: "Input Text",
+    defaultHex: "#2c2825",
+  },
+  {
+    ids: ["--theme-quote-card-accent", "--quote-card-explain-border"],
+    label: "Accent",
+    defaultHex: "#2c2825",
+  },
+  {
+    ids: ["--theme-quote-card-danger"],
+    label: "Delete Accent",
+    defaultHex: "#d32f2f",
+  },
+  {
+    ids: ["--theme-quote-card-primary-action-bg"],
+    label: "Primary Action Background",
+    defaultHex: "#2c2825",
+  },
+  {
+    ids: ["--theme-quote-card-primary-action-text"],
+    label: "Primary Action Text",
+    defaultHex: "#e5d9c3",
+  },
+];
 
-const QUOTE_CARD_SECTION: ThemeSection = {
-  title: "Quote Card",
-  items: [
-    {
-      ids: ["--theme-quote-card-front-bg"],
-      label: "Front Background",
-      defaultHex: "#fdfbf7",
-    },
-    {
-      ids: ["--theme-quote-card-back-bg"],
-      label: "Back Background",
-      defaultHex: "#e6e1d6",
-    },
-    {
-      ids: [
-        "--theme-quote-card-front-border",
-        "--theme-quote-card-back-border",
-      ],
-      label: "Border",
-      defaultHex: "#ccc5b3",
-    },
-    {
-      ids: [
-        "--theme-quote-card-front-text",
-        "--theme-quote-card-explanation-text",
-      ],
-      label: "Text",
-      defaultHex: "#2c2825",
-    },
-    {
-      ids: ["--theme-quote-card-input-bg"],
-      label: "Input Background",
-      defaultHex: "#ffffff",
-    },
-    {
-      ids: ["--theme-quote-card-input-text"],
-      label: "Input Text",
-      defaultHex: "#2c2825",
-    },
-    {
-      ids: ["--theme-quote-card-accent", "--quote-card-explain-border"],
-      label: "Accent",
-      defaultHex: "#2c2825",
-    },
-    {
-      ids: ["--theme-quote-card-danger"],
-      label: "Delete Accent",
-      defaultHex: "#d32f2f",
-    },
-    {
-      ids: ["--theme-quote-card-primary-action-bg"],
-      label: "Primary Action Background",
-      defaultHex: "#2c2825",
-    },
-    {
-      ids: ["--theme-quote-card-primary-action-text"],
-      label: "Primary Action Text",
-      defaultHex: "#e5d9c3",
-    },
-  ],
-};
-
-const DETAIL_ACTION_SECTION: ThemeSection = {
-  title: "Detail Actions",
-  items: [
-    {
-      ids: ["--theme-detail-handle-bg"],
-      label: "Handle Background",
-      defaultHex: "#161616",
-    },
-    {
-      ids: ["--theme-detail-handle-text"],
-      label: "Handle Text",
-      defaultHex: "#faf8f6",
-    },
-    {
-      ids: ["--theme-detail-handle-bg-hover"],
-      label: "Handle Hover Background",
-      defaultHex: "#444444",
-    },
-    {
-      ids: ["--theme-detail-handle-text-hover"],
-      label: "Handle Hover Text",
-      defaultHex: "#ffffff",
-    },
-    {
-      ids: ["--theme-detail-divider"],
-      label: "Divider",
-      defaultHex: "#262626",
-    },
-    {
-      ids: ["--theme-detail-progress-track"],
-      label: "Progress Track",
-      defaultHex: "#ebe2d7",
-    },
-    {
-      ids: ["--theme-detail-progress-track-hover"],
-      label: "Progress Track Hover",
-      defaultHex: "#f3ede4",
-    },
-  ],
-};
-
-const PILL_BUTTON_SECTION: ThemeSection = {
-  title: "Pill Button",
-  items: [
-    {
-      ids: ["--theme-pill-background"],
-      label: "Background",
-      defaultHex: "#000000",
-    },
-    {
-      ids: ["--theme-pill-text"],
-      label: "Text",
-      defaultHex: "#faf8f6",
-    },
-    {
-      ids: ["--theme-pill-border"],
-      label: "Border",
-      defaultHex: "#faf8f6",
-    },
-  ],
-};
-
-const DICTIONARY_SECTION: ThemeSection = {
-  title: "Dictionary",
-  items: [
-    {
-      ids: ["--theme-dictionary-panel-bg"],
-      label: "Panel Background",
-      defaultHex: "#1b1b1b",
-    },
-    {
-      ids: ["--theme-dictionary-panel-border"],
-      label: "Panel Border",
-      defaultHex: "#5f6368",
-    },
-    {
-      ids: ["--theme-dictionary-title"],
-      label: "Title",
-      defaultHex: "#faf8f6",
-    },
-    {
-      ids: ["--theme-dictionary-accent"],
-      label: "Accent",
-      defaultHex: "#fbbc05",
-    },
-    {
-      ids: ["--theme-dictionary-input-bg"],
-      label: "Input Background",
-      defaultHex: "#1f1f1f",
-    },
-    {
-      ids: ["--theme-dictionary-input-border"],
-      label: "Input Border",
-      defaultHex: "#262626",
-    },
-    {
-      ids: ["--theme-dictionary-input-text"],
-      label: "Input Text",
-      defaultHex: "#faf8f6",
-    },
-    {
-      ids: ["--theme-dictionary-body"],
-      label: "Body Text",
-      defaultHex: "#fffaf0",
-    },
-    {
-      ids: ["--theme-dictionary-card-bg"],
-      label: "Saved Card Background",
-      defaultHex: "#202020",
-    },
-    {
-      ids: ["--theme-dictionary-card-text"],
-      label: "Saved Card Text",
-      defaultHex: "#d9d9d9",
-    },
-  ],
-};
-
-const EXPLORE_SIDEBAR_SECTION: ThemeSection = {
-  title: "Explore Sidebar",
-  items: [
-    {
-      ids: ["--theme-explore-sidebar-title"],
-      label: "Heading Text",
-      defaultHex: "#faf8f6",
-    },
-    {
-      ids: ["--theme-explore-sidebar-muted"],
-      label: "Secondary Text",
-      defaultHex: "#c6b9ab",
-    },
-    {
-      ids: ["--theme-explore-sidebar-footer"],
-      label: "Footer Text",
-      defaultHex: "#8b7e70",
-    },
-  ],
-};
+const EDITABLE_THEME_TOKEN_IDS = new Set(
+  QUOTE_THEME_ITEMS.flatMap((item) => item.ids),
+);
 
 function normalizeHexForInput(value: string, fallback: string): string {
   const normalized = value.trim();
@@ -313,62 +129,19 @@ function getStoredCustomStyles(): Record<string, string> {
     const parsed = JSON.parse(saved);
     if (!parsed || typeof parsed !== "object") return {};
 
-    const sanitized = { ...(parsed as Record<string, string>) };
-    REMOVED_THEME_TOKENS.forEach((token) => {
-      delete sanitized[token];
-    });
-    return sanitized;
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, string>).filter(([tokenId]) =>
+        EDITABLE_THEME_TOKEN_IDS.has(tokenId),
+      ),
+    );
   } catch {
     return {};
   }
 }
 
-function resolveThemeRoute(pathname: string): ThemeRouteConfig {
-  const sections: ThemeSection[] = [SITE_SECTION];
-
-  if (/^\/work\/[^/]+/.test(pathname)) {
-    sections.push(
-      DETAIL_ACTION_SECTION,
-      QUOTE_CARD_SECTION,
-      PILL_BUTTON_SECTION,
-      DICTIONARY_SECTION,
-    );
-    return { label: "Detail", sections };
-  }
-
-  if (/^\/collection\/[^/]+/.test(pathname)) {
-    sections.push(QUOTE_CARD_SECTION);
-    return { label: "Author", sections };
-  }
-
-  if (/^\/profile(?:\/|$)/.test(pathname)) {
-    return { label: "Profile", sections };
-  }
-
-  if (/^\/explore(?:\/|$)/.test(pathname)) {
-    sections.push(EXPLORE_SIDEBAR_SECTION);
-    return { label: "Explore", sections };
-  }
-
-  if (/^\/authors(?:\/|$)/.test(pathname)) {
-    return { label: "Authors", sections };
-  }
-
-  if (/^\/search(?:\/|$)/.test(pathname)) {
-    return { label: "Search", sections };
-  }
-
-  if (/^\/login(?:\/|$)/.test(pathname)) {
-    return { label: "Login", sections };
-  }
-
-  return { label: "Website", sections };
-}
-
 export const ThemeEditorDrawer: React.FC<ThemeEditorDrawerProps> = ({
   isOpen,
   onClose,
-  routePath,
   anchorRect,
 }) => {
   const [customStyles, setCustomStyles] = useState<Record<string, string>>(
@@ -376,10 +149,11 @@ export const ThemeEditorDrawer: React.FC<ThemeEditorDrawerProps> = ({
   );
 
   useEffect(() => {
-    localStorage.setItem(CUSTOM_STYLES_STORAGE_KEY, JSON.stringify(customStyles));
+    localStorage.setItem(
+      CUSTOM_STYLES_STORAGE_KEY,
+      JSON.stringify(customStyles),
+    );
   }, [customStyles]);
-
-  const routeConfig = useMemo(() => resolveThemeRoute(routePath), [routePath]);
 
   const handleColorChange = (tokenIds: string[], color: string) => {
     setCustomStyles((prev) => {
@@ -426,83 +200,67 @@ export const ThemeEditorDrawer: React.FC<ThemeEditorDrawerProps> = ({
       {dynamicStyles}
       <FloatingDrawer
         isOpen={isOpen}
-        title="Theme Editor"
+        title="Quote Theme"
         onClose={onClose}
+        variant="paper"
         anchorRect={anchorRect}
         defaultSize={{ width: 420, height: 620 }}
         minSize={{ width: 360, height: 360 }}
         bodyStyle={styles.drawerBody}
       >
-        <div style={styles.routeLabel}>Route: {routeConfig.label}</div>
-
         <div style={styles.listContainer}>
           <div style={styles.sectionWrap}>
-            <div style={styles.sectionTitle}>Advanced</div>
-            <div style={styles.sectionDescription}>
-              Fine-tune route-specific tokens on top of the Goodreads dark
-              preset.
-            </div>
-          </div>
+            {QUOTE_THEME_ITEMS.map((item) => {
+              const storedColor = item.ids
+                .map((id) => customStyles[id])
+                .find(Boolean);
+              const isCustomized = item.ids.some((id) => id in customStyles);
+              const currentColor = normalizeHexForInput(
+                storedColor || item.defaultHex,
+                item.defaultHex,
+              );
 
-          {routeConfig.sections.length ? (
-            routeConfig.sections.map((section) => (
-              <div key={section.title} style={styles.sectionWrap}>
-                <div style={styles.sectionTitle}>{section.title}</div>
+              return (
+                <div key={item.label} style={styles.varRow}>
+                  <div style={styles.varInfo}>
+                    <div style={styles.varLabel}>{item.label}</div>
+                  </div>
 
-                {section.items.map((item) => {
-                  const storedColor = item.ids
-                    .map((id) => customStyles[id])
-                    .find(Boolean);
-                  const isCustomized = item.ids.some(
-                    (id) => id in customStyles,
-                  );
-                  const currentColor = normalizeHexForInput(
-                    storedColor || item.defaultHex,
-                    item.defaultHex,
-                  );
-
-                  return (
-                    <div key={item.label} style={styles.varRow}>
-                      <div style={styles.varInfo}>
-                        <div style={styles.varLabel}>{item.label}</div>
-                        <div style={styles.varCode}>{item.ids.join(", ")}</div>
-                      </div>
-
-                      <div style={styles.varControls}>
-                        <div style={styles.pickerWrapper}>
-                          <input
-                            type="color"
-                            value={currentColor}
-                            onChange={(e) =>
-                              handleColorChange(item.ids, e.target.value)
-                            }
-                            style={styles.colorPicker}
-                            title={`Change ${item.label}`}
-                          />
-                        </div>
-
-                        {isCustomized ? (
-                          <button
-                            onClick={() => resetColor(item.ids)}
-                            style={styles.resetBtn}
-                            title="Reset to default"
-                          >
-                            ↺
-                          </button>
-                        ) : (
-                          <div style={{ width: "24px" }} />
-                        )}
-                      </div>
+                  <div style={styles.varControls}>
+                    <div style={styles.pickerWrapper}>
+                      <div
+                        style={{
+                          ...styles.colorSwatch,
+                          backgroundColor: currentColor,
+                        }}
+                      />
+                      <input
+                        type="color"
+                        value={currentColor}
+                        onChange={(e) =>
+                          handleColorChange(item.ids, e.target.value)
+                        }
+                        style={styles.colorPicker}
+                        title={`Change ${item.label}`}
+                      />
                     </div>
-                  );
-                })}
-              </div>
-            ))
-          ) : (
-            <div style={styles.emptyState}>
-              Theme editing is intentionally disabled on this route.
-            </div>
-          )}
+
+                    {isCustomized ? (
+                      <button
+                        onClick={() => resetColor(item.ids)}
+                        style={styles.resetBtn}
+                        title="Reset to default"
+                      >
+                        ↺
+                      </button>
+                    ) : (
+                      <div style={{ width: "28px" }} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {Object.keys(customStyles).length > 0 && (
@@ -523,13 +281,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     flexDirection: "column",
     minHeight: 0,
-    padding: "0 20px 20px",
-  },
-  routeLabel: {
-    fontSize: "12px",
-    color: "var(--color-text-page-secondary)",
-    textTransform: "capitalize",
-    marginBottom: "14px",
+    padding: "18px 20px 20px",
   },
   listContainer: {
     flex: 1,
@@ -544,43 +296,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: "column",
     gap: "10px",
   },
-  sectionTitle: {
-    color: "var(--color-text-page-tertiary)",
-    fontSize: "11px",
-    fontWeight: 700,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-  },
-  sectionDescription: {
-    color: "var(--color-text-page-secondary)",
-    fontSize: "12px",
-    lineHeight: 1.5,
-  },
   varRow: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     gap: "12px",
-    padding: "10px 12px",
-    borderRadius: "10px",
-    backgroundColor: "var(--color-bg-overlay-card)",
-    border: "1px solid var(--color-border-card-soft)",
+    padding: "12px 14px",
+    borderRadius: "14px",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(240, 229, 211, 0.9)), rgba(248, 242, 232, 0.9)",
+    border: "1px solid rgba(122, 91, 57, 0.16)",
   },
   varInfo: {
     minWidth: 0,
     display: "flex",
     flexDirection: "column",
-    gap: "2px",
   },
   varLabel: {
     fontSize: "13px",
-    color: "var(--color-text-page-primary)",
+    color: "#312419",
     fontWeight: 600,
-  },
-  varCode: {
-    fontSize: "11px",
-    color: "var(--color-text-page-secondary)",
-    wordBreak: "break-all",
   },
   varControls: {
     display: "flex",
@@ -589,43 +324,60 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexShrink: 0,
   },
   pickerWrapper: {
-    width: "28px",
-    height: "28px",
+    width: "34px",
+    height: "34px",
+    position: "relative",
     borderRadius: "999px",
     overflow: "hidden",
-    border: "1px solid var(--color-border-card-soft)",
+    border: "1px solid rgba(122, 91, 57, 0.16)",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(237, 226, 209, 0.92)), rgba(247, 241, 230, 0.94)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 4px 10px rgba(89, 62, 34, 0.08)",
+  },
+  colorSwatch: {
+    position: "absolute",
+    inset: "3px",
+    borderRadius: "999px",
+    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.22)",
+    pointerEvents: "none",
   },
   colorPicker: {
-    width: "40px",
-    height: "40px",
+    position: "absolute",
+    inset: 0,
+    display: "block",
+    width: "100%",
+    height: "100%",
     padding: 0,
-    margin: "-6px",
+    margin: 0,
     border: "none",
     background: "transparent",
     cursor: "pointer",
+    opacity: 0,
   },
   resetBtn: {
-    width: "24px",
-    height: "24px",
-    border: "none",
+    width: "28px",
+    height: "28px",
+    border: "1px solid rgba(122, 91, 57, 0.14)",
     borderRadius: "999px",
-    backgroundColor: "var(--color-bg-overlay-subtle)",
-    color: "var(--color-text-page-secondary)",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(236, 225, 207, 0.95)), rgba(247, 241, 230, 0.92)",
+    color: "#6a5139",
     cursor: "pointer",
+    boxShadow:
+      "inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 2px 8px rgba(89, 62, 34, 0.08)",
   },
   resetAllBtn: {
     marginTop: "16px",
-    border: "none",
-    borderRadius: "10px",
-    padding: "10px 14px",
-    backgroundColor: "var(--color-bg-danger)",
-    color: "var(--color-text-page-primary)",
+    border: "1px solid rgba(152, 66, 49, 0.24)",
+    borderRadius: "12px",
+    padding: "11px 14px",
+    background:
+      "linear-gradient(180deg, rgba(177, 86, 67, 0.96), rgba(135, 57, 42, 0.96)), rgba(123, 54, 40, 0.94)",
+    color: "#fbf4ea",
     cursor: "pointer",
     fontWeight: 600,
-  },
-  emptyState: {
-    color: "var(--color-text-page-secondary)",
-    fontSize: "13px",
-    lineHeight: 1.6,
+    boxShadow:
+      "0 14px 28px rgba(92, 38, 25, 0.16), inset 0 1px 0 rgba(255, 221, 213, 0.2)",
   },
 };

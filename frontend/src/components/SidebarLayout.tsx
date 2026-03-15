@@ -434,23 +434,23 @@ export const SidebarLayout: React.FC = () => {
                 setOpenDictionaryForWorkId((current) =>
                   current === workId ? null : workId,
                 );
-                setIsThemeOpen(false); // Close theme if opening dictionary
+                setIsThemeOpen(false);
               }}
             >
               <AppIcon name="dictionary" title="Dictionary" />
             </SidebarInteractiveItem>
           )}
 
-          {/* THE THEME EDITOR TRIGGER */}
           <SidebarInteractiveItem
-            title="Theme Editor"
+            title="Quote Theme"
             onClick={(event) => {
               setThemeAnchorRect(event.currentTarget.getBoundingClientRect());
-              setIsThemeOpen(!isThemeOpen);
-              setOpenDictionaryForWorkId(null); // Close dictionary if opening theme
+              setIsThemeOpen((current) => !current);
+              setOpenDictionaryForWorkId(null);
+              setIsSearchOpen(false);
             }}
           >
-            <AppIcon name="brush" title="Theme Editor" size={20} />
+            <AppIcon name="brush" title="Quote Theme" />
           </SidebarInteractiveItem>
 
           {auth.user &&
@@ -504,7 +504,6 @@ export const SidebarLayout: React.FC = () => {
       <ThemeEditorDrawer
         isOpen={isThemeOpen}
         onClose={() => setIsThemeOpen(false)}
-        routePath={location.pathname}
         anchorRect={themeAnchorRect}
       />
 
