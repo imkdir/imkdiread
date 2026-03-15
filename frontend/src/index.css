@@ -325,6 +325,27 @@ html {
     display: inline-flex;
 }
 
+.sidebar-icon-badge {
+    position: relative;
+    display: inline-flex;
+}
+
+.sidebar-icon-badge__count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #b15643;
+    color: #fff6ed;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(92, 38, 25, 0.24);
+}
+
 .sidebar-link__glare {
     position: absolute;
     inset: 0;

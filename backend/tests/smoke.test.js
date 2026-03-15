@@ -106,6 +106,31 @@ function seedTestDb(targetDbPath) {
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE
     );
+    CREATE TABLE user_work_alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      work_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      active BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      fulfilled_at DATETIME,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE,
+      UNIQUE (user_id, work_id, kind)
+    );
+    CREATE TABLE user_notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      work_id TEXT,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      payload TEXT,
+      read_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE
+    );
     CREATE TABLE vocabularies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL,
@@ -1060,6 +1085,7 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   const suffix = Date.now();
   const workId = `SMOKE-${suffix}`;
   const importedWorkId = `SMOKE-IMPORT-${suffix}`;
+  const notifyWorkId = `SMOKE-INBOX-${suffix}`;
 
   const createWork = await requestJson(
     "POST",
@@ -1167,6 +1193,24 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(bulkImport.status, 200);
   assert.equal(bulkImport.json?.success, true);
 
+  const createNotifyWork = await requestJson(
+    "POST",
+    "/api/works",
+    {
+      id: notifyWorkId,
+      title: "Inbox Notification Work",
+      page_count: 120,
+      goodreads_id: "",
+      dropbox_link: "",
+      amazon_asin: "",
+      authors: ["Aristotle"],
+      tags: ["stoicism"],
+    },
+    adminToken,
+  );
+  assert.equal(createNotifyWork.status, 200);
+  assert.equal(createNotifyWork.json?.success, true);
+
   const bulkTags = await requestJson(
     "POST",
     "/api/works/bulk-tags",
@@ -1203,6 +1247,152 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
     guestToken,
   );
   assert.equal(toggleShelved.status, 200);
+
+  const toggleShelvedImported = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(importedWorkId)}`,
+    { action: "shelved", value: true },
+    guestToken,
+  );
+  assert.equal(toggleShelvedImported.status, 200);
+
+  const toggleShelvedNotify = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(notifyWorkId)}`,
+    { action: "shelved", value: true },
+    guestToken,
+  );
+  assert.equal(toggleShelvedNotify.status, 200);
+
+  const importedAlertCount = appDb
+    .prepare(
+      `SELECT COUNT(*) AS count
+       FROM user_work_alerts
+       WHERE user_id = ? AND work_id = ? AND kind = ? AND active = 1 AND fulfilled_at IS NULL`,
+    )
+    .get("guest-1", importedWorkId, "work_available").count;
+  assert.equal(importedAlertCount, 1);
+
+  const inboxUnreadBefore = await requestJson(
+    "GET",
+    "/api/inbox/unread-count",
+    undefined,
+    guestToken,
+  );
+  assert.equal(inboxUnreadBefore.status, 200);
+  assert.equal(inboxUnreadBefore.json?.unread_count, 0);
+
+  const importedFileUpload = await requestMultipart(
+    "POST",
+    `/api/works/${encodeURIComponent(importedWorkId)}/files`,
+    [
+      {
+        name: "file",
+        filename: `${importedWorkId}.pdf`,
+        type: "application/pdf",
+        content: "%PDF-1.4 inbox pdf",
+      },
+    ],
+    adminToken,
+  );
+  assert.equal(importedFileUpload.status, 200);
+  assert.equal(importedFileUpload.json?.success, true);
+  trackPublicArtifact("files", `${importedWorkId}.pdf`);
+
+  const importedWorkDetail = await requestJson(
+    "GET",
+    `/api/works/${encodeURIComponent(importedWorkId)}`,
+    undefined,
+    guestToken,
+  );
+  assert.equal(importedWorkDetail.status, 200);
+  assert.ok(
+    Array.isArray(importedWorkDetail.json?.file_urls) &&
+      importedWorkDetail.json.file_urls.some((url) =>
+        url.endsWith(`${importedWorkId}.pdf`),
+      ),
+  );
+
+  const importedNotificationCount = appDb
+    .prepare(
+      `SELECT COUNT(*) AS count
+       FROM user_notifications
+       WHERE user_id = ? AND work_id = ? AND type = ?`,
+    )
+    .get("guest-1", importedWorkId, "work_available").count;
+  assert.equal(importedNotificationCount, 1);
+
+  const inboxAfterFile = await requestJson(
+    "GET",
+    "/api/inbox",
+    undefined,
+    guestToken,
+  );
+  assert.equal(inboxAfterFile.status, 200);
+  assert.equal(inboxAfterFile.json?.unread_count, 1);
+  assert.ok(Array.isArray(inboxAfterFile.json?.items));
+  const importedNotification = inboxAfterFile.json.items.find(
+    (item) => item.work_id === importedWorkId,
+  );
+  assert.equal(importedNotification?.type, "work_available");
+
+  const importedDropbox = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(importedWorkId)}/dropbox-link`,
+    { link: "https://www.dropbox.com/s/test/imported.pdf?dl=0" },
+    adminToken,
+  );
+  assert.equal(importedDropbox.status, 200);
+  assert.equal(importedDropbox.json?.success, true);
+
+  const inboxAfterDuplicateSource = await requestJson(
+    "GET",
+    "/api/inbox",
+    undefined,
+    guestToken,
+  );
+  const importedNotifications = (
+    inboxAfterDuplicateSource.json?.items || []
+  ).filter((item) => item.work_id === importedWorkId);
+  assert.equal(importedNotifications.length, 1);
+
+  const notifyDropbox = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(notifyWorkId)}/dropbox-link`,
+    { link: "https://www.dropbox.com/s/test/inbox.pdf?dl=0" },
+    adminToken,
+  );
+  assert.equal(notifyDropbox.status, 200);
+  assert.equal(notifyDropbox.json?.success, true);
+
+  const inboxAfterDropbox = await requestJson(
+    "GET",
+    "/api/inbox",
+    undefined,
+    guestToken,
+  );
+  assert.equal(inboxAfterDropbox.status, 200);
+  assert.equal(inboxAfterDropbox.json?.unread_count, 2);
+
+  const markImportedRead = await requestJson(
+    "POST",
+    `/api/inbox/${importedNotification.id}/read`,
+    {},
+    guestToken,
+  );
+  assert.equal(markImportedRead.status, 200);
+  assert.equal(markImportedRead.json?.success, true);
+  assert.equal(markImportedRead.json?.unread_count, 1);
+
+  const markAllRead = await requestJson(
+    "POST",
+    "/api/inbox/read-all",
+    {},
+    guestToken,
+  );
+  assert.equal(markAllRead.status, 200);
+  assert.equal(markAllRead.json?.success, true);
+  assert.equal(markAllRead.json?.unread_count, 0);
 
   const setRating = await requestJson(
     "POST",
@@ -1376,6 +1566,15 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(deleteImported.status, 200);
   assert.equal(deleteImported.json?.success, true);
 
+  const deleteNotifyWork = await requestJson(
+    "DELETE",
+    `/api/works/${encodeURIComponent(notifyWorkId)}`,
+    undefined,
+    adminToken,
+  );
+  assert.equal(deleteNotifyWork.status, 200);
+  assert.equal(deleteNotifyWork.json?.success, true);
+
   const deleteWork = await requestJson(
     "DELETE",
     `/api/works/${encodeURIComponent(workId)}`,
@@ -1524,6 +1723,16 @@ test("ensure database schema script bootstraps missing tables and columns", () =
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_reading_activities'",
       )
       .get();
+    const inboxAlertsTable = ensuredDb
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_work_alerts'",
+      )
+      .get();
+    const inboxNotificationsTable = ensuredDb
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_notifications'",
+      )
+      .get();
 
     const seriesTable = ensuredDb
       .prepare(
@@ -1537,6 +1746,8 @@ test("ensure database schema script bootstraps missing tables and columns", () =
     assert.ok(quoteColumns.some((column) => column.name === "explanation"));
     assert.ok(vocabTable);
     assert.ok(activityTable);
+    assert.ok(inboxAlertsTable);
+    assert.ok(inboxNotificationsTable);
     assert.equal(seriesTable, undefined);
 
     ensuredDb.close();

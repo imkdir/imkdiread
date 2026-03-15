@@ -5,10 +5,12 @@ const path = require("path");
 const Database = require("better-sqlite3");
 
 const { createWorkService } = require("./app/services/workService");
+const { createInboxService } = require("./app/services/inboxService");
 const { createAuthRouter } = require("./app/routes/auth");
 const { createTagsRouter } = require("./app/routes/tags");
 const { createAuthorsRouter } = require("./app/routes/authors");
 const { createWorksRouter } = require("./app/routes/works");
+const { createInboxRouter } = require("./app/routes/inbox");
 const { createProfileRouter } = require("./app/routes/profile");
 const { createScreensaverRouter } = require("./app/routes/screensavers");
 const { jsonError } = require("./app/utils/errorHelpers");
@@ -28,6 +30,7 @@ function createApp(options = {}) {
 
   const BACKEND_URL = options.backendUrl ?? process.env.BACKEND_URL ?? "";
   const workService = createWorkService({ db, BACKEND_URL });
+  const inboxService = createInboxService({ db, workService });
 
   app.use(cors());
   app.use(express.static(staticDir));
@@ -45,7 +48,8 @@ function createApp(options = {}) {
   app.use(createAuthRouter({ db }));
   app.use(createTagsRouter({ db }));
   app.use(createAuthorsRouter({ db, workService }));
-  app.use(createWorksRouter({ db, workService }));
+  app.use(createWorksRouter({ db, workService, inboxService }));
+  app.use(createInboxRouter({ inboxService }));
   app.use(createProfileRouter({ db, workService }));
   app.use(createScreensaverRouter({ backendUrl: BACKEND_URL }));
 

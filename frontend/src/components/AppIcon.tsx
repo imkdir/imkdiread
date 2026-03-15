@@ -18,6 +18,7 @@ export type AppIconName =
   | "heart"
   | "heart-filled"
   | "home"
+  | "inbox"
   | "instagram"
   | "logout"
   | "pdf"
@@ -86,6 +87,21 @@ export function AppIcon(props: AppIconProps) {
             d="m21.762 8.786-7-6.68a3.994 3.994 0 0 0-5.524 0l-7 6.681A4.017 4.017 0 0 0 1 11.68V19c0 2.206 1.794 4 4 4h3.005a1 1 0 0 0 1-1v-7.003a2.997 2.997 0 0 1 5.994 0V22a1 1 0 0 0 1 1H19c2.206 0 4-1.794 4-4v-7.32a4.02 4.02 0 0 0-1.238-2.894Z"
             fill="currentColor"
           />
+        </svg>
+      );
+
+    case "inbox":
+      return (
+        <svg
+          {...getSvgProps(props, "0 0 24 24")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M3.85 7.7 6.85 4.36A3 3 0 0 1 9.08 3.4h5.84a3 3 0 0 1 2.23.96l3 3.34c.5.56.78 1.29.78 2.04v7.84a3 3 0 0 1-3 3H6.07a3 3 0 0 1-3-3V9.74c0-.75.28-1.48.78-2.04Z" />
+          <path d="M3.4 9.1h5.02a1.1 1.1 0 0 1 1.08.89l.17.8a2.4 2.4 0 0 0 4.66 0l.17-.8a1.1 1.1 0 0 1 1.08-.89h5.02" />
         </svg>
       );
 

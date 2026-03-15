@@ -12,6 +12,7 @@
     "series:drop": "node scripts/drop-series-table.js",
     "migrate:legacy-schema": "node scripts/migrate-legacy-pdf-schema.js",
     "migrate:authors-id": "node scripts/migrate-authors-to-id-schema.js",
+    "migrate:inbox": "node scripts/migrate-inbox-notifications.js",
     "migrate:reading-activities": "node scripts/migrate-reading-progress-to-activities.js",
     "create-admin": "node scripts/create-admin.js"
   },

@@ -88,6 +88,33 @@ CREATE TABLE IF NOT EXISTS user_reading_activities (
   FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS user_work_alerts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  work_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  active BOOLEAN DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  fulfilled_at DATETIME,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE,
+  UNIQUE (user_id, work_id, kind)
+);
+
+CREATE TABLE IF NOT EXISTS user_notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  work_id TEXT,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  payload TEXT,
+  read_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS vocabularies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL,

@@ -50,6 +50,16 @@ function createWorkService({ db, BACKEND_URL }) {
     );
   }
 
+  function isWorkAvailable(workOrId) {
+    if (!workOrId) return false;
+
+    const workId = typeof workOrId === "string" ? workOrId : workOrId.id;
+    const dropboxLink =
+      typeof workOrId === "string" ? null : workOrId.dropbox_link;
+
+    return Boolean(dropboxLink) || getWorkFileNames(workId).length > 0;
+  }
+
   function processWork(work) {
     const fileUrls = getWorkFileUrls(work.id);
     return {
@@ -276,6 +286,9 @@ function createWorkService({ db, BACKEND_URL }) {
     ensureUserWorkInteraction,
     recordReadingActivity,
     getGenreBackgroundUrl,
+    getWorkFileNames,
+    getWorkFileUrls,
+    isWorkAvailable,
   };
 }
 

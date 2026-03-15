@@ -66,7 +66,7 @@ const workCoverUpload = multer({
   },
 });
 
-function createWorksRouter({ db, workService }) {
+function createWorksRouter({ db, workService, inboxService }) {
   const router = express.Router();
 
   function parseWorkPayload(rawWork) {
@@ -283,6 +283,11 @@ function createWorksRouter({ db, workService }) {
       const parsed = parseWorkPayload(req.body);
       if (parsed.error) return jsonError(res, 400, parsed.error);
       const work = parsed.work;
+      const existingWork = db.prepare("SELECT * FROM works WHERE id = ?").get(id);
+      if (!existingWork) {
+        return jsonError(res, 404, "Work not found");
+      }
+      const wasAvailable = workService.isWorkAvailable(existingWork);
 
       const executeWorkUpdate = () => {
         if (work.id !== id) {
@@ -341,6 +346,8 @@ function createWorksRouter({ db, workService }) {
       } else {
         db.transaction(executeWorkUpdate)();
       }
+
+      inboxService.notifyWorkAvailabilityIfNeeded(work.id, wasAvailable);
       res.json({ success: true });
     } catch (error) {
       console.error(error);
@@ -367,10 +374,14 @@ function createWorksRouter({ db, workService }) {
           return jsonError(res, 404, "Work not found.");
         }
 
+        const wasAvailable = workService.isWorkAvailable(workRow);
+
         db.prepare("UPDATE works SET dropbox_link = ? WHERE id = ?").run(
           link,
           workId,
         );
+
+        inboxService.notifyWorkAvailabilityIfNeeded(workId, wasAvailable);
 
         res.json({ success: true, dropbox_link: link });
       } catch (error) {
@@ -451,7 +462,7 @@ function createWorksRouter({ db, workService }) {
         const workId = req.params.id;
 
         const workRow = db
-          .prepare("SELECT id FROM works WHERE id = ?")
+          .prepare("SELECT * FROM works WHERE id = ?")
           .get(workId);
         if (!workRow) {
           return jsonError(res, 404, "Work not found.");
@@ -461,7 +472,13 @@ function createWorksRouter({ db, workService }) {
           return jsonError(res, 400, "File is required.");
         }
 
+        const hadOtherFiles = workService
+          .getWorkFileNames(workId)
+          .some((filename) => filename !== req.file.filename);
+        const wasAvailable = Boolean(workRow.dropbox_link) || hadOtherFiles;
+
         const fileUrl = `/files/${req.file.filename}`;
+        inboxService.notifyWorkAvailabilityIfNeeded(workId, wasAvailable);
         res.json({ success: true, url: fileUrl });
       } catch (error) {
         console.error("Failed to upload work file:", error);
@@ -603,6 +620,10 @@ function createWorksRouter({ db, workService }) {
       ON CONFLICT(user_id, work_id) DO UPDATE SET ${action} = excluded.${action}
     `,
       ).run(userId, workId, safeValue);
+
+      if (action === "shelved") {
+        inboxService.syncAvailabilityAlert(userId, workId, Boolean(safeValue));
+      }
 
       res.json({ success: true });
     } catch (error) {

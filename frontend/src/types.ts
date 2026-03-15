@@ -48,3 +48,14 @@ export interface User {
   is_email_public?: boolean | null;
   avatar_url?: string | null;
 }
+
+export interface InboxNotification {
+  id: number;
+  type: string;
+  work_id?: string | null;
+  title: string;
+  body: string;
+  payload?: Record<string, unknown> | null;
+  read_at?: string | null;
+  created_at: string;
+}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Papa from "papaparse";
 import {
   motion,
@@ -16,6 +16,7 @@ import { showToast } from "../utils/toast";
 
 import { AppIcon } from "./AppIcon";
 import { DictionaryDrawer } from "./DictionaryDrawer";
+import { InboxDrawer } from "./InboxDrawer";
 import { Modal } from "./Modal";
 import { ThemeEditorDrawer } from "./ThemeEditorDrawer";
 import { SearchDrawer } from "../pages/SearchPage";
@@ -153,10 +154,13 @@ export const SidebarLayout: React.FC = () => {
   const [openDictionaryForWorkId, setOpenDictionaryForWorkId] = useState<
     string | null
   >(null);
+  const [isInboxOpen, setIsInboxOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchInitialQuery, setSearchInitialQuery] = useState("");
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
+  const [unreadInboxCount, setUnreadInboxCount] = useState(0);
+  const [inboxAnchorRect, setInboxAnchorRect] = useState<DOMRect | null>(null);
   const [dictionaryAnchorRect, setDictionaryAnchorRect] =
     useState<DOMRect | null>(null);
   const [themeAnchorRect, setThemeAnchorRect] = useState<DOMRect | null>(null);
@@ -167,6 +171,31 @@ export const SidebarLayout: React.FC = () => {
     auth.logout();
     navigate("/login");
   };
+
+  const refreshInboxUnreadCount = useCallback(async () => {
+    if (!auth.user) {
+      setUnreadInboxCount(0);
+      return;
+    }
+
+    try {
+      const res = await request("/api/inbox/unread-count");
+      const data = await readJsonSafe<{
+        unread_count?: number;
+        error?: string;
+      }>(res);
+
+      if (!res.ok) {
+        throw new Error(
+          getApiErrorMessage(data, "Failed to load inbox count."),
+        );
+      }
+
+      setUnreadInboxCount(Number(data?.unread_count || 0));
+    } catch (error) {
+      console.error("Failed to refresh inbox count", error);
+    }
+  }, [auth.user]);
 
   const handleExportQuotes = async () => {
     try {
@@ -316,10 +345,15 @@ export const SidebarLayout: React.FC = () => {
   }, [location.pathname]);
 
   useEffect(() => {
+    void refreshInboxUnreadCount();
+  }, [auth.user?.id, location.pathname, refreshInboxUnreadCount]);
+
+  useEffect(() => {
     const handleOpenSearchDrawer = (event: Event) => {
       const customEvent = event as CustomEvent<{ query?: string }>;
       setSearchInitialQuery(customEvent.detail?.query || "");
       setIsSearchOpen(true);
+      setIsInboxOpen(false);
       setIsThemeOpen(false);
       setOpenDictionaryForWorkId(null);
       setTimeout(
@@ -340,6 +374,7 @@ export const SidebarLayout: React.FC = () => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsSearchOpen(true);
+        setIsInboxOpen(false);
         setIsThemeOpen(false);
         setOpenDictionaryForWorkId(null);
         setTimeout(
@@ -357,6 +392,10 @@ export const SidebarLayout: React.FC = () => {
         }
         if (isSearchOpen) {
           setIsSearchOpen(false);
+          return;
+        }
+        if (isInboxOpen) {
+          setIsInboxOpen(false);
           return;
         }
         if (isThemeOpen) {
@@ -389,7 +428,7 @@ export const SidebarLayout: React.FC = () => {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [navigate, isDictOpen, isSearchOpen, isThemeOpen]);
+  }, [navigate, isDictOpen, isSearchOpen, isInboxOpen, isThemeOpen]);
 
   return (
     <div className="layout-container" style={styles.layoutContainer}>
@@ -415,6 +454,7 @@ export const SidebarLayout: React.FC = () => {
             onClick={() => {
               setSearchInitialQuery("");
               setIsSearchOpen(true);
+              setIsInboxOpen(false);
               setIsThemeOpen(false);
               setOpenDictionaryForWorkId(null);
               setTimeout(
@@ -443,10 +483,31 @@ export const SidebarLayout: React.FC = () => {
                 setOpenDictionaryForWorkId((current) =>
                   current === workId ? null : workId,
                 );
+                setIsInboxOpen(false);
                 setIsThemeOpen(false);
               }}
             >
               <AppIcon name="dictionary" title="Dictionary" />
+            </SidebarInteractiveItem>
+          )}
+
+          {auth.user && (
+            <SidebarInteractiveItem
+              title="Inbox"
+              onClick={(event) => {
+                setInboxAnchorRect(event.currentTarget.getBoundingClientRect());
+                setIsInboxOpen((current) => !current);
+                setOpenDictionaryForWorkId(null);
+                setIsSearchOpen(false);
+                setIsThemeOpen(false);
+              }}
+            >
+              <span className="sidebar-icon-badge">
+                <AppIcon name={"inbox"} title="Inbox" />
+                {unreadInboxCount > 0 && (
+                  <span className="sidebar-icon-badge__count" />
+                )}
+              </span>
             </SidebarInteractiveItem>
           )}
 
@@ -456,6 +517,7 @@ export const SidebarLayout: React.FC = () => {
               setThemeAnchorRect(event.currentTarget.getBoundingClientRect());
               setIsThemeOpen((current) => !current);
               setOpenDictionaryForWorkId(null);
+              setIsInboxOpen(false);
               setIsSearchOpen(false);
             }}
           >
@@ -508,6 +570,13 @@ export const SidebarLayout: React.FC = () => {
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         initialQuery={searchInitialQuery}
+      />
+
+      <InboxDrawer
+        isOpen={isInboxOpen}
+        onClose={() => setIsInboxOpen(false)}
+        anchorRect={inboxAnchorRect}
+        onUnreadCountChange={setUnreadInboxCount}
       />
 
       <ThemeEditorDrawer
