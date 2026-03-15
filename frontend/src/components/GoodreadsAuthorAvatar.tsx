@@ -14,6 +14,7 @@ interface AvatarProps {
   imageClassName?: string;
   imageStyle?: React.CSSProperties;
   placeholderStyle?: React.CSSProperties;
+  disableAdminUpload?: boolean;
 }
 
 interface ImgState {
@@ -145,9 +146,10 @@ export class GoodreadsAuthorAvatar extends React.Component<
       imageClassName,
       imageStyle,
       placeholderStyle,
+      disableAdminUpload,
     } = this.props;
     const { hasError, uploadError, uploadedAvatarUrl } = this.state;
-    const isAdmin = this.getIsAdmin();
+    const isAdmin = this.getIsAdmin() && !disableAdminUpload;
 
     const src = uploadedAvatarUrl || author.avatar_img_url;
     const alt = author.name;

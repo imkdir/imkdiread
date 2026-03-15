@@ -296,6 +296,10 @@ function createAuthorsRouter({ db, workService }) {
       }
 
       db.transaction(() => {
+        db.prepare("DELETE FROM work_authors WHERE author_id = ?").run(author.id);
+        db.prepare(
+          "DELETE FROM user_author_interactions WHERE author_id = ?",
+        ).run(author.id);
         db.prepare("DELETE FROM authors WHERE id = ?").run(author.id);
       })();
 

@@ -228,6 +228,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
               <GoodreadsAuthorAvatar
                 author={profile}
                 className="author-page__avatar"
+                disableAdminUpload={true}
               />
               <GoodreadsButton
                 category="author"

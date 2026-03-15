@@ -14,7 +14,8 @@ export const AuthorCard: React.FC<{
     nameColor?: string;
     avatarPlaceholderBackgroundColor?: string;
   };
-}> = ({ author, style, theme }) => (
+  disableAvatarUpload?: boolean;
+}> = ({ author, style, theme, disableAvatarUpload }) => (
   <Link
     to={`/collection/${encodeURIComponent(author.name)}`}
     style={{
@@ -40,6 +41,7 @@ export const AuthorCard: React.FC<{
           ? { backgroundColor: theme.avatarPlaceholderBackgroundColor }
           : undefined
       }
+      disableAdminUpload={disableAvatarUpload}
     />
     <span
       style={{
