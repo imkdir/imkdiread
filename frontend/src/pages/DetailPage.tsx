@@ -19,7 +19,11 @@ import { DetailFileUploadModal } from "../components/detail/DetailFileUploadModa
 import { Modal } from "../components/Modal";
 import { useAuth } from "../components/AuthContext";
 import { useDetailPage } from "../hooks/useDetailPage";
-import { updateWorkTags, uploadWorkCover } from "../services/detailPageService";
+import {
+  updateWorkPageCount,
+  updateWorkTags,
+  uploadWorkCover,
+} from "../services/detailPageService";
 import { formatTagLabel, isGenreTag } from "../utils/tags";
 import { showToast } from "../utils/toast";
 
@@ -74,9 +78,12 @@ function DetailPage({ workId, initialWork }: Props) {
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+  const [isPageCountModalOpen, setIsPageCountModalOpen] = useState(false);
+  const [pageCountDraft, setPageCountDraft] = useState("");
   const [tagDrafts, setTagDrafts] = useState<TagDraft[]>([]);
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [isSavingTags, setIsSavingTags] = useState(false);
+  const [isSavingPageCount, setIsSavingPageCount] = useState(false);
   const isAdmin = user?.role === "admin";
 
   const {
@@ -133,6 +140,7 @@ function DetailPage({ workId, initialWork }: Props) {
     setTagDrafts(buildTagDrafts(work.tags || []));
     setEditingTagId(null);
     setIsTagDropdownOpen(false);
+    setPageCountDraft(String(work.page_count || 0));
   }, [work]);
 
   useEffect(() => {
@@ -248,6 +256,46 @@ function DetailPage({ workId, initialWork }: Props) {
     }
   };
 
+  const openPageCountModal = () => {
+    if (!work) return;
+    setPageCountDraft(String(work.page_count || 0));
+    setIsPageCountModalOpen(true);
+  };
+
+  const closePageCountModal = () => {
+    if (!work || isSavingPageCount) return;
+    setPageCountDraft(String(work.page_count || 0));
+    setIsPageCountModalOpen(false);
+  };
+
+  const handleSavePageCount = async () => {
+    if (!work) return;
+
+    const nextPageCount = Number(pageCountDraft.trim());
+    if (!Number.isInteger(nextPageCount) || nextPageCount < 0) {
+      showToast("Page count must be a non-negative whole number.", {
+        tone: "error",
+      });
+      return;
+    }
+
+    setIsSavingPageCount(true);
+
+    try {
+      await updateWorkPageCount(work, nextPageCount);
+      await fetchData();
+      setIsPageCountModalOpen(false);
+      showToast("Page count updated.", { tone: "success" });
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to update page count.",
+        { tone: "error" },
+      );
+    } finally {
+      setIsSavingPageCount(false);
+    }
+  };
+
   if (loading || !work) return null;
 
   const canUseDropbox = Boolean(work.dropbox_link) || isAdmin;
@@ -358,6 +406,31 @@ function DetailPage({ workId, initialWork }: Props) {
                       </span>
                     </Link>
                   ))}
+
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      className="detail-meta-pill detail-page-count-pill"
+                      onClick={openPageCountModal}
+                    >
+                      <span className="detail-meta-pill__inner">
+                        <span className="detail-meta-pill__glare" />
+                        <span className="detail-meta-pill__content detail-page-count-pill__content">
+                          <AppIcon name="edit" title="Edit page count" size={13} />
+                          <span>{work.page_count} pages</span>
+                        </span>
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="detail-meta-pill detail-page-count-pill">
+                      <span className="detail-meta-pill__inner">
+                        <span className="detail-meta-pill__content">
+                          {work.page_count} pages
+                        </span>
+                        <span className="detail-meta-pill__glare" />
+                      </span>
+                    </span>
+                  )}
 
                   {firstTag ? (
                     <div
@@ -647,6 +720,51 @@ function DetailPage({ workId, initialWork }: Props) {
             disabled={isSavingTags}
           >
             {isSavingTags ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isAdmin && isPageCountModalOpen}
+        onClose={closePageCountModal}
+        cardClassName="detail-page-count-modal"
+      >
+        <div className="modal-header">
+          <AppIcon name="pdf" title="Page count" size={16} />
+          <p className="modal-subtitle">Update this work&apos;s page count</p>
+        </div>
+
+        <label className="detail-page-count-modal__field">
+          <span className="detail-page-count-modal__label">Pages</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            inputMode="numeric"
+            value={pageCountDraft}
+            onChange={(event) => setPageCountDraft(event.target.value)}
+            className="modal-input"
+            placeholder="Enter page count"
+            autoFocus
+          />
+        </label>
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            onClick={closePageCountModal}
+            className="modal-btn modal-btn--cancel"
+            disabled={isSavingPageCount}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSavePageCount}
+            className="modal-btn modal-btn--primary"
+            disabled={isSavingPageCount}
+          >
+            {isSavingPageCount ? "Saving..." : "Save"}
           </button>
         </div>
       </Modal>

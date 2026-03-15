@@ -271,3 +271,26 @@ export async function updateWorkTags(
     throw new Error(getApiErrorMessage(data, "Failed to update tags."));
   }
 }
+
+export async function updateWorkPageCount(
+  work: Work,
+  pageCount: number,
+): Promise<void> {
+  const res = await request(`/api/works/${encodeURIComponent(work.id)}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      id: work.id,
+      title: work.title,
+      goodreads_id: work.goodreads_id || "",
+      page_count: pageCount,
+      dropbox_link: work.dropbox_link || "",
+      amazon_asin: work.amazon_asin || "",
+      authors: work.authors || [],
+      tags: work.tags || [],
+    }),
+  });
+  const data = await readJsonSafe<ApiSuccessResponse>(res);
+  if (!res.ok || !data?.success) {
+    throw new Error(getApiErrorMessage(data, "Failed to update page count."));
+  }
+}

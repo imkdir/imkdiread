@@ -237,7 +237,7 @@
         -webkit-backdrop-filter: blur(5px);
         border: none;
         border-radius: 0;
-        padding: 40px;
+        padding: 60px 60px 20px 60px;
         box-sizing: border-box;
         display: flex;
         flex-direction: row;
@@ -339,7 +339,8 @@
 }
 
 .detail-author-pill,
-.detail-tag-pill {
+.detail-tag-pill,
+.detail-page-count-pill {
     color: var(--theme-pill-text);
 }
 
@@ -351,15 +352,27 @@
 }
 
 .detail-author-pill:hover .detail-meta-pill__inner,
-.detail-tag-pill:hover .detail-meta-pill__inner {
+.detail-tag-pill:hover .detail-meta-pill__inner,
+.detail-page-count-pill:hover .detail-meta-pill__inner {
     box-shadow:
         0 14px 26px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .detail-author-pill:hover .detail-meta-pill__glare,
-.detail-tag-pill:hover .detail-meta-pill__glare {
+.detail-tag-pill:hover .detail-meta-pill__glare,
+.detail-page-count-pill:hover .detail-meta-pill__glare {
     opacity: 1;
+}
+
+.detail-page-count-pill {
+    border: 0;
+    padding: 0;
+    background: transparent;
+}
+
+.detail-page-count-pill__content {
+    cursor: pointer;
 }
 
 .detail-tag-pill__link,
@@ -475,6 +488,24 @@
 
 .detail-tags-modal {
     width: min(560px, 92vw);
+}
+
+.detail-page-count-modal {
+    width: min(420px, 92vw);
+}
+
+.detail-page-count-modal__field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.detail-page-count-modal__label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted-mid);
 }
 
 .detail-tag-list {
