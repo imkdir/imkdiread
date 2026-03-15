@@ -621,7 +621,9 @@ function createWorksRouter({ db, workService }) {
           db.prepare("DELETE FROM work_authors WHERE work_id = ?").run(id);
           db.prepare("DELETE FROM work_tags WHERE work_id = ?").run(id);
           db.prepare("DELETE FROM work_quotes WHERE work_id = ?").run(id);
-          db.prepare("DELETE FROM user_reading_activities WHERE work_id = ?").run(id);
+          db.prepare(
+            "DELETE FROM user_reading_activities WHERE work_id = ?",
+          ).run(id);
           db.prepare("DELETE FROM works WHERE id = ?").run(id);
         })();
         res.json({ success: true });
@@ -797,47 +799,100 @@ function createWorksRouter({ db, workService }) {
           .get(workId);
         if (!work) return res.status(404).json({ error: "Work not found" });
 
-        // 2. Initialize Gemini (Using the current active 2.5 Flash model)
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({
-          model: "gemini-2.5-flash",
-          // Modern models support strict JSON output natively!
-          generationConfig: { responseMimeType: "application/json" },
+        // 2. ATTEMPT GEMINI
+        try {
+          const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+          const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" },
+          });
+
+          const prompt = `
+              You are an expert literary dictionary. The user is reading the book "${work.title}".
+              They are looking up: "${word}".
+
+              Task 1: Determine if "${word}" is a specific character, place, or lore unique to "${work.title}".
+              If it IS, provide a brief encyclopedic explanation in the "lore_note" field.
+              If it is JUST A STANDARD VOCABULARY WORD (like 'ephemeral', 'table', 'run'), you MUST set "lore_note" to exactly null (the JSON primitive, no quotes). Do not invent lore for normal words.
+
+              Task 2: Provide the standard dictionary definition.
+
+              You MUST respond with ONLY a valid JSON object matching this exact structure. No markdown, no conversational text.
+              {
+                "word": "${word}",
+                "lore_note": null,
+                "phonetic": "the phonetic spelling (optional)",
+                "meanings": [
+                  {
+                    "partOfSpeech": "noun",
+                    "definitions": [
+                      { "definition": "The precise definition of the word." }
+                    ]
+                  }
+                ]
+              }
+            `;
+
+          const result = await model.generateContent(prompt);
+          const responseText = result.response.text();
+          const dictionaryData = JSON.parse(responseText);
+
+          // If everything succeeds, return Gemini's response
+          return res.json({ success: true, result: dictionaryData });
+        } catch (geminiError) {
+          // This catches BOTH Gemini API errors AND JSON parsing errors
+          console.error(
+            "Gemini failed (API or Parse Error). Falling back to Free Dictionary API.",
+            geminiError.message || geminiError,
+          );
+
+          // 3. ATTEMPT FREE DICTIONARY FALLBACK
+          const fallbackRes = await fetch(
+            `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
+          );
+
+          if (!fallbackRes.ok) {
+            return res
+              .status(404)
+              .json({ error: "Word not found in dictionary." });
+          }
+
+          const fallbackData = await fallbackRes.json();
+          const dictEntry = fallbackData[0]; // Grab the primary definition entry
+
+          // Safely extract phonetics
+          let phoneticText = dictEntry.phonetic || "";
+          if (
+            !phoneticText &&
+            dictEntry.phonetics &&
+            dictEntry.phonetics.length > 0
+          ) {
+            const phoneticObj = dictEntry.phonetics.find((p) => p.text);
+            if (phoneticObj) phoneticText = phoneticObj.text;
+          }
+
+          // Map perfectly to our frontend's expected schema
+          const formattedResult = {
+            word: dictEntry.word,
+            lore_note: null,
+            phonetic: phoneticText,
+            meanings: dictEntry.meanings.map((m) => ({
+              partOfSpeech: m.partOfSpeech,
+              definitions: m.definitions.map((d) => ({
+                definition: d.definition,
+              })),
+            })),
+          };
+
+          return res.json({ success: true, result: formattedResult });
+        }
+      } catch (globalError) {
+        // This catches DB crashes or if the fetch() to the fallback API itself throws a network error
+        console.error("Global Dictionary Route Error:", globalError);
+        res.status(500).json({
+          error:
+            "Failed to look up word contextually, and dictionary fallback failed.",
         });
-
-        const prompt = `
-                You are an expert literary companion. The user is reading the book "${work.title}".
-                They are looking up: "${word}".
-
-                If this is a character, place, historical event, or specific lore from the book, provide a brief encyclopedic explanation of who or what it is in the "lore_note" field.
-                If it is a standard vocabulary word, provide its standard definition.
-
-                You MUST respond with a valid JSON object matching this exact structure:
-                {
-                  "word": "${word}",
-                  "lore_note": "Your encyclopedic explanation of the character/place/lore within the context of the book. (Leave as null if it's just a normal dictionary word).",
-                  "phonetic": "the phonetic spelling (optional)",
-                  "meanings": [
-                    {
-                      "partOfSpeech": "noun/verb/adjective/etc",
-                      "definitions": [
-                        { "definition": "The precise definition of the word." }
-                      ]
-                    }
-                  ]
-                }
-              `;
-
-        // 4. Fetch and Parse
-        const result = await model.generateContent(prompt);
-
-        // Because we used responseMimeType, we can parse it instantly without regex!
-        const dictionaryData = JSON.parse(result.response.text());
-
-        res.json({ success: true, result: dictionaryData });
-      } catch (error) {
-        console.error("Gemini Dictionary Error:", error);
-        res.status(500).json({ error: "Failed to look up word contextually." });
       }
     },
   );
