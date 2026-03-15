@@ -11,6 +11,7 @@ interface DetailActionPanelProps {
   isPDFViewerOpen: boolean;
   isDrawerMode: boolean;
   isActionDrawerOpen: boolean;
+  isReadingFocusEnabled: boolean;
   progressContent: React.ReactNode;
   onToggleDrawer: () => void;
   onToggleAction: (action: DetailActionType) => void;
@@ -19,6 +20,7 @@ interface DetailActionPanelProps {
   onStarClick: () => void;
   onOpenQuoteModal: () => void;
   onOpenProgressModal: () => void;
+  onOpenReadingFocusModal: () => void;
   onClosePDFViewer: () => void;
 }
 
@@ -30,6 +32,7 @@ export function DetailActionPanel({
   isPDFViewerOpen,
   isDrawerMode,
   isActionDrawerOpen,
+  isReadingFocusEnabled,
   progressContent,
   onToggleDrawer,
   onToggleAction,
@@ -38,6 +41,7 @@ export function DetailActionPanel({
   onStarClick,
   onOpenQuoteModal,
   onOpenProgressModal,
+  onOpenReadingFocusModal,
   onClosePDFViewer,
 }: DetailActionPanelProps) {
   return (
@@ -75,7 +79,9 @@ export function DetailActionPanel({
               name={liked ? "heart-filled" : "heart"}
               className="detail-action-icon"
             />
-            <span className="detail-action-label">{liked ? "Liked" : "Like"}</span>
+            <span className="detail-action-label">
+              {liked ? "Liked" : "Like"}
+            </span>
           </div>
           <div
             className={`detail-action-icon-col ${shelved ? "detail-action-icon-col--shelved-active" : ""}`}
@@ -148,6 +154,19 @@ export function DetailActionPanel({
 
         {isPDFViewerOpen && (
           <>
+            <hr className="detail-divider" />
+            <div className="detail-action-row">
+              <button
+                onClick={onOpenReadingFocusModal}
+                className="detail-action-button detail-action-button--with-icon"
+              >
+                <span className="detail-action-button__content">
+                  <span className="detail-action-label">
+                    {`Reading Focus ${isReadingFocusEnabled ? "On" : "Off"} `}
+                  </span>
+                </span>
+              </button>
+            </div>
             <hr className="detail-divider" />
             <div className="detail-action-row">
               <button

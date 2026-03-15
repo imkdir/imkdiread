@@ -55,6 +55,70 @@ interface AuthorDraft {
   value: string;
 }
 
+interface ReadingFocusSettings {
+  enabled: boolean;
+  maskColor: string;
+  maskOpacity: number;
+  toolbarHeight: number;
+  focusHeight: number;
+}
+
+const READING_FOCUS_STORAGE_KEY = "detail-reading-focus-settings";
+const DEFAULT_READING_FOCUS_SETTINGS: ReadingFocusSettings = {
+  enabled: false,
+  maskColor: "#000000",
+  maskOpacity: 0.72,
+  toolbarHeight: 56,
+  focusHeight: 180,
+};
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function sanitizeReadingFocusSettings(
+  settings: ReadingFocusSettings,
+): ReadingFocusSettings {
+  const normalizedColor = /^#[0-9a-f]{6}$/i.test(settings.maskColor)
+    ? settings.maskColor
+    : DEFAULT_READING_FOCUS_SETTINGS.maskColor;
+
+  return {
+    enabled: settings.enabled,
+    maskColor: normalizedColor,
+    maskOpacity: clampNumber(settings.maskOpacity, 0, 1),
+    toolbarHeight: clampNumber(Math.round(settings.toolbarHeight), 0, 320),
+    focusHeight: clampNumber(Math.round(settings.focusHeight), 40, 520),
+  };
+}
+
+function loadReadingFocusSettings(): ReadingFocusSettings {
+  if (typeof window === "undefined") {
+    return DEFAULT_READING_FOCUS_SETTINGS;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(READING_FOCUS_STORAGE_KEY);
+    if (!raw) return DEFAULT_READING_FOCUS_SETTINGS;
+
+    return sanitizeReadingFocusSettings({
+      ...DEFAULT_READING_FOCUS_SETTINGS,
+      ...JSON.parse(raw),
+    });
+  } catch {
+    return DEFAULT_READING_FOCUS_SETTINGS;
+  }
+}
+
+function hexToRgba(hex: string, opacity: number) {
+  const normalized = hex.replace("#", "");
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+
+  return `rgba(${r}, ${g}, ${b}, ${clampNumber(opacity, 0, 1)})`;
+}
+
 function buildTagDrafts(tags: string[]): TagDraft[] {
   return tags.map((tag, index) => ({
     id: `${tag}-${index}`,
@@ -93,6 +157,7 @@ function DetailPage({ workId, initialWork }: Props) {
   const { user } = useAuth();
   const detail = useDetailPage({ workId, initialWork });
   const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const pdfFrameWrapperRef = useRef<HTMLDivElement | null>(null);
   const authorDropdownRef = useRef<HTMLDivElement | null>(null);
   const tagDropdownRef = useRef<HTMLDivElement | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
@@ -102,6 +167,7 @@ function DetailPage({ workId, initialWork }: Props) {
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [isPageCountModalOpen, setIsPageCountModalOpen] = useState(false);
+  const [isReadingFocusModalOpen, setIsReadingFocusModalOpen] = useState(false);
   const [pageCountDraft, setPageCountDraft] = useState("");
   const [authorDrafts, setAuthorDrafts] = useState<AuthorDraft[]>([]);
   const [tagDrafts, setTagDrafts] = useState<TagDraft[]>([]);
@@ -110,6 +176,13 @@ function DetailPage({ workId, initialWork }: Props) {
   const [isSavingAuthors, setIsSavingAuthors] = useState(false);
   const [isSavingTags, setIsSavingTags] = useState(false);
   const [isSavingPageCount, setIsSavingPageCount] = useState(false);
+  const [readingFocusSettings, setReadingFocusSettings] = useState(
+    loadReadingFocusSettings,
+  );
+  const [readingFocusDraft, setReadingFocusDraft] = useState(
+    loadReadingFocusSettings,
+  );
+  const [pdfFrameHeight, setPdfFrameHeight] = useState(0);
   const [isNarrowActionDrawerMode, setIsNarrowActionDrawerMode] = useState(
     () => window.innerWidth < 768,
   );
@@ -184,8 +257,58 @@ function DetailPage({ workId, initialWork }: Props) {
     closeUploadModal,
     handleWorkFileUpload,
   } = detail;
-  const isActionPanelDrawerMode =
-    isPDFViewerOpen || isNarrowActionDrawerMode;
+  const isActionPanelDrawerMode = isPDFViewerOpen || isNarrowActionDrawerMode;
+  const readingFocusOverlayColor = hexToRgba(
+    readingFocusSettings.maskColor,
+    readingFocusSettings.maskOpacity,
+  );
+  const effectiveToolbarHeight = clampNumber(
+    readingFocusSettings.toolbarHeight,
+    0,
+    pdfFrameHeight,
+  );
+  const availableFocusHeight = Math.max(
+    0,
+    pdfFrameHeight - effectiveToolbarHeight,
+  );
+  const effectiveFocusHeight =
+    availableFocusHeight <= 0
+      ? 0
+      : clampNumber(
+          readingFocusSettings.focusHeight,
+          Math.min(40, availableFocusHeight),
+          availableFocusHeight,
+        );
+  const isReadingFocusVisible =
+    isPDFViewerOpen &&
+    readingFocusSettings.enabled &&
+    pdfFrameHeight > effectiveToolbarHeight;
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      READING_FOCUS_STORAGE_KEY,
+      JSON.stringify(readingFocusSettings),
+    );
+  }, [readingFocusSettings]);
+
+  useEffect(() => {
+    if (!isPDFViewerOpen || !pdfFrameWrapperRef.current) {
+      setPdfFrameHeight(0);
+      return;
+    }
+
+    const element = pdfFrameWrapperRef.current;
+    const updateHeight = () => {
+      setPdfFrameHeight(element.clientHeight);
+    };
+
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [isPDFViewerOpen]);
 
   useEffect(() => {
     if (!work) return;
@@ -434,6 +557,22 @@ function DetailPage({ workId, initialWork }: Props) {
     } finally {
       setIsSavingPageCount(false);
     }
+  };
+
+  const openReadingFocusModal = () => {
+    setReadingFocusDraft(readingFocusSettings);
+    setIsReadingFocusModalOpen(true);
+  };
+
+  const closeReadingFocusModal = () => {
+    setReadingFocusDraft(readingFocusSettings);
+    setIsReadingFocusModalOpen(false);
+  };
+
+  const handleSaveReadingFocus = () => {
+    setReadingFocusSettings(sanitizeReadingFocusSettings(readingFocusDraft));
+    setIsReadingFocusModalOpen(false);
+    showToast("Reading focus updated.", { tone: "success" });
   };
 
   if (loading || !work) return null;
@@ -752,6 +891,7 @@ function DetailPage({ workId, initialWork }: Props) {
               isPDFViewerOpen={isPDFViewerOpen}
               isDrawerMode={isActionPanelDrawerMode}
               isActionDrawerOpen={isActionDrawerOpen}
+              isReadingFocusEnabled={readingFocusSettings.enabled}
               progressContent={<ProgressBar work={work} />}
               onToggleDrawer={toggleActionDrawer}
               onToggleAction={toggleAction}
@@ -760,6 +900,7 @@ function DetailPage({ workId, initialWork }: Props) {
               onStarClick={handleStarClick}
               onOpenQuoteModal={() => openEditFormModal("quote")}
               onOpenProgressModal={() => openEditFormModal("progress")}
+              onOpenReadingFocusModal={openReadingFocusModal}
               onClosePDFViewer={closePDFViewer}
             />
           </div>
@@ -794,13 +935,36 @@ function DetailPage({ workId, initialWork }: Props) {
 
         {isPDFViewerOpen && (
           <div className="pdf-viewer-pane">
-            <div className="detail-pdf-frame-wrapper">
+            <div className="detail-pdf-frame-wrapper" ref={pdfFrameWrapperRef}>
               <iframe
                 src={viewerInitialUrl as string}
                 width="100%"
                 height="100%"
                 className="detail-pdf-iframe"
               />
+              {isReadingFocusVisible && (
+                <div
+                  className="detail-reading-focus-overlay"
+                  aria-hidden="true"
+                >
+                  <div
+                    className="detail-reading-focus-overlay__toolbar"
+                    style={{ height: effectiveToolbarHeight }}
+                  />
+                  <div
+                    className="detail-reading-focus-overlay__mask"
+                    style={{ backgroundColor: readingFocusOverlayColor }}
+                  />
+                  <div
+                    className="detail-reading-focus-overlay__window"
+                    style={{ height: effectiveFocusHeight }}
+                  />
+                  <div
+                    className="detail-reading-focus-overlay__mask"
+                    style={{ backgroundColor: readingFocusOverlayColor }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -842,6 +1006,152 @@ function DetailPage({ workId, initialWork }: Props) {
         onUpload={handleWorkFileUpload}
         onClose={closeUploadModal}
       />
+
+      <Modal
+        isOpen={isPDFViewerOpen && isReadingFocusModalOpen}
+        onClose={closeReadingFocusModal}
+        cardClassName="detail-reading-focus-modal"
+      >
+        <div className="detail-reading-focus-form">
+          <label className="detail-reading-focus-toggle">
+            <span className="detail-reading-focus-toggle__text">
+              <span className="detail-reading-focus-toggle__title">
+                Reading focus
+              </span>
+              <span className="detail-reading-focus-toggle__description">
+                Dim the page around a centered reading window.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={readingFocusDraft.enabled}
+              onChange={(event) =>
+                setReadingFocusDraft((current) => ({
+                  ...current,
+                  enabled: event.target.checked,
+                }))
+              }
+              className="detail-reading-focus-toggle__input"
+            />
+          </label>
+          <label className="detail-reading-focus-field">
+            <span className="detail-reading-focus-field__label">
+              Mask Appearance
+            </span>
+            <span className="detail-reading-focus-mask-row">
+              <span className="detail-reading-focus-color-row">
+                <input
+                  type="color"
+                  value={readingFocusDraft.maskColor}
+                  onChange={(event) =>
+                    setReadingFocusDraft((current) => ({
+                      ...current,
+                      maskColor: event.target.value,
+                    }))
+                  }
+                  className="detail-reading-focus-color-input"
+                  disabled={!readingFocusDraft.enabled}
+                />
+                <span className="detail-reading-focus-field__value">
+                  {readingFocusDraft.maskColor.toUpperCase()}
+                </span>
+              </span>
+              <span className="detail-reading-focus-opacity-row">
+                <span className="detail-reading-focus-opacity-label">
+                  Opacity
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={Math.round(readingFocusDraft.maskOpacity * 100)}
+                  onChange={(event) =>
+                    setReadingFocusDraft((current) => ({
+                      ...current,
+                      maskOpacity: Number(event.target.value) / 100,
+                    }))
+                  }
+                  className="detail-reading-focus-range detail-reading-focus-range--inline"
+                  disabled={!readingFocusDraft.enabled}
+                />
+                <span className="detail-reading-focus-field__value">
+                  {Math.round(readingFocusDraft.maskOpacity * 100)}%
+                </span>
+              </span>
+            </span>
+          </label>
+
+          <label className="detail-reading-focus-field">
+            <span className="detail-reading-focus-field__header">
+              <span className="detail-reading-focus-field__label">
+                Toolbar reserve
+              </span>
+              <span className="detail-reading-focus-field__value">
+                {readingFocusDraft.toolbarHeight}px
+              </span>
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="160"
+              step="1"
+              value={readingFocusDraft.toolbarHeight}
+              onChange={(event) =>
+                setReadingFocusDraft((current) => ({
+                  ...current,
+                  toolbarHeight: Number(event.target.value),
+                }))
+              }
+              className="detail-reading-focus-range"
+              disabled={!readingFocusDraft.enabled}
+            />
+          </label>
+
+          <label className="detail-reading-focus-field">
+            <span className="detail-reading-focus-field__header">
+              <span className="detail-reading-focus-field__label">
+                Focus window height
+              </span>
+              <span className="detail-reading-focus-field__value">
+                {readingFocusDraft.focusHeight}px
+              </span>
+            </span>
+            <input
+              type="range"
+              min="40"
+              max="360"
+              step="1"
+              value={readingFocusDraft.focusHeight}
+              onChange={(event) =>
+                setReadingFocusDraft((current) => ({
+                  ...current,
+                  focusHeight: Number(event.target.value),
+                }))
+              }
+              className="detail-reading-focus-range"
+              disabled={!readingFocusDraft.enabled}
+            />
+          </label>
+        </div>
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            onClick={closeReadingFocusModal}
+            className="modal-btn modal-btn--cancel"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveReadingFocus}
+            className="modal-btn modal-btn--save"
+          >
+            Save
+          </button>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={isAdmin && isAuthorsModalOpen}
