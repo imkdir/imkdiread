@@ -45,10 +45,6 @@ export function ToastViewport() {
       window.removeEventListener(TOAST_EVENT, handleToast as EventListener);
   }, []);
 
-  if (!toasts.length) {
-    return null;
-  }
-
   return (
     <div className="toast-viewport" aria-live="polite" aria-atomic="true">
       {toasts.map((toast) => (
@@ -62,4 +58,3 @@ export function ToastViewport() {
     </div>
   );
 }
-

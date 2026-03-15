@@ -584,9 +584,13 @@
 }
 
 .detail-quote-modal-shell {
+    position: relative;
+    z-index: 1;
     perspective: 1200px;
     width: 100%;
     max-width: 460px;
+    isolation: isolate;
+    transform: translateZ(0);
 }
 
 .detail-upload-file-row {
@@ -649,6 +653,9 @@
 .detail-quote-modal-flipper {
     position: relative;
     width: 100%;
+    z-index: 1;
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .detail-modal-quote-face {
