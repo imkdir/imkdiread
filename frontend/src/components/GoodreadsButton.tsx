@@ -185,14 +185,14 @@ export class GoodreadsButton extends PureComponent<Props, State> {
 
 const styles: { [key: string]: React.CSSProperties } = {
   root: {
-    height: "24px",
     border: "none",
-    padding: "4px 8px 0px 8px",
+    padding: "4px 8px 4px 8px",
     borderRadius: "8px",
     cursor: "pointer",
   },
   icon: {
-    height: "16px",
+    display: "block",
+    height: "20px",
     transform: "translateY(1px)",
   },
 };

@@ -290,9 +290,7 @@ function DetailPage({ workId, initialWork }: Props) {
   };
 
   const removeAuthorDraft = (authorId: string) => {
-    setAuthorDrafts((prev) =>
-      prev.filter((author) => author.id !== authorId),
-    );
+    setAuthorDrafts((prev) => prev.filter((author) => author.id !== authorId));
     setEditingAuthorId((current) => (current === authorId ? null : current));
   };
 
@@ -319,9 +317,7 @@ function DetailPage({ workId, initialWork }: Props) {
 
   const handleSaveTags = async () => {
     if (!work) return;
-    const normalizedTags = tagDrafts
-      .map(normalizeTagValue)
-      .filter(Boolean);
+    const normalizedTags = tagDrafts.map(normalizeTagValue).filter(Boolean);
     const uniqueTags = Array.from(new Set(normalizedTags));
 
     if (normalizedTags.length !== uniqueTags.length) {
@@ -512,18 +508,6 @@ function DetailPage({ workId, initialWork }: Props) {
                 </h1>
 
                 <div className="detail-metadata">
-                  <GoodreadsButton
-                    category="book"
-                    goodreadsId={work.goodreads_id}
-                    resourceId={work.id}
-                    onSavedId={() => {
-                      void fetchData();
-                    }}
-                    style={{
-                      backgroundColor: "var(--detail-page-goodreads-button-bg)",
-                    }}
-                  />
-
                   {firstAuthor && (
                     <MetadataPillWrap
                       className="detail-author-pill-wrap"
@@ -539,7 +523,11 @@ function DetailPage({ workId, initialWork }: Props) {
                               onClick={openAuthorsModal}
                               aria-label="Edit authors"
                             >
-                              <AppIcon name="edit" title="Edit authors" size={13} />
+                              <AppIcon
+                                name="edit"
+                                title="Edit authors"
+                                size={13}
+                              />
                             </MetadataPillSegment>
                           )}
                           <MetadataPillSegment
@@ -595,7 +583,11 @@ function DetailPage({ workId, initialWork }: Props) {
                           onClick={openPageCountModal}
                           aria-label="Edit page count"
                         >
-                          <AppIcon name="edit" title="Edit page count" size={13} />
+                          <AppIcon
+                            name="edit"
+                            title="Edit page count"
+                            size={13}
+                          />
                         </MetadataPillSegment>
                         <MetadataPillSegment
                           as="button"
@@ -611,7 +603,7 @@ function DetailPage({ workId, initialWork }: Props) {
                   ) : (
                     <MetadataPill className="detail-page-count-pill">
                       <MetadataPillSegment>
-                          {work.page_count} pages
+                        {work.page_count} pages
                       </MetadataPillSegment>
                     </MetadataPill>
                   )}
@@ -631,7 +623,11 @@ function DetailPage({ workId, initialWork }: Props) {
                               onClick={openTagsModal}
                               aria-label="Edit tags"
                             >
-                              <AppIcon name="edit" title="Edit tags" size={13} />
+                              <AppIcon
+                                name="edit"
+                                title="Edit tags"
+                                size={13}
+                              />
                             </MetadataPillSegment>
                           )}
                           <MetadataPillSegment
@@ -688,13 +684,13 @@ function DetailPage({ workId, initialWork }: Props) {
                         onClick={openTagsModal}
                       >
                         <MetadataPillSegment className="detail-tag-pill__empty-content">
-                            <AppIcon
-                              name="close"
-                              title="Add tag"
-                              size={12}
-                              style={{ transform: "rotate(45deg)" }}
-                            />
-                            <span>Add tag</span>
+                          <AppIcon
+                            name="close"
+                            title="Add tag"
+                            size={12}
+                            style={{ transform: "rotate(45deg)" }}
+                          />
+                          <span>Add tag</span>
                         </MetadataPillSegment>
                       </MetadataPill>
                     )
@@ -708,11 +704,22 @@ function DetailPage({ workId, initialWork }: Props) {
                     <DropboxButton
                       onClick={() => togglePDFViewer("dropbox")}
                       style={{
-                        backgroundColor:
-                          "var(--detail-page-dropbox-button-bg)",
+                        backgroundColor: "var(--detail-page-dropbox-button-bg)",
                       }}
                     />
                   )}
+
+                  <GoodreadsButton
+                    category="book"
+                    goodreadsId={work.goodreads_id}
+                    resourceId={work.id}
+                    onSavedId={() => {
+                      void fetchData();
+                    }}
+                    style={{
+                      backgroundColor: "var(--detail-page-goodreads-button-bg)",
+                    }}
+                  />
 
                   {work.amazon_asin && <KindleButton asin={work.amazon_asin} />}
                 </div>
@@ -920,9 +927,7 @@ function DetailPage({ workId, initialWork }: Props) {
       >
         <div className="modal-header">
           <AppIcon name="tag" title="Tags" size={16} />
-          <p className="modal-subtitle">
-            Edit this work's tags
-          </p>
+          <p className="modal-subtitle">Edit this work's tags</p>
         </div>
 
         <div className="detail-tag-editor">
