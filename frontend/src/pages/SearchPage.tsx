@@ -183,12 +183,9 @@ class SearchPageClass extends React.Component<Props, State> {
         showToast("Tags updated.", { tone: "success" });
       })
       .catch((error) =>
-        showToast(
-          error instanceof Error ? error.message : "Network error.",
-          {
-            tone: "error",
-          },
-        ),
+        showToast(error instanceof Error ? error.message : "Network error.", {
+          tone: "error",
+        }),
       );
   };
 
@@ -205,7 +202,8 @@ class SearchPageClass extends React.Component<Props, State> {
     // 3. Determine if the user is an admin
     const isAdmin = this.props.user?.role === "admin";
     const isTagBtnDisabled = selectedIds.length === 0 || !bulkTagInput.trim();
-    const showLoadingOnly = loading && query !== "" && searchResults.length === 0;
+    const showLoadingOnly =
+      loading && query !== "" && searchResults.length === 0;
 
     return (
       <div
@@ -218,7 +216,7 @@ class SearchPageClass extends React.Component<Props, State> {
         <div
           style={{
             ...styles.header,
-            top: this.props.inDrawer ? 0 : (window.innerWidth <= 768 ? 60 : 0),
+            top: this.props.inDrawer ? 0 : window.innerWidth <= 768 ? 60 : 0,
           }}
         >
           {/* Only render Edit Mode UI if they are an Admin and edit mode is active */}
@@ -304,7 +302,11 @@ class SearchPageClass extends React.Component<Props, State> {
                     Select
                   </button>
                 ) : (
-                  <AppIcon name="search" title="Search" style={styles.searchIcon} />
+                  <AppIcon
+                    name="search"
+                    title="Search"
+                    style={styles.searchIcon}
+                  />
                 )}
               </div>
             </div>
@@ -387,9 +389,7 @@ class SearchPageClass extends React.Component<Props, State> {
                 </div>
               ) : (
                 <div style={styles.emptyPrompt}>
-                  Search by title, author, existing tags, or your new
-                  <code style={styles.inlineCode}> genre:</code>
-                  tags.
+                  Search by title, author, existing tags
                 </div>
               )}
             </div>
@@ -404,7 +404,8 @@ class SearchPageClass extends React.Component<Props, State> {
 export const SearchPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const initialQuery = new URLSearchParams(window.location.search).get("q") || "";
+  const initialQuery =
+    new URLSearchParams(window.location.search).get("q") || "";
 
   const handleClose = () => {
     if (window.history.length > 1) {

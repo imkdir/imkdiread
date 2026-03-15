@@ -178,6 +178,10 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     setIsActionDrawerOpen((prev) => !prev);
   }, []);
 
+  const closeActionDrawer = useCallback(() => {
+    setIsActionDrawerOpen(false);
+  }, []);
+
   const toggleAction = useCallback(
     (action: DetailToggleAction) => {
       const current =
@@ -574,6 +578,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     displayQuotes,
     fetchData,
     toggleActionDrawer,
+    closeActionDrawer,
     toggleAction,
     handleStarMouseMove,
     handleStarClick,

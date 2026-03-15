@@ -228,6 +228,7 @@ function DetailPage({ workId, initialWork }: Props) {
     displayQuotes,
     fetchData,
     toggleActionDrawer,
+    closeActionDrawer,
     toggleAction,
     handleStarMouseMove,
     handleStarClick,
@@ -352,6 +353,23 @@ function DetailPage({ workId, initialWork }: Props) {
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [isTagDropdownOpen]);
+
+  useEffect(() => {
+    const handleAppEscape = (event: Event) => {
+      if (isActionDrawerOpen) {
+        closeActionDrawer();
+        event.preventDefault();
+        return;
+      }
+
+      if (isPDFViewerOpen) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener("app-escape", handleAppEscape);
+    return () => window.removeEventListener("app-escape", handleAppEscape);
+  }, [closeActionDrawer, isActionDrawerOpen, isPDFViewerOpen]);
 
   const handleCoverUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,

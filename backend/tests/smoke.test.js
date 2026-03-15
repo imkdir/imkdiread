@@ -18,6 +18,7 @@ let tempDir;
 let dbPath;
 let originalEnv;
 let originalGetGenerativeModel;
+let originalFetch;
 const tempPublicPaths = new Set();
 
 function seedTestDb(targetDbPath) {
@@ -402,6 +403,7 @@ test.before(async () => {
   process.env.GUEST_INVITE_CODE = "test-invite-code";
 
   originalGetGenerativeModel = GoogleGenerativeAI.prototype.getGenerativeModel;
+  originalFetch = global.fetch;
   GoogleGenerativeAI.prototype.getGenerativeModel = function getModel() {
     return {
       generateContent: async (prompt) => {
@@ -436,6 +438,32 @@ test.before(async () => {
         };
       },
     };
+  };
+  global.fetch = async (input, init) => {
+    const url = typeof input === "string" ? input : input?.url;
+    if (url?.startsWith("https://api.dictionaryapi.dev/api/v2/entries/en/")) {
+      const word = decodeURIComponent(url.split("/").at(-1) || "word");
+      return new Response(
+        JSON.stringify([
+          {
+            word,
+            phonetic: "/fallback/",
+            meanings: [
+              {
+                partOfSpeech: "noun",
+                definitions: [{ definition: `Fallback definition for ${word}.` }],
+              },
+            ],
+          },
+        ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
+    return originalFetch(input, init);
   };
 
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "imkdiread-smoke-"));
@@ -473,6 +501,9 @@ test.after(async () => {
 
   if (originalGetGenerativeModel) {
     GoogleGenerativeAI.prototype.getGenerativeModel = originalGetGenerativeModel;
+  }
+  if (originalFetch) {
+    global.fetch = originalFetch;
   }
 
   if (originalEnv) {
@@ -1238,13 +1269,28 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
 
   const lookup = await requestJson(
     "POST",
-    `/api/works/${encodeURIComponent(workId)}/dictionary/lookup`,
-    { word: "virtue" },
+    `/api/works/${encodeURIComponent(workId)}/context/lookup`,
+    { word: "virtue", mode: "context" },
     guestToken,
   );
   assert.equal(lookup.status, 200);
   assert.equal(lookup.json?.success, true);
+  assert.equal(lookup.json?.mode, "context");
+  assert.equal(lookup.json?.provider, "gemini");
   assert.equal(lookup.json?.result?.word, "virtue");
+
+  const wordLookup = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/context/lookup`,
+    { word: "temperance", mode: "word" },
+    guestToken,
+  );
+  assert.equal(wordLookup.status, 200);
+  assert.equal(wordLookup.json?.success, true);
+  assert.equal(wordLookup.json?.mode, "word");
+  assert.equal(wordLookup.json?.provider, "free-dictionary");
+  assert.equal(wordLookup.json?.result?.word, "temperance");
+  assert.equal(wordLookup.json?.result?.lore_note, null);
 
   const explain = await requestJson(
     "POST",

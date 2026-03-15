@@ -47,6 +47,8 @@ interface UserPreviewPosition {
   left: number;
 }
 
+type LookupMode = "word" | "context";
+
 interface Props {
   workId: string;
   isOpen: boolean;
@@ -62,6 +64,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
 }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [lookupMode, setLookupMode] = useState<LookupMode>("context");
   const [isSearching, setIsSearching] = useState(false);
   const [dictResult, setDictResult] = useState<DictResult | null>(null);
   const [savedVocabs, setSavedVocabs] = useState<SavedVocab[]>([]);
@@ -173,9 +176,9 @@ export const DictionaryDrawer: React.FC<Props> = ({
         const res = await request(
           `/api/profiles/${encodeURIComponent(username)}`,
         );
-        const data = await readJsonSafe<UserPreviewResponse & { error?: string }>(
-          res,
-        );
+        const data = await readJsonSafe<
+          UserPreviewResponse & { error?: string }
+        >(res);
 
         if (!res.ok) {
           throw new Error(
@@ -229,38 +232,46 @@ export const DictionaryDrawer: React.FC<Props> = ({
     }, 140);
   };
 
-  const handleSearch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!searchQuery.trim() || !workId) return;
+  const handleSearch = useCallback(
+    async (e?: React.FormEvent) => {
+      if (e) e.preventDefault();
+      if (!searchQuery.trim() || !workId) return;
 
-    setIsSearching(true);
-    setDictResult(null);
+      setIsSearching(true);
+      setDictResult(null);
 
-    try {
-      const res = await request(`/api/works/${workId}/dictionary/lookup`, {
-        method: "POST",
-        body: JSON.stringify({ word: searchQuery.trim() }),
-      });
+      try {
+        const res = await request(`/api/works/${workId}/context/lookup`, {
+          method: "POST",
+          body: JSON.stringify({
+            word: searchQuery.trim(),
+            mode: lookupMode,
+          }),
+        });
 
-      const data = await readJsonSafe<{
-        success?: boolean;
-        error?: string;
-        result?: DictResult;
-      }>(res);
+        const data = await readJsonSafe<{
+          success?: boolean;
+          error?: string;
+          mode?: LookupMode;
+          provider?: string;
+          result?: DictResult;
+        }>(res);
 
-      if (!res.ok || !data?.success || !data.result) {
-        throw new Error(getApiErrorMessage(data, "Word not found."));
+        if (!res.ok || !data?.success || !data.result) {
+          throw new Error(getApiErrorMessage(data, "Word not found."));
+        }
+
+        setDictResult(data.result);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Word not found in dictionary.";
+        showToast(message, { tone: "error" });
+      } finally {
+        setIsSearching(false);
       }
-
-      setDictResult(data.result);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Word not found in dictionary.";
-      showToast(message, { tone: "error" });
-    } finally {
-      setIsSearching(false);
-    }
-  };
+    },
+    [lookupMode, searchQuery, workId],
+  );
 
   const handleSaveVocab = async () => {
     if (!dictResult || !workId) return;
@@ -302,8 +313,9 @@ export const DictionaryDrawer: React.FC<Props> = ({
   return (
     <FloatingDrawer
       isOpen={isOpen}
-      title="Ask Gemini"
+      title="Vocabulary"
       onClose={onClose}
+      variant="paper"
       anchorRect={anchorRect}
       defaultSize={{ width: 440, height: 1200 }}
       minSize={{ width: 340, height: 320 }}
@@ -312,7 +324,11 @@ export const DictionaryDrawer: React.FC<Props> = ({
       <form onSubmit={handleSearch} style={styles.searchForm}>
         <input
           type="text"
-          placeholder="Look up a word..."
+          placeholder={
+            lookupMode === "context"
+              ? "Look up a term in this book..."
+              : "Look up a word..."
+          }
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={styles.searchInput}
@@ -325,6 +341,33 @@ export const DictionaryDrawer: React.FC<Props> = ({
           {isSearching ? "Thinking..." : "Search"}
         </button>
       </form>
+
+      <div style={styles.lookupModeRow}>
+        <button
+          type="button"
+          style={{
+            ...styles.lookupModeButton,
+            ...(lookupMode === "word"
+              ? styles.lookupModeButtonActive
+              : undefined),
+          }}
+          onClick={() => setLookupMode("word")}
+        >
+          Word
+        </button>
+        <button
+          type="button"
+          style={{
+            ...styles.lookupModeButton,
+            ...(lookupMode === "context"
+              ? styles.lookupModeButtonActive
+              : undefined),
+          }}
+          onClick={() => setLookupMode("context")}
+        >
+          Context
+        </button>
+      </div>
 
       <div style={styles.scrollArea}>
         {dictResult && (
@@ -477,34 +520,75 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: "column",
     minHeight: 0,
     overflow: "hidden",
-    padding: "10px 20px 20px",
+    padding: "18px 20px 20px",
   },
   searchForm: {
     display: "flex",
     gap: "8px",
-    marginBottom: "16px",
+    marginBottom: "12px",
     flexShrink: 0,
+  },
+  lookupModeRow: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "4px",
+    marginBottom: "14px",
+    borderRadius: "999px",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(238, 227, 208, 0.92)), rgba(247, 241, 230, 0.92)",
+    border: "1px solid rgba(122, 91, 57, 0.16)",
+    flexShrink: 0,
+    alignSelf: "flex-start",
+    boxShadow:
+      "inset 0 1px 0 rgba(255, 255, 255, 0.46), 0 3px 10px rgba(89, 62, 34, 0.06)",
+  },
+  lookupModeButton: {
+    padding: "7px 12px",
+    borderRadius: "999px",
+    border: "none",
+    background: "transparent",
+    color: "#6b5238",
+    cursor: "pointer",
+    fontFamily: "Fredoka",
+    fontSize: "13px",
+    fontWeight: 600,
+  },
+  lookupModeButtonActive: {
+    background:
+      "linear-gradient(180deg, rgba(142, 93, 48, 0.96), rgba(98, 63, 32, 0.96)), rgba(94, 60, 31, 0.94)",
+    color: "#fbf4ea",
+    boxShadow:
+      "0 10px 18px rgba(63, 38, 17, 0.18), inset 0 1px 0 rgba(255, 238, 219, 0.24)",
   },
   searchInput: {
     flexGrow: 1,
-    padding: "10px 14px",
-    borderRadius: "8px",
-    border: "1px solid var(--theme-dictionary-input-border)",
-    backgroundColor: "var(--theme-dictionary-input-bg)",
-    color: "var(--theme-dictionary-input-text)",
+    padding: "14px 15px",
+    borderRadius: "12px",
+    border: "1px solid rgba(123, 92, 58, 0.22)",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(241, 231, 214, 0.92)), rgba(255, 250, 243, 0.9)",
+    color: "#2f241a",
     outline: "none",
-    fontFamily: "Fredoka",
-    fontSize: "16px",
+    fontFamily: "var(--font-primary-stack)",
+    fontSize: "14px",
+    boxSizing: "border-box",
+    boxShadow:
+      "inset 0 1px 3px rgba(121, 89, 53, 0.08), 0 1px 0 rgba(255, 255, 255, 0.4)",
   },
   searchBtn: {
-    padding: "0 16px",
+    padding: "0 18px",
     margin: "1px 0",
-    borderRadius: "10px",
-    border: "none",
-    backgroundColor: "var(--color-bg-input-ghost-soft)",
-    color: "var(--theme-dictionary-input-text)",
+    borderRadius: "12px",
+    border: "1px solid rgba(92, 59, 31, 0.45)",
+    background:
+      "linear-gradient(180deg, rgba(142, 93, 48, 0.96), rgba(98, 63, 32, 0.96)), rgba(94, 60, 31, 0.94)",
+    color: "#fbf4ea",
     cursor: "pointer",
     fontFamily: "Fredoka",
+    fontWeight: 700,
+    boxShadow:
+      "0 14px 28px rgba(63, 38, 17, 0.18), 0 6px 16px rgba(101, 61, 28, 0.12), inset 0 1px 0 rgba(255, 238, 219, 0.24)",
   },
   scrollArea: {
     flex: 1,
@@ -515,27 +599,27 @@ const styles: { [key: string]: React.CSSProperties } = {
     paddingRight: "4px",
   },
   glassPanel: {
-    backgroundColor: "var(--theme-dictionary-panel-bg)",
-    border: "1px solid var(--theme-dictionary-panel-border)",
-    borderRadius: "16px",
+    background:
+      "radial-gradient(circle at top, rgba(255, 255, 255, 0.42), transparent 32%), linear-gradient(180deg, rgba(252, 248, 240, 0.98), rgba(243, 232, 212, 0.96)), repeating-linear-gradient(0deg, rgba(120, 90, 54, 0.015) 0, rgba(120, 90, 54, 0.015) 1px, transparent 1px, transparent 4px)",
+    border: "1px solid rgba(109, 80, 47, 0.18)",
+    borderRadius: "18px",
     padding: "22px",
     marginBottom: "24px",
-    boxShadow: "0 12px 32px rgba(0, 0, 0, 0.18)",
   },
   dictHeader: {
     marginBottom: "18px",
-    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+    borderBottom: "1px solid rgba(122, 91, 57, 0.14)",
     paddingBottom: "14px",
   },
   dictWord: {
     margin: "0 0 4px 0",
     fontSize: "28px",
     fontFamily: "Libre Baskerville",
-    color: "var(--theme-dictionary-title)",
+    color: "#312419",
   },
   dictPhonetic: {
     fontSize: "14px",
-    color: "var(--theme-dictionary-accent)",
+    color: "#8b6034",
     fontFamily: "monospace",
   },
   loreBox: {
@@ -546,8 +630,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "18px 20px",
     marginBottom: "20px",
     borderRadius: "2px 14px 14px 2px",
-    boxShadow:
-      "0 10px 24px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 251, 240, 0.8), inset 0 0 30px rgba(147, 118, 59, 0.08)",
   },
   loreLabel: {
     display: "inline-block",
@@ -582,14 +664,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: "12px",
     textTransform: "uppercase",
     letterSpacing: "0.05em",
-    color: "var(--text-muted)",
+    color: "#765b41",
     fontWeight: "bold",
   },
   definition: {
     margin: "8px 0 0 0",
     fontSize: "15px",
     lineHeight: "1.7",
-    color: "var(--theme-dictionary-card-text)",
+    color: "#433224",
     fontFamily: "Libre Baskerville",
   },
   saveActions: {
@@ -604,26 +686,28 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: "12px",
   },
   saveBtn: {
-    padding: "8px 16px",
-    borderRadius: "6px",
-    border: "none",
-    backgroundColor: "var(--color-bg-input-ghost)",
-    color: "var(--theme-dictionary-input-text)",
+    padding: "11px 14px",
+    borderRadius: "12px",
+    border: "1px solid rgba(122, 91, 57, 0.18)",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(236, 225, 207, 0.95)), rgba(247, 241, 230, 0.92)",
+    color: "#4d3b29",
     cursor: "pointer",
-    fontWeight: "bold",
+    fontWeight: 700,
     fontSize: "13px",
     fontFamily: "Fredoka",
   },
   listTitle: {
     margin: "0 0 10px 4px",
-    color: "var(--text-muted)",
+    color: "#765b41",
     fontFamily: "Fredoka",
   },
   localTagCard: {
     padding: "14px",
-    borderRadius: "12px",
-    backgroundColor: "var(--theme-dictionary-card-bg)",
-    border: "1px solid var(--theme-dictionary-panel-border)",
+    borderRadius: "14px",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(240, 229, 211, 0.9)), rgba(248, 242, 232, 0.9)",
+    border: "1px solid rgba(122, 91, 57, 0.16)",
     cursor: "pointer",
   },
   tagRow: {
@@ -633,7 +717,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   tagName: {
     fontSize: "20px",
-    color: "var(--theme-dictionary-title)",
+    color: "#312419",
     fontFamily: "Libre Baskerville",
   },
   tagAuthor: {
@@ -641,14 +725,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: "none",
     background: "transparent",
     fontSize: "12px",
-    color: "var(--text-muted)",
+    color: "#765b41",
     cursor: "pointer",
     fontFamily: "Fredoka",
   },
   tagLabel: {
     fontSize: "13px",
     lineHeight: "1.55",
-    color: "var(--theme-dictionary-card-text)",
+    color: "#433224",
     marginTop: "8px",
     marginBottom: 0,
   },

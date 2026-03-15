@@ -364,6 +364,15 @@ export const SidebarLayout: React.FC = () => {
           return;
         }
 
+        const appEscapeEvent = new Event("app-escape", {
+          bubbles: false,
+          cancelable: true,
+        });
+        window.dispatchEvent(appEscapeEvent);
+        if (appEscapeEvent.defaultPrevented) {
+          return;
+        }
+
         if (
           ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "")
         ) {

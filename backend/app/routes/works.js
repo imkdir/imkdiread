@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
 const { jsonError } = require("../utils/errorHelpers");
+const { LookupError, lookupContext } = require("../utils/contextLookup");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { getPublicPath } = require("../utils/paths");
@@ -782,116 +783,49 @@ function createWorksRouter({ db, workService }) {
   // DOMAIN: VOCABULARIES
   // ============================================================================
 
-  // NEW: Smart Contextual Dictionary Lookup (Gemini)
+  // ============================================================================
+  // DOMAIN: CONTEXT LOOKUP
+  // ============================================================================
   router.post(
-    "/api/works/:id/dictionary/lookup",
+    "/api/works/:id/context/lookup",
     authenticateToken,
     async (req, res) => {
       try {
         const workId = req.params.id;
-        const { word } = req.body;
+        const { word, mode = "context" } = req.body;
 
         if (!word) return res.status(400).json({ error: "Word is required" });
+        if (!["word", "context"].includes(mode)) {
+          return res.status(400).json({ error: "Invalid lookup mode." });
+        }
 
-        // 1. Get the book context from your database
         const work = db
           .prepare("SELECT title FROM works WHERE id = ?")
           .get(workId);
         if (!work) return res.status(404).json({ error: "Work not found" });
 
-        // 2. ATTEMPT GEMINI
-        try {
-          const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-          const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            generationConfig: { responseMimeType: "application/json" },
-          });
+        const lookup = await lookupContext({
+          word,
+          workTitle: work.title,
+          mode,
+          apiKey: process.env.GEMINI_API_KEY,
+        });
 
-          const prompt = `
-              You are an expert literary dictionary. The user is reading the book "${work.title}".
-              They are looking up: "${word}".
+        return res.json({
+          success: true,
+          mode,
+          provider: lookup.provider,
+          result: lookup.result,
+        });
+      } catch (error) {
+        console.error("Context lookup failed:", error);
 
-              Task 1: Determine if "${word}" is a specific character, place, or lore unique to "${work.title}".
-              If it IS, provide a brief encyclopedic explanation in the "lore_note" field.
-              If it is JUST A STANDARD VOCABULARY WORD (like 'ephemeral', 'table', 'run'), you MUST set "lore_note" to exactly null (the JSON primitive, no quotes). Do not invent lore for normal words.
-
-              Task 2: Provide the standard dictionary definition.
-
-              You MUST respond with ONLY a valid JSON object matching this exact structure. No markdown, no conversational text.
-              {
-                "word": "${word}",
-                "lore_note": null,
-                "phonetic": "the phonetic spelling (optional)",
-                "meanings": [
-                  {
-                    "partOfSpeech": "noun",
-                    "definitions": [
-                      { "definition": "The precise definition of the word." }
-                    ]
-                  }
-                ]
-              }
-            `;
-
-          const result = await model.generateContent(prompt);
-          const responseText = result.response.text();
-          const dictionaryData = JSON.parse(responseText);
-
-          // If everything succeeds, return Gemini's response
-          return res.json({ success: true, result: dictionaryData });
-        } catch (geminiError) {
-          // This catches BOTH Gemini API errors AND JSON parsing errors
-          console.error(
-            "Gemini failed (API or Parse Error). Falling back to Free Dictionary API.",
-            geminiError.message || geminiError,
-          );
-
-          // 3. ATTEMPT FREE DICTIONARY FALLBACK
-          const fallbackRes = await fetch(
-            `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
-          );
-
-          if (!fallbackRes.ok) {
-            return res
-              .status(404)
-              .json({ error: "Word not found in dictionary." });
-          }
-
-          const fallbackData = await fallbackRes.json();
-          const dictEntry = fallbackData[0]; // Grab the primary definition entry
-
-          // Safely extract phonetics
-          let phoneticText = dictEntry.phonetic || "";
-          if (
-            !phoneticText &&
-            dictEntry.phonetics &&
-            dictEntry.phonetics.length > 0
-          ) {
-            const phoneticObj = dictEntry.phonetics.find((p) => p.text);
-            if (phoneticObj) phoneticText = phoneticObj.text;
-          }
-
-          // Map perfectly to our frontend's expected schema
-          const formattedResult = {
-            word: dictEntry.word,
-            lore_note: null,
-            phonetic: phoneticText,
-            meanings: dictEntry.meanings.map((m) => ({
-              partOfSpeech: m.partOfSpeech,
-              definitions: m.definitions.map((d) => ({
-                definition: d.definition,
-              })),
-            })),
-          };
-
-          return res.json({ success: true, result: formattedResult });
+        if (error instanceof LookupError) {
+          return res.status(error.status).json({ error: error.message });
         }
-      } catch (globalError) {
-        // This catches DB crashes or if the fetch() to the fallback API itself throws a network error
-        console.error("Global Dictionary Route Error:", globalError);
+
         res.status(500).json({
-          error:
-            "Failed to look up word contextually, and dictionary fallback failed.",
+          error: "Failed to look up the selected term.",
         });
       }
     },
