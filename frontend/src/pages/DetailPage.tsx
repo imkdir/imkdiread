@@ -16,10 +16,18 @@ import { DetailQuoteModal } from "../components/detail/DetailQuoteModal";
 import { DetailFilePickerModal } from "../components/detail/DetailFilePickerModal";
 import { DetailDropboxLinkModal } from "../components/detail/DetailDropboxLinkModal";
 import { DetailFileUploadModal } from "../components/detail/DetailFileUploadModal";
+import {
+  MetadataDropdown,
+  MetadataDropdownItem,
+  MetadataPill,
+  MetadataPillSegment,
+  MetadataPillWrap,
+} from "../components/Metadata";
 import { Modal } from "../components/Modal";
 import { useAuth } from "../components/AuthContext";
 import { useDetailPage } from "../hooks/useDetailPage";
 import {
+  updateWorkAuthors,
   updateWorkPageCount,
   updateWorkTags,
   uploadWorkCover,
@@ -42,6 +50,11 @@ interface TagDraft {
   isGenre: boolean;
 }
 
+interface AuthorDraft {
+  id: string;
+  value: string;
+}
+
 function buildTagDrafts(tags: string[]): TagDraft[] {
   return tags.map((tag, index) => ({
     id: `${tag}-${index}`,
@@ -61,6 +74,13 @@ function normalizeTagValue(tag: TagDraft): string {
   return trimmed;
 }
 
+function buildAuthorDrafts(authors: string[]): AuthorDraft[] {
+  return authors.map((author, index) => ({
+    id: `${author}-${index}`,
+    value: author,
+  }));
+}
+
 export function DetailPageWrapper() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
@@ -73,18 +93,32 @@ function DetailPage({ workId, initialWork }: Props) {
   const { user } = useAuth();
   const detail = useDetailPage({ workId, initialWork });
   const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const authorDropdownRef = useRef<HTMLDivElement | null>(null);
   const tagDropdownRef = useRef<HTMLDivElement | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
+  const [isAuthorsModalOpen, setIsAuthorsModalOpen] = useState(false);
+  const [isAuthorDropdownOpen, setIsAuthorDropdownOpen] = useState(false);
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [isPageCountModalOpen, setIsPageCountModalOpen] = useState(false);
   const [pageCountDraft, setPageCountDraft] = useState("");
+  const [authorDrafts, setAuthorDrafts] = useState<AuthorDraft[]>([]);
   const [tagDrafts, setTagDrafts] = useState<TagDraft[]>([]);
+  const [editingAuthorId, setEditingAuthorId] = useState<string | null>(null);
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [isSavingAuthors, setIsSavingAuthors] = useState(false);
   const [isSavingTags, setIsSavingTags] = useState(false);
   const [isSavingPageCount, setIsSavingPageCount] = useState(false);
   const isAdmin = user?.role === "admin";
+
+  const openSearchDrawer = (query: string) => {
+    window.dispatchEvent(
+      new CustomEvent("open-search-drawer", {
+        detail: { query },
+      }),
+    );
+  };
 
   const {
     work,
@@ -137,11 +171,30 @@ function DetailPage({ workId, initialWork }: Props) {
 
   useEffect(() => {
     if (!work) return;
+    setAuthorDrafts(buildAuthorDrafts(work.authors || []));
+    setEditingAuthorId(null);
+    setIsAuthorDropdownOpen(false);
     setTagDrafts(buildTagDrafts(work.tags || []));
     setEditingTagId(null);
     setIsTagDropdownOpen(false);
     setPageCountDraft(String(work.page_count || 0));
   }, [work]);
+
+  useEffect(() => {
+    if (!isAuthorDropdownOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        authorDropdownRef.current &&
+        !authorDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsAuthorDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isAuthorDropdownOpen]);
 
   useEffect(() => {
     if (!isTagDropdownOpen) return;
@@ -205,6 +258,44 @@ function DetailPage({ workId, initialWork }: Props) {
     setIsTagsModalOpen(false);
   };
 
+  const openAuthorsModal = () => {
+    if (!work) return;
+    setAuthorDrafts(buildAuthorDrafts(work.authors || []));
+    setEditingAuthorId(null);
+    setIsAuthorsModalOpen(true);
+  };
+
+  const closeAuthorsModal = () => {
+    if (!work || isSavingAuthors) return;
+    setAuthorDrafts(buildAuthorDrafts(work.authors || []));
+    setEditingAuthorId(null);
+    setIsAuthorsModalOpen(false);
+  };
+
+  const addAuthorDraft = () => {
+    const draft: AuthorDraft = {
+      id: `new-author-${Date.now()}`,
+      value: "",
+    };
+    setAuthorDrafts((prev) => [...prev, draft]);
+    setEditingAuthorId(draft.id);
+  };
+
+  const updateAuthorDraftValue = (authorId: string, value: string) => {
+    setAuthorDrafts((prev) =>
+      prev.map((author) =>
+        author.id === authorId ? { ...author, value } : author,
+      ),
+    );
+  };
+
+  const removeAuthorDraft = (authorId: string) => {
+    setAuthorDrafts((prev) =>
+      prev.filter((author) => author.id !== authorId),
+    );
+    setEditingAuthorId((current) => (current === authorId ? null : current));
+  };
+
   const addTagDraft = () => {
     const draft: TagDraft = {
       id: `new-${Date.now()}`,
@@ -256,6 +347,41 @@ function DetailPage({ workId, initialWork }: Props) {
     }
   };
 
+  const handleSaveAuthors = async () => {
+    if (!work) return;
+
+    const normalizedAuthors = authorDrafts
+      .map((author) => author.value.trim())
+      .filter(Boolean);
+    const uniqueAuthors = Array.from(
+      new Map(
+        normalizedAuthors.map((author) => [author.toLowerCase(), author]),
+      ).values(),
+    );
+
+    if (normalizedAuthors.length !== uniqueAuthors.length) {
+      showToast("Authors must be unique.", { tone: "error" });
+      return;
+    }
+
+    setIsSavingAuthors(true);
+
+    try {
+      await updateWorkAuthors(work, uniqueAuthors);
+      await fetchData();
+      setIsAuthorsModalOpen(false);
+      setEditingAuthorId(null);
+      showToast("Authors updated.", { tone: "success" });
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to update authors.",
+        { tone: "error" },
+      );
+    } finally {
+      setIsSavingAuthors(false);
+    }
+  };
+
   const openPageCountModal = () => {
     if (!work) return;
     setPageCountDraft(String(work.page_count || 0));
@@ -300,6 +426,10 @@ function DetailPage({ workId, initialWork }: Props) {
 
   const canUseDropbox = Boolean(work.dropbox_link) || isAdmin;
   const canUseFinder = Boolean(work.file_urls?.length) || isAdmin;
+  const visibleAuthors = work.authors || [];
+  const firstAuthor = visibleAuthors[0];
+  const extraAuthors = visibleAuthors.slice(1);
+  const extraAuthorCount = Math.max(0, visibleAuthors.length - 1);
   const visibleTags = work.tags || [];
   const firstTag = visibleTags[0];
   const extraTags = visibleTags.slice(1);
@@ -394,71 +524,132 @@ function DetailPage({ workId, initialWork }: Props) {
                     }}
                   />
 
-                  {work.authors.map((author) => (
-                    <Link
-                      key={author}
-                      to={`/collection/${encodeURIComponent(author)}`}
-                      className="detail-meta-pill detail-author-pill"
+                  {firstAuthor && (
+                    <MetadataPillWrap
+                      className="detail-author-pill-wrap"
+                      ref={authorDropdownRef}
                     >
-                      <span className="detail-meta-pill__inner">
-                        <span className="detail-meta-pill__content">{author}</span>
-                        <span className="detail-meta-pill__glare" />
-                      </span>
-                    </Link>
-                  ))}
+                      <MetadataPill className="detail-author-pill">
+                        <>
+                          {isAdmin && (
+                            <MetadataPillSegment
+                              as="button"
+                              type="button"
+                              className="detail-author-pill__icon-button"
+                              onClick={openAuthorsModal}
+                              aria-label="Edit authors"
+                            >
+                              <AppIcon name="edit" title="Edit authors" size={13} />
+                            </MetadataPillSegment>
+                          )}
+                          <MetadataPillSegment
+                            as={Link}
+                            divided={isAdmin}
+                            to={`/collection/${encodeURIComponent(firstAuthor)}`}
+                            className="detail-author-pill__link"
+                          >
+                            {firstAuthor}
+                          </MetadataPillSegment>
+                          {extraAuthorCount > 0 && (
+                            <MetadataPillSegment
+                              as="button"
+                              type="button"
+                              divided
+                              className="detail-author-pill__more-button"
+                              onClick={() =>
+                                setIsAuthorDropdownOpen((current) => !current)
+                              }
+                              aria-label={`Show ${extraAuthorCount} more authors`}
+                              aria-expanded={isAuthorDropdownOpen}
+                            >
+                              {extraAuthorCount}+
+                            </MetadataPillSegment>
+                          )}
+                        </>
+                      </MetadataPill>
+                      {extraAuthorCount > 0 && isAuthorDropdownOpen && (
+                        <MetadataDropdown className="detail-author-dropdown">
+                          {extraAuthors.map((author) => (
+                            <MetadataDropdownItem
+                              as={Link}
+                              key={author}
+                              to={`/collection/${encodeURIComponent(author)}`}
+                              className="detail-author-dropdown__item"
+                              onClick={() => setIsAuthorDropdownOpen(false)}
+                            >
+                              {author}
+                            </MetadataDropdownItem>
+                          ))}
+                        </MetadataDropdown>
+                      )}
+                    </MetadataPillWrap>
+                  )}
 
                   {isAdmin ? (
-                    <button
-                      type="button"
-                      className="detail-meta-pill detail-page-count-pill"
-                      onClick={openPageCountModal}
-                    >
-                      <span className="detail-meta-pill__inner">
-                        <span className="detail-meta-pill__glare" />
-                        <span className="detail-meta-pill__content detail-page-count-pill__content">
+                    <MetadataPill className="detail-page-count-pill">
+                      <>
+                        <MetadataPillSegment
+                          as="button"
+                          type="button"
+                          className="detail-page-count-pill__edit-button"
+                          onClick={openPageCountModal}
+                          aria-label="Edit page count"
+                        >
                           <AppIcon name="edit" title="Edit page count" size={13} />
-                          <span>{work.page_count} pages</span>
-                        </span>
-                      </span>
-                    </button>
-                  ) : (
-                    <span className="detail-meta-pill detail-page-count-pill">
-                      <span className="detail-meta-pill__inner">
-                        <span className="detail-meta-pill__content">
+                        </MetadataPillSegment>
+                        <MetadataPillSegment
+                          as="button"
+                          type="button"
+                          divided
+                          className="detail-page-count-pill__content"
+                          onClick={openPageCountModal}
+                        >
                           {work.page_count} pages
-                        </span>
-                        <span className="detail-meta-pill__glare" />
-                      </span>
-                    </span>
+                        </MetadataPillSegment>
+                      </>
+                    </MetadataPill>
+                  ) : (
+                    <MetadataPill className="detail-page-count-pill">
+                      <MetadataPillSegment>
+                          {work.page_count} pages
+                      </MetadataPillSegment>
+                    </MetadataPill>
                   )}
 
                   {firstTag ? (
-                    <div
+                    <MetadataPillWrap
                       className="detail-tag-pill-wrap"
                       ref={tagDropdownRef}
                     >
-                      <div className="detail-meta-pill detail-tag-pill">
-                        <span className="detail-meta-pill__inner">
-                          <span className="detail-meta-pill__glare" />
+                      <MetadataPill className="detail-tag-pill">
+                        <>
                           {isAdmin && (
-                            <button
+                            <MetadataPillSegment
+                              as="button"
                               type="button"
                               className="detail-tag-pill__icon-button"
                               onClick={openTagsModal}
                               aria-label="Edit tags"
                             >
                               <AppIcon name="edit" title="Edit tags" size={13} />
-                            </button>
+                            </MetadataPillSegment>
                           )}
-                          <Link
-                            to={`/search?q=${encodeURIComponent(formatTagLabel(firstTag))}`}
-                            className="detail-tag-pill__link"
+                          <MetadataPillSegment
+                            as="button"
+                            type="button"
+                            divided={isAdmin}
+                            className="detail-tag-pill__link detail-tag-pill__link-button"
+                            onClick={() =>
+                              openSearchDrawer(formatTagLabel(firstTag))
+                            }
                           >
                             {formatTagLabel(firstTag)}
-                          </Link>
+                          </MetadataPillSegment>
                           {extraTagCount > 0 && (
-                            <button
+                            <MetadataPillSegment
+                              as="button"
                               type="button"
+                              divided
                               className="detail-tag-pill__more-button"
                               onClick={() =>
                                 setIsTagDropdownOpen((current) => !current)
@@ -467,34 +658,36 @@ function DetailPage({ workId, initialWork }: Props) {
                               aria-expanded={isTagDropdownOpen}
                             >
                               {extraTagCount}+
-                            </button>
+                            </MetadataPillSegment>
                           )}
-                        </span>
-                      </div>
+                        </>
+                      </MetadataPill>
                       {extraTagCount > 0 && isTagDropdownOpen && (
-                        <div className="detail-tag-dropdown">
+                        <MetadataDropdown className="detail-tag-dropdown">
                           {extraTags.map((tag) => (
-                            <Link
+                            <MetadataDropdownItem
+                              as="button"
+                              type="button"
                               key={tag}
-                              to={`/search?q=${encodeURIComponent(formatTagLabel(tag))}`}
                               className="detail-tag-dropdown__item"
-                              onClick={() => setIsTagDropdownOpen(false)}
+                              onClick={() => {
+                                setIsTagDropdownOpen(false);
+                                openSearchDrawer(formatTagLabel(tag));
+                              }}
                             >
                               {formatTagLabel(tag)}
-                            </Link>
+                            </MetadataDropdownItem>
                           ))}
-                        </div>
+                        </MetadataDropdown>
                       )}
-                    </div>
+                    </MetadataPillWrap>
                   ) : (
                     isAdmin && (
-                      <button
-                        type="button"
-                        className="detail-meta-pill detail-tag-pill detail-tag-pill--empty"
+                      <MetadataPill
+                        className="detail-tag-pill detail-tag-pill--empty"
                         onClick={openTagsModal}
                       >
-                        <span className="detail-meta-pill__inner">
-                          <span className="detail-meta-pill__content detail-tag-pill__empty-content">
+                        <MetadataPillSegment className="detail-tag-pill__empty-content">
                             <AppIcon
                               name="close"
                               title="Add tag"
@@ -502,10 +695,8 @@ function DetailPage({ workId, initialWork }: Props) {
                               style={{ transform: "rotate(45deg)" }}
                             />
                             <span>Add tag</span>
-                          </span>
-                          <span className="detail-meta-pill__glare" />
-                        </span>
-                      </button>
+                        </MetadataPillSegment>
+                      </MetadataPill>
                     )
                   )}
 
@@ -625,6 +816,102 @@ function DetailPage({ workId, initialWork }: Props) {
         onUpload={handleWorkFileUpload}
         onClose={closeUploadModal}
       />
+
+      <Modal
+        isOpen={isAdmin && isAuthorsModalOpen}
+        onClose={closeAuthorsModal}
+        cardClassName="modal-card--wide detail-authors-modal"
+      >
+        <div className="modal-header">
+          <AppIcon name="users" title="Authors" size={16} />
+          <p className="modal-subtitle">Edit this work&apos;s authors</p>
+        </div>
+
+        <div className="detail-tag-editor">
+          {authorDrafts.map((author) => (
+            <div
+              key={author.id}
+              className={`detail-tag-editor__pill ${editingAuthorId === author.id ? "detail-tag-editor__pill--editing" : ""}`}
+              onClick={() => setEditingAuthorId(author.id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setEditingAuthorId(author.id);
+                }
+              }}
+            >
+              {editingAuthorId === author.id ? (
+                <input
+                  value={author.value}
+                  onChange={(event) =>
+                    updateAuthorDraftValue(author.id, event.target.value)
+                  }
+                  onClick={(event) => event.stopPropagation()}
+                  onBlur={() => setEditingAuthorId(null)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      setEditingAuthorId(null);
+                    }
+                  }}
+                  className="detail-tag-editor__input"
+                  autoFocus
+                />
+              ) : (
+                <span className="detail-tag-editor__label">
+                  {author.value || "Untitled author"}
+                </span>
+              )}
+              <button
+                type="button"
+                className="detail-tag-editor__remove"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  removeAuthorDraft(author.id);
+                }}
+                aria-label={`Delete ${author.value || "author"}`}
+              >
+                <AppIcon name="close" title="Delete author" size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="detail-tag-editor__pill detail-tag-editor__pill--add"
+            onClick={addAuthorDraft}
+          >
+            <AppIcon
+              name="close"
+              title="Add author"
+              size={12}
+              style={{ transform: "rotate(45deg)" }}
+            />
+          </button>
+        </div>
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            onClick={closeAuthorsModal}
+            className="modal-btn modal-btn--cancel"
+            disabled={isSavingAuthors}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void handleSaveAuthors();
+            }}
+            className="modal-btn modal-btn--save"
+            disabled={isSavingAuthors}
+          >
+            {isSavingAuthors ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={isAdmin && isTagsModalOpen}

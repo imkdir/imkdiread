@@ -154,6 +154,7 @@ export const SidebarLayout: React.FC = () => {
   >(null);
   const [isThemeOpen, setIsThemeOpen] = useState(false); // <-- Theme Drawer State
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchInitialQuery, setSearchInitialQuery] = useState("");
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [dictionaryAnchorRect, setDictionaryAnchorRect] =
     useState<DOMRect | null>(null);
@@ -309,6 +310,24 @@ export const SidebarLayout: React.FC = () => {
     setIsAdminMenuOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    const handleOpenSearchDrawer = (event: Event) => {
+      const customEvent = event as CustomEvent<{ query?: string }>;
+      setSearchInitialQuery(customEvent.detail?.query || "");
+      setIsSearchOpen(true);
+      setIsThemeOpen(false);
+      setOpenDictionaryForWorkId(null);
+      setTimeout(
+        () => document.getElementById("global-search-input")?.focus(),
+        100,
+      );
+    };
+
+    window.addEventListener("open-search-drawer", handleOpenSearchDrawer);
+    return () =>
+      window.removeEventListener("open-search-drawer", handleOpenSearchDrawer);
+  }, []);
+
   // 3. Global Shortcuts (Escape to close modals / Cmd+K to search)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -380,6 +399,7 @@ export const SidebarLayout: React.FC = () => {
           <SidebarInteractiveItem
             title="Search Library"
             onClick={() => {
+              setSearchInitialQuery("");
               setIsSearchOpen(true);
               setIsThemeOpen(false);
               setOpenDictionaryForWorkId(null);
@@ -470,6 +490,7 @@ export const SidebarLayout: React.FC = () => {
       <SearchDrawer
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
+        initialQuery={searchInitialQuery}
       />
 
       <ThemeEditorDrawer

@@ -48,12 +48,15 @@ export function DetailFileUploadModal({
       <div className="detail-upload-file-row">
         <button
           type="button"
-          className="detail-btn detail-btn--outline"
+          className="detail-upload-file-trigger"
           onClick={() => fileInputRef.current?.click()}
         >
           {selectedFile ? "Change file" : "Choose PDF"}
         </button>
-        <span className="detail-upload-file-label">
+        <span
+          className="detail-upload-file-label"
+          title={selectedFile?.name ?? ""}
+        >
           {selectedFile?.name ?? "No file selected"}
         </span>
       </div>

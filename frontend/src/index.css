@@ -25,6 +25,7 @@
     --theme-page-background: #1e1914;
     --theme-page-text: #faf8f6;
     --theme-border: #262626;
+    --theme-detail-secondary-label: rgba(241, 231, 214, 0.74);
 
     --theme-pill-background: transparent;
     --theme-pill-text: var(--theme-page-text);
@@ -49,15 +50,14 @@
     --theme-detail-handle-text: var(--theme-page-text);
     --theme-detail-handle-bg-hover: var(--neutral-gray-700);
     --theme-detail-handle-text-hover: var(--neutral-white);
-    --theme-detail-action-color: var(--theme-page-text);
-    --theme-detail-action-color-hover: var(--accent-link-bright);
+    --theme-detail-action-color: var(--theme-detail-secondary-label);
     --theme-detail-divider: var(--theme-border);
     --theme-detail-progress-track: rgba(235, 226, 215, 0.4);
     --theme-detail-progress-track-hover: rgba(235, 226, 215, 0.6);
-    --theme-detail-progress-fill: var(--theme-page-text);
-    --theme-detail-progress-fill-hover: var(--accent-link-bright);
-    --theme-detail-progress-text: var(--theme-page-text);
-    --theme-detail-progress-text-hover: var(--accent-link-bright);
+    --theme-detail-progress-fill: var(--theme-detail-secondary-label);
+    --theme-detail-progress-fill-hover: var(--theme-detail-secondary-label);
+    --theme-detail-progress-text: var(--theme-detail-secondary-label);
+    --theme-detail-progress-text-hover: var(--theme-detail-secondary-label);
 
     --theme-dictionary-input-bg: var(--color-bg-input-dark);
     --theme-dictionary-input-border: var(--theme-border);

@@ -24,6 +24,55 @@ interface ThemeRouteConfig {
   sections: ThemeSection[];
 }
 
+type ThemeTokens = Record<string, string>;
+
+const CUSTOM_STYLES_STORAGE_KEY = "app-custom-styles";
+const REMOVED_THEME_TOKENS = new Set([
+  "--theme-action-panel-tint",
+  "--theme-detail-action-color",
+  "--theme-detail-progress-fill",
+  "--theme-detail-progress-fill-hover",
+  "--theme-detail-progress-text",
+  "--theme-detail-progress-text-hover",
+]);
+
+const GOODREADS_DARK_THEME: ThemeTokens = {
+  "--theme-page-background": "#19120d",
+  "--theme-page-text": "#f1e7d6",
+  "--theme-border": "#403024",
+  "--theme-detail-secondary-label": "rgba(241, 231, 214, 0.76)",
+  "--theme-pill-background": "rgba(43, 30, 20, 0.88)",
+  "--theme-pill-text": "#f1e7d6",
+  "--theme-pill-border": "rgba(241, 231, 214, 0.1)",
+  "--theme-detail-handle-bg": "#2a1d15",
+  "--theme-detail-handle-text": "#f1e7d6",
+  "--theme-detail-handle-bg-hover": "#3a2a1f",
+  "--theme-detail-handle-text-hover": "#fff7eb",
+  "--theme-detail-action-color": "var(--theme-detail-secondary-label)",
+  "--theme-detail-divider": "rgba(241, 231, 214, 0.12)",
+  "--theme-detail-progress-track": "rgba(212, 180, 138, 0.18)",
+  "--theme-detail-progress-track-hover": "rgba(212, 180, 138, 0.26)",
+  "--theme-detail-progress-fill": "var(--theme-detail-secondary-label)",
+  "--theme-detail-progress-fill-hover": "var(--theme-detail-secondary-label)",
+  "--theme-detail-progress-text": "var(--theme-detail-secondary-label)",
+  "--theme-detail-progress-text-hover": "var(--theme-detail-secondary-label)",
+  "--theme-dictionary-input-bg": "rgba(28, 20, 14, 0.76)",
+  "--theme-dictionary-input-border": "rgba(241, 231, 214, 0.12)",
+  "--theme-dictionary-input-text": "#f6ecdc",
+  "--theme-dictionary-panel-bg": "rgba(31, 22, 16, 0.94)",
+  "--theme-dictionary-panel-border": "rgba(241, 231, 214, 0.14)",
+  "--theme-dictionary-title": "#f1e7d6",
+  "--theme-dictionary-accent": "#d4a35f",
+  "--theme-dictionary-body": "rgba(246, 236, 220, 0.92)",
+  "--theme-dictionary-card-bg": "rgba(51, 37, 27, 0.82)",
+  "--theme-dictionary-card-text": "rgba(246, 236, 220, 0.84)",
+  "--theme-explore-sidebar-title": "#f1e7d6",
+  "--theme-explore-sidebar-muted": "#d1b691",
+  "--theme-explore-sidebar-footer": "#a88a66",
+  "--theme-explore-sidebar-avatar-bg": "#36281d",
+  "--theme-explore-sidebar-avatar-border": "rgba(241, 231, 214, 0.12)",
+};
+
 const SITE_SECTION: ThemeSection = {
   title: "Site",
   items: [
@@ -131,16 +180,6 @@ const DETAIL_ACTION_SECTION: ThemeSection = {
       defaultHex: "#ffffff",
     },
     {
-      ids: ["--theme-detail-action-color"],
-      label: "Action Color",
-      defaultHex: "#faf8f6",
-    },
-    {
-      ids: ["--theme-detail-action-color-hover"],
-      label: "Action Hover Color",
-      defaultHex: "#0095f6",
-    },
-    {
       ids: ["--theme-detail-divider"],
       label: "Divider",
       defaultHex: "#262626",
@@ -154,26 +193,6 @@ const DETAIL_ACTION_SECTION: ThemeSection = {
       ids: ["--theme-detail-progress-track-hover"],
       label: "Progress Track Hover",
       defaultHex: "#f3ede4",
-    },
-    {
-      ids: ["--theme-detail-progress-fill"],
-      label: "Progress Fill",
-      defaultHex: "#faf8f6",
-    },
-    {
-      ids: ["--theme-detail-progress-fill-hover"],
-      label: "Progress Fill Hover",
-      defaultHex: "#0095f6",
-    },
-    {
-      ids: ["--theme-detail-progress-text"],
-      label: "Progress Text",
-      defaultHex: "#faf8f6",
-    },
-    {
-      ids: ["--theme-detail-progress-text-hover"],
-      label: "Progress Text Hover",
-      defaultHex: "#0095f6",
     },
   ],
 };
@@ -286,6 +305,24 @@ function normalizeHexForInput(value: string, fallback: string): string {
   return fallback;
 }
 
+function getStoredCustomStyles(): Record<string, string> {
+  const saved = localStorage.getItem(CUSTOM_STYLES_STORAGE_KEY);
+  if (!saved) return {};
+
+  try {
+    const parsed = JSON.parse(saved);
+    if (!parsed || typeof parsed !== "object") return {};
+
+    const sanitized = { ...(parsed as Record<string, string>) };
+    REMOVED_THEME_TOKENS.forEach((token) => {
+      delete sanitized[token];
+    });
+    return sanitized;
+  } catch {
+    return {};
+  }
+}
+
 function resolveThemeRoute(pathname: string): ThemeRouteConfig {
   const sections: ThemeSection[] = [SITE_SECTION];
 
@@ -335,23 +372,11 @@ export const ThemeEditorDrawer: React.FC<ThemeEditorDrawerProps> = ({
   anchorRect,
 }) => {
   const [customStyles, setCustomStyles] = useState<Record<string, string>>(
-    () => {
-      const saved = localStorage.getItem("app-custom-styles");
-      if (!saved) return {};
-
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed && typeof parsed === "object"
-          ? (parsed as Record<string, string>)
-          : {};
-      } catch {
-        return {};
-      }
-    },
+    getStoredCustomStyles,
   );
 
   useEffect(() => {
-    localStorage.setItem("app-custom-styles", JSON.stringify(customStyles));
+    localStorage.setItem(CUSTOM_STYLES_STORAGE_KEY, JSON.stringify(customStyles));
   }, [customStyles]);
 
   const routeConfig = useMemo(() => resolveThemeRoute(routePath), [routePath]);
@@ -380,6 +405,10 @@ export const ThemeEditorDrawer: React.FC<ThemeEditorDrawerProps> = ({
     <style>
       {`
         :root {
+          color-scheme: dark;
+          ${Object.entries(GOODREADS_DARK_THEME)
+            .map(([key, color]) => `${key}: ${color};`)
+            .join("\n          ")}
           ${Object.entries(customStyles)
             .map(([key, color]) => `${key}: ${color} !important;`)
             .join("\n          ")}
@@ -407,6 +436,14 @@ export const ThemeEditorDrawer: React.FC<ThemeEditorDrawerProps> = ({
         <div style={styles.routeLabel}>Route: {routeConfig.label}</div>
 
         <div style={styles.listContainer}>
+          <div style={styles.sectionWrap}>
+            <div style={styles.sectionTitle}>Advanced</div>
+            <div style={styles.sectionDescription}>
+              Fine-tune route-specific tokens on top of the Goodreads dark
+              preset.
+            </div>
+          </div>
+
           {routeConfig.sections.length ? (
             routeConfig.sections.map((section) => (
               <div key={section.title} style={styles.sectionWrap}>
@@ -473,7 +510,7 @@ export const ThemeEditorDrawer: React.FC<ThemeEditorDrawerProps> = ({
             onClick={() => setCustomStyles({})}
             style={styles.resetAllBtn}
           >
-            Reset All Defaults
+            Reset Advanced Overrides
           </button>
         )}
       </FloatingDrawer>
@@ -513,6 +550,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 700,
     letterSpacing: "0.08em",
     textTransform: "uppercase",
+  },
+  sectionDescription: {
+    color: "var(--color-text-page-secondary)",
+    fontSize: "12px",
+    lineHeight: 1.5,
   },
   varRow: {
     display: "flex",

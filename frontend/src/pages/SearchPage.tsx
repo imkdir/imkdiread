@@ -62,6 +62,26 @@ class SearchPageClass extends React.Component<Props, State> {
     }
   }
 
+  componentDidUpdate(prevProps: Props) {
+    if (prevProps.initialQuery === this.props.initialQuery) return;
+
+    const nextQuery = this.props.initialQuery || "";
+    this.setState({
+      query: nextQuery,
+      loading: !!nextQuery,
+    });
+
+    if (nextQuery) {
+      this.performSearch(nextQuery);
+      return;
+    }
+
+    this.setState({
+      searchResults: [],
+      loading: false,
+    });
+  }
+
   // Set the debounce delay to 1000ms (as it was in your code)
   debouncedSearch = debounce((q: string) => {
     this.performSearch(q);
@@ -417,11 +437,13 @@ export const SearchPage = () => {
 interface SearchDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  initialQuery?: string;
 }
 
 export const SearchDrawer: React.FC<SearchDrawerProps> = ({
   isOpen,
   onClose,
+  initialQuery,
 }) => {
   const { user } = useAuth();
 
@@ -435,7 +457,7 @@ export const SearchDrawer: React.FC<SearchDrawerProps> = ({
       minSize={{ width: 640, height: 420 }}
       bodyStyle={styles.drawerBody}
     >
-      <SearchPageClass user={user} inDrawer />
+      <SearchPageClass user={user} inDrawer initialQuery={initialQuery} />
     </FloatingDrawer>
   );
 };

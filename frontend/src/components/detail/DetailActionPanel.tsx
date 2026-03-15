@@ -52,7 +52,7 @@ export function DetailActionPanel({
       <div className="detail-action-panel">
         <div className="detail-action-icons-row">
           <div
-            className="detail-action-icon-col"
+            className={`detail-action-icon-col ${read ? "detail-action-icon-col--read-active" : ""}`}
             onClick={() => onToggleAction("read")}
           >
             <AppIcon
@@ -62,7 +62,7 @@ export function DetailActionPanel({
             <span className="detail-action-label">Read</span>
           </div>
           <div
-            className="detail-action-icon-col"
+            className={`detail-action-icon-col ${liked ? "detail-action-icon-col--liked-active" : ""}`}
             onClick={() => onToggleAction("liked")}
           >
             <AppIcon
@@ -72,7 +72,7 @@ export function DetailActionPanel({
             <span className="detail-action-label">{liked ? "Liked" : "Like"}</span>
           </div>
           <div
-            className="detail-action-icon-col"
+            className={`detail-action-icon-col ${shelved ? "detail-action-icon-col--shelved-active" : ""}`}
             onClick={() => onToggleAction("shelved")}
           >
             <AppIcon
