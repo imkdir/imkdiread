@@ -147,12 +147,13 @@ export const SidebarLayout: React.FC = () => {
   const workId = workMatch ? workMatch[1] : null;
   const isOwnProfileRoute = /^\/profile(?:\/|$)/.test(location.pathname);
   const isAdmin = auth.user?.role === "admin";
+  const isExplore = location.pathname === "/explore";
 
   // 2. Drawer States
   const [openDictionaryForWorkId, setOpenDictionaryForWorkId] = useState<
     string | null
   >(null);
-  const [isThemeOpen, setIsThemeOpen] = useState(false); // <-- Theme Drawer State
+  const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchInitialQuery, setSearchInitialQuery] = useState("");
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
@@ -170,7 +171,9 @@ export const SidebarLayout: React.FC = () => {
   const handleExportQuotes = async () => {
     try {
       const res = await request("/api/profile/me");
-      const data = await readJsonSafe<ProfileResponse & { error?: string }>(res);
+      const data = await readJsonSafe<ProfileResponse & { error?: string }>(
+        res,
+      );
 
       if (!res.ok) {
         throw new Error(getApiErrorMessage(data, "Failed to load quotes."));
@@ -292,7 +295,9 @@ export const SidebarLayout: React.FC = () => {
           .catch((error) => {
             console.error("Failed to import works", error);
             showToast(
-              error instanceof Error ? error.message : "Failed to import works.",
+              error instanceof Error
+                ? error.message
+                : "Failed to import works.",
               { tone: "error" },
             );
           });
@@ -411,9 +416,12 @@ export const SidebarLayout: React.FC = () => {
           >
             <AppIcon name="search" title="Search" />
           </SidebarInteractiveItem>
-          <SidebarInteractiveItem to="/explore" title="Explore">
-            <AppIcon name="compass" title="Explore" />
-          </SidebarInteractiveItem>
+
+          {isExplore || (
+            <SidebarInteractiveItem to="/explore" title="Explore">
+              <AppIcon name="compass" title="Explore" />
+            </SidebarInteractiveItem>
+          )}
 
           {/* THE CONTEXTUAL DICTIONARY TRIGGER */}
           {workId && (

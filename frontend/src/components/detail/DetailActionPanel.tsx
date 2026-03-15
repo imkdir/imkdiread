@@ -9,6 +9,7 @@ interface DetailActionPanelProps {
   shelved: boolean;
   displayRating: number;
   isPDFViewerOpen: boolean;
+  isDrawerMode: boolean;
   isActionDrawerOpen: boolean;
   progressContent: React.ReactNode;
   onToggleDrawer: () => void;
@@ -27,6 +28,7 @@ export function DetailActionPanel({
   shelved,
   displayRating,
   isPDFViewerOpen,
+  isDrawerMode,
   isActionDrawerOpen,
   progressContent,
   onToggleDrawer,
@@ -40,9 +42,13 @@ export function DetailActionPanel({
 }: DetailActionPanelProps) {
   return (
     <aside
-      className={`detail-right-col ${isActionDrawerOpen ? "drawer-open" : "drawer-closed"}`}
+      className={`detail-right-col ${isDrawerMode ? "detail-right-col--drawer-mode" : ""} ${isActionDrawerOpen ? "drawer-open" : "drawer-closed"}`}
     >
-      <button className="drawer-handle" onClick={onToggleDrawer}>
+      <button
+        className="drawer-handle"
+        onClick={onToggleDrawer}
+        aria-expanded={isActionDrawerOpen}
+      >
         <span className="drawer-handle-arrow">
           {isActionDrawerOpen ? "▶" : "◀"}
         </span>

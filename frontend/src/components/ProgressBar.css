@@ -1,6 +1,8 @@
 .progress-bar {
     display: flex;
     align-items: center;
+    width: 100%;
+    min-width: 0;
     gap: 8px;
     margin-bottom: 6px;
 }
@@ -8,7 +10,7 @@
 .progress-bar__track {
     position: relative;
     flex: 1;
-    min-width: 80px;
+    min-width: 0;
     height: 12px;
     background-color: var(--theme-detail-progress-track);
     transition: background-color 0.2s ease;
@@ -24,10 +26,22 @@
 }
 
 .progress-bar__label {
+    flex-shrink: 0;
     color: var(--theme-detail-progress-text);
     font-family: -apple-system, system-ui;
     font-size: 13px;
     transition: color 0.2s ease;
+}
+
+@media (max-width: 700px) {
+    .progress-bar {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .progress-bar__track {
+        width: 100%;
+    }
 }
 
 .progress-bar:hover .progress-bar__track {

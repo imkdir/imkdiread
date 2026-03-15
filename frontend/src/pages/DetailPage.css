@@ -43,7 +43,7 @@
 .detail-main-content-pane {
     flex: 1 1 500px;
     min-width: 320px;
-    max-width: 1080px;
+    max-width: 1280px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -110,39 +110,6 @@
     margin-bottom: 0.5rem;
 }
 
-/* --- Responsive Detail Wrap --- */
-@media (max-width: 900px) {
-    .detail-content-wrapper {
-        flex-wrap: wrap;
-    }
-    .detail-middle-col {
-        width: calc(100% - 270px);
-    }
-}
-
-@media (max-width: 700px) {
-    .detail-content-wrapper {
-        flex-direction: column;
-        align-items: center;
-        padding-left: 16px;
-        padding-right: 16px;
-    }
-    .detail-left-col {
-        width: 100%;
-        display: flex;
-        justify-content: center;
-    }
-    .detail-middle-col {
-        width: 100%;
-    }
-    .detail-title {
-        margin-top: 0;
-    }
-    .detail-right-col {
-        width: 50%;
-    }
-}
-
 /* --- PDF Viewer Pane --- */
 .pdf-viewer-pane {
     flex: 1 1 800px;
@@ -172,7 +139,8 @@
 }
 
 /* Morph Right Column into Sliding Drawer */
-.detail-content-wrapper.pdf-open-wrap .detail-right-col {
+.detail-content-wrapper.pdf-open-wrap .detail-right-col,
+.detail-right-col--drawer-mode {
     position: fixed;
     top: 15vh;
     right: 0;
@@ -180,15 +148,18 @@
     transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.detail-content-wrapper.pdf-open-wrap .detail-right-col.drawer-closed {
+.detail-content-wrapper.pdf-open-wrap .detail-right-col.drawer-closed,
+.detail-right-col--drawer-mode.drawer-closed {
     transform: translateX(100%);
 }
 
-.detail-content-wrapper.pdf-open-wrap .detail-right-col.drawer-open {
+.detail-content-wrapper.pdf-open-wrap .detail-right-col.drawer-open,
+.detail-right-col--drawer-mode.drawer-open {
     transform: translateX(0);
 }
 
-.detail-content-wrapper.pdf-open-wrap .drawer-handle {
+.detail-content-wrapper.pdf-open-wrap .drawer-handle,
+.detail-right-col--drawer-mode .drawer-handle {
     display: flex;
     position: absolute;
     left: -48px;
@@ -210,7 +181,8 @@
     box-shadow: -4px 4px 15px var(--overlay-black-30);
 }
 
-.detail-content-wrapper.pdf-open-wrap .drawer-handle:hover {
+.detail-content-wrapper.pdf-open-wrap .drawer-handle:hover,
+.detail-right-col--drawer-mode .drawer-handle:hover {
     background-color: var(--theme-detail-handle-bg-hover);
     color: var(--theme-detail-handle-text-hover);
 }
@@ -254,11 +226,63 @@
 }
 
 @media (max-width: 768px) {
+    .detail-content-wrapper {
+        flex-direction: column;
+        align-items: center;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .detail-left-col {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .detail-middle-col {
+        width: 100%;
+    }
+
+    .detail-title {
+        margin-top: 0;
+    }
+
+    .detail-right-col {
+        width: 100%;
+        max-width: 420px;
+    }
+
     /* Stacked Modal Mode */
     .pdf-viewer-pane {
-        padding: 16px;
+        padding: 56px 16px 16px 16px;
         flex-direction: column;
         gap: 12px;
+    }
+
+    .detail-right-col--drawer-mode {
+        top: auto;
+        bottom: 24px;
+        width: min(340px, calc(100vw - 24px));
+        max-width: calc(100vw - 24px);
+    }
+
+    .detail-right-col--drawer-mode .drawer-handle {
+        top: 24px;
+    }
+
+    .detail-action-panel {
+        width: 100%;
+    }
+
+    .detail-action-icons-row {
+        gap: 16px;
+        padding: 20px 18px;
+    }
+
+    .detail-action-row,
+    .detail-rating-section {
+        padding-left: 18px;
+        padding-right: 18px;
     }
 }
 
@@ -271,7 +295,6 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 16px;
-    max-width: 800px;
 }
 
 .detail-page-count-pill {
@@ -280,11 +303,10 @@
     background: transparent;
 }
 
-.detail-page-count-pill__content {
-    cursor: pointer;
-}
-
-.detail-tag-pill__link-button {
+.detail-page-count-pill__content,
+.detail-tag-pill__link-button,
+.detail-tag-pill--empty,
+.detail-tag-pill__empty-content {
     cursor: pointer;
 }
 
@@ -298,14 +320,6 @@
     padding: 8px 10px;
     font-size: 12px;
     color: var(--color-text-muted-mid);
-}
-
-.detail-tag-pill--empty {
-    cursor: pointer;
-}
-
-.detail-tag-pill__empty-content {
-    cursor: pointer;
 }
 
 .detail-authors-modal,
@@ -471,12 +485,17 @@
     border-radius: 6px;
     overflow: hidden;
     box-shadow: 0 5px 15px var(--color-bg-overlay-soft);
+    isolation: isolate;
+    contain: layout paint;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 .detail-action-icons-row {
     display: flex;
     gap: 24px;
     padding: 24px;
+    min-width: 0;
 }
 
 .detail-action-icon-col {
@@ -507,14 +526,17 @@
     color: #4285f4;
 }
 
-.detail-action-row {
+.detail-action-row,
+.detail-rating-section {
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 16px;
+    min-width: 0;
 }
 
-.detail-action-button {
+.detail-action-button,
+.detail-finished-btn {
     border: none;
     background-color: transparent;
     cursor: pointer;
@@ -532,13 +554,6 @@
     margin: 0;
     border: none;
     border-bottom: 1px solid var(--theme-detail-divider);
-}
-
-.detail-rating-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 16px;
 }
 
 .detail-stars-row {
@@ -608,7 +623,11 @@
     border: 1px solid rgba(123, 92, 58, 0.18);
     border-radius: 12px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.48), rgba(241, 231, 214, 0.88)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.48),
+            rgba(241, 231, 214, 0.88)
+        ),
         rgba(248, 242, 232, 0.88);
     color: rgba(67, 50, 36, 0.86);
     font-size: 13px;
@@ -628,7 +647,11 @@
     border: 1px dashed rgba(122, 91, 57, 0.34);
     border-radius: 12px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(239, 228, 210, 0.88)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.42),
+            rgba(239, 228, 210, 0.88)
+        ),
         rgba(247, 241, 230, 0.88);
     color: #4d3b29;
     font-size: 13px;
@@ -713,13 +736,10 @@
 }
 
 .detail-finished-btn {
-    border: none;
-    background-color: transparent;
     text-decoration-line: underline;
     font-size: 14px;
     font-family: Fredoka;
     color: var(--color-text-accent-teal);
-    cursor: pointer;
 }
 
 .detail-modal-title {

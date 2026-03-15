@@ -110,7 +110,23 @@ function DetailPage({ workId, initialWork }: Props) {
   const [isSavingAuthors, setIsSavingAuthors] = useState(false);
   const [isSavingTags, setIsSavingTags] = useState(false);
   const [isSavingPageCount, setIsSavingPageCount] = useState(false);
+  const [isNarrowActionDrawerMode, setIsNarrowActionDrawerMode] = useState(
+    () => window.innerWidth < 768,
+  );
   const isAdmin = user?.role === "admin";
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+
+    const updateMatches = () => {
+      setIsNarrowActionDrawerMode(mediaQuery.matches);
+    };
+
+    updateMatches();
+    mediaQuery.addEventListener("change", updateMatches);
+
+    return () => mediaQuery.removeEventListener("change", updateMatches);
+  }, []);
 
   const openSearchDrawer = (query: string) => {
     window.dispatchEvent(
@@ -168,6 +184,8 @@ function DetailPage({ workId, initialWork }: Props) {
     closeUploadModal,
     handleWorkFileUpload,
   } = detail;
+  const isActionPanelDrawerMode =
+    isPDFViewerOpen || isNarrowActionDrawerMode;
 
   useEffect(() => {
     if (!work) return;
@@ -732,6 +750,7 @@ function DetailPage({ workId, initialWork }: Props) {
               shelved={shelved}
               displayRating={displayRating}
               isPDFViewerOpen={isPDFViewerOpen}
+              isDrawerMode={isActionPanelDrawerMode}
               isActionDrawerOpen={isActionDrawerOpen}
               progressContent={<ProgressBar work={work} />}
               onToggleDrawer={toggleActionDrawer}
