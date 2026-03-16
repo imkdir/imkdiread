@@ -13,7 +13,6 @@ import { QuoteCard } from "../components/QuoteCard";
 import { FinderButton } from "../components/FinderButton";
 import { DetailActionPanel } from "../components/detail/DetailActionPanel";
 import { DetailQuoteModal } from "../components/detail/DetailQuoteModal";
-import { DetailFilePickerModal } from "../components/detail/DetailFilePickerModal";
 import { DetailDropboxLinkModal } from "../components/detail/DetailDropboxLinkModal";
 import { DetailFileUploadModal } from "../components/detail/DetailFileUploadModal";
 import {
@@ -159,6 +158,7 @@ function DetailPage({ workId, initialWork }: Props) {
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const pdfFrameWrapperRef = useRef<HTMLDivElement | null>(null);
   const authorDropdownRef = useRef<HTMLDivElement | null>(null);
+  const finderDropdownRef = useRef<HTMLDivElement | null>(null);
   const tagDropdownRef = useRef<HTMLDivElement | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
@@ -220,8 +220,8 @@ function DetailPage({ workId, initialWork }: Props) {
     isSavingQuote,
     isPDFViewerOpen,
     viewerInitialUrl,
-    isFilePickerOpen,
-    filePickerOptions,
+    isFinderDropdownOpen,
+    finderFiles,
     isActionDrawerOpen,
     isExplaining,
     displayRating,
@@ -242,8 +242,8 @@ function DetailPage({ workId, initialWork }: Props) {
     togglePDFViewer,
     closePDFViewer,
     handleFinderButtonClick,
-    handleFilePickerSelect,
-    closeFilePicker,
+    handleFinderFileSelect,
+    closeFinderDropdown,
     isDropboxLinkModalOpen,
     dropboxLinkDraft,
     dropboxLinkError,
@@ -337,6 +337,22 @@ function DetailPage({ workId, initialWork }: Props) {
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [isAuthorDropdownOpen]);
+
+  useEffect(() => {
+    if (!isFinderDropdownOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        finderDropdownRef.current &&
+        !finderDropdownRef.current.contains(event.target as Node)
+      ) {
+        closeFinderDropdown();
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [closeFinderDropdown, isFinderDropdownOpen]);
 
   useEffect(() => {
     if (!isTagDropdownOpen) return;
@@ -596,7 +612,7 @@ function DetailPage({ workId, initialWork }: Props) {
   if (loading || !work) return null;
 
   const canUseDropbox = Boolean(work.dropbox_link) || isAdmin;
-  const canUseFinder = Boolean(work.file_urls?.length) || isAdmin;
+  const canUseFinder = finderFiles.length > 0 || isAdmin;
   const visibleAuthors = work.authors || [];
   const firstAuthor = visibleAuthors[0];
   const extraAuthors = visibleAuthors.slice(1);
@@ -873,7 +889,38 @@ function DetailPage({ workId, initialWork }: Props) {
                 </div>
                 <div className="detail-urls">
                   {canUseFinder && (
-                    <FinderButton onClick={handleFinderButtonClick} />
+                    <MetadataPillWrap
+                      className="detail-finder-pill-wrap"
+                      ref={finderDropdownRef}
+                    >
+                      <FinderButton
+                        onClick={handleFinderButtonClick}
+                        aria-expanded={
+                          finderFiles.length > 1 ? isFinderDropdownOpen : undefined
+                        }
+                        aria-haspopup={finderFiles.length > 1 ? "menu" : undefined}
+                        aria-label={
+                          finderFiles.length > 1
+                            ? "Choose a file version"
+                            : "Open in Finder"
+                        }
+                      />
+                      {finderFiles.length > 1 && isFinderDropdownOpen && (
+                        <MetadataDropdown className="detail-finder-dropdown">
+                          {finderFiles.map(({ label, url }) => (
+                            <MetadataDropdownItem
+                              key={label}
+                              as="button"
+                              type="button"
+                              className="detail-finder-dropdown__item"
+                              onClick={() => handleFinderFileSelect(url)}
+                            >
+                              {label}
+                            </MetadataDropdownItem>
+                          ))}
+                        </MetadataDropdown>
+                      )}
+                    </MetadataPillWrap>
                   )}
 
                   {canUseDropbox && (
@@ -1000,13 +1047,6 @@ function DetailPage({ workId, initialWork }: Props) {
         onInputChange={handleQuoteInputChange}
         onProgressFinished={handleProgressFinished}
         onExplainPassage={handleExplainPassage}
-      />
-
-      <DetailFilePickerModal
-        isOpen={isFilePickerOpen}
-        options={filePickerOptions}
-        onSelect={handleFilePickerSelect}
-        onClose={closeFilePicker}
       />
       <DetailDropboxLinkModal
         isOpen={isDropboxLinkModalOpen}

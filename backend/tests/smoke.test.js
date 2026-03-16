@@ -1307,9 +1307,10 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   );
   assert.equal(importedWorkDetail.status, 200);
   assert.ok(
-    Array.isArray(importedWorkDetail.json?.file_urls) &&
-      importedWorkDetail.json.file_urls.some((url) =>
-        url.endsWith(`${importedWorkId}.pdf`),
+    typeof importedWorkDetail.json?.files === "object" &&
+      importedWorkDetail.json.files !== null &&
+      importedWorkDetail.json.files[importedWorkId]?.endsWith(
+        `${importedWorkId}.pdf`,
       ),
   );
 
@@ -1553,8 +1554,12 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(Boolean(workDetail.json?.read), true);
   assert.equal(Boolean(workDetail.json?.liked), true);
   assert.equal(workDetail.json?.rating, 7);
-  assert.ok(Array.isArray(workDetail.json?.file_urls));
-  assert.ok(workDetail.json.file_urls.some((url) => url.endsWith(`${workId}.pdf`)));
+  assert.ok(typeof workDetail.json?.files === "object");
+  assert.ok(
+    Object.values(workDetail.json.files || {}).some((url) =>
+      typeof url === "string" && url.endsWith(`${workId}.pdf`),
+    ),
+  );
   assert.ok(workDetail.json?.cover_img_url?.endsWith(`${workId}.png`));
 
   const deleteImported = await requestJson(

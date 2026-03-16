@@ -1,17 +1,17 @@
 import React, { PureComponent } from "react";
 import logo from "../assets/imgs/finder.png";
 
-interface Props {
-  style?: React.CSSProperties;
-  onClick: () => void;
-}
+type Props = React.ButtonHTMLAttributes<HTMLButtonElement>;
 
 export class FinderButton extends PureComponent<Props> {
   render() {
+    const { style, type = "button", ...props } = this.props;
+
     return (
       <button
-        style={{ ...styles.root, ...this.props.style }}
-        onClick={this.props.onClick}
+        type={type}
+        style={{ ...styles.root, ...style }}
+        {...props}
       >
         <img src={logo} style={styles.logo} alt={"finder-logo"} />
       </button>

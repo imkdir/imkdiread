@@ -154,33 +154,6 @@ export function buildLocalPdfUrl(
   return `${fileUrl}#${pdfParams.join("&")}`;
 }
 
-export function buildFinderLabel(fileUrl: string, workId: string): string {
-  let filename = fileUrl.split("/").pop() || "";
-  filename = filename.replace(/\.[^/.]+$/, "");
-  const lowerFilename = filename.toLowerCase();
-  const lowerPrefix = workId.toLowerCase();
-
-  if (lowerFilename.startsWith(`${lowerPrefix}_`)) {
-    filename = filename.slice(workId.length + 1);
-  } else if (lowerFilename.startsWith(lowerPrefix)) {
-    filename = filename.slice(workId.length);
-  }
-
-  filename = filename.replace(/^_+/, "");
-  const segments = filename.split(/[_\s-]+/).filter(Boolean);
-  const mapped = segments.map((segment) => {
-    const lower = segment.toLowerCase();
-    if (lower === "lec") return "Limited Editions Club";
-    if (lower === "ppp") return "Peter Pauper Press";
-    if (lower === "ml") return "Modern Library";
-    if (lower === "hp") return "Heritage Press";
-    if (/^\d+$/.test(lower)) return `Vol.${Number(segment)}`;
-    return segment;
-  });
-
-  return mapped.join(" ") || "Edition";
-}
-
 interface DropboxLinkResponse extends ApiSuccessResponse {
   dropbox_link?: string;
 }

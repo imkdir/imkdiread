@@ -12,7 +12,7 @@ export interface Quote {
 export interface Work {
   id: string;
   title: string;
-  file_urls?: string[];
+  files?: Record<string, string>;
   current_page?: number;
   goodreads_id?: string | null;
   cover_img_url?: string | null;

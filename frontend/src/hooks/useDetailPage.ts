@@ -3,7 +3,6 @@ import type React from "react";
 
 import type { Quote, Work } from "../types";
 import {
-  buildFinderLabel,
   buildLocalPdfUrl,
   explainPassage,
   fetchWorkById,
@@ -16,7 +15,6 @@ import {
   updateWorkRating,
   type DetailToggleAction,
 } from "../services/detailPageService";
-import type { DetailFilePickerOption } from "../components/detail/DetailFilePickerModal";
 import type { DetailEditingForm } from "../components/detail/DetailQuoteModal";
 import { showToast } from "../utils/toast";
 
@@ -70,10 +68,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const [isSavingQuote, setIsSavingQuote] = useState(false);
   const [isPDFViewerOpen, setIsPDFViewerOpen] = useState(false);
   const [viewerInitialUrl, setViewerInitialUrl] = useState<string | null>(null);
-  const [isFilePickerOpen, setIsFilePickerOpen] = useState(false);
-  const [filePickerOptions, setFilePickerOptions] = useState<
-    DetailFilePickerOption[]
-  >([]);
+  const [isFinderDropdownOpen, setIsFinderDropdownOpen] = useState(false);
   const [isActionDrawerOpen, setIsActionDrawerOpen] = useState(false);
   const [isExplaining, setIsExplaining] = useState(false);
   const [isDropboxLinkModalOpen, setIsDropboxLinkModalOpen] = useState(false);
@@ -473,15 +468,14 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const openLocalPdfViewer = useCallback(
     (fileUrl: string) => {
       const preparedUrl = buildLocalPdfUrl(fileUrl, work?.current_page);
-      setIsFilePickerOpen(false);
+      setIsFinderDropdownOpen(false);
       openPDFViewer(preparedUrl);
     },
     [openPDFViewer, work],
   );
 
-  const closeFilePicker = useCallback(() => {
-    setIsFilePickerOpen(false);
-    setFilePickerOptions([]);
+  const closeFinderDropdown = useCallback(() => {
+    setIsFinderDropdownOpen(false);
   }, []);
 
   const openUploadModal = useCallback(() => {
@@ -526,30 +520,35 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   );
 
   const handleFinderButtonClick = useCallback(() => {
-    if (!work?.file_urls?.length) {
+    const files = Object.entries(work?.files || {});
+
+    if (!files.length) {
       openUploadModal();
       return;
     }
 
-    if (work.file_urls.length === 1) {
-      openLocalPdfViewer(work.file_urls[0]);
+    if (files.length === 1) {
+      openLocalPdfViewer(files[0][1]);
       return;
     }
 
-    const options = work.file_urls.map((url) => ({
-      url,
-      label: buildFinderLabel(url, work.id),
-    }));
-    setFilePickerOptions(options);
-    setIsFilePickerOpen(true);
+    setIsFinderDropdownOpen((prev) => !prev);
   }, [openLocalPdfViewer, openUploadModal, work]);
 
-  const handleFilePickerSelect = useCallback(
-    (option: DetailFilePickerOption) => {
-      setFilePickerOptions([]);
-      openLocalPdfViewer(option.url);
+  const handleFinderFileSelect = useCallback(
+    (url: string) => {
+      openLocalPdfViewer(url);
     },
     [openLocalPdfViewer],
+  );
+
+  const finderFiles = useMemo(
+    () =>
+      Object.entries(work?.files || {}).map(([label, url]) => ({
+        label,
+        url,
+      })),
+    [work?.files],
   );
 
   const displayRating = hoverRating > 0 ? hoverRating : rating;
@@ -570,8 +569,8 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     isSavingQuote,
     isPDFViewerOpen,
     viewerInitialUrl,
-    isFilePickerOpen,
-    filePickerOptions,
+    isFinderDropdownOpen,
+    finderFiles,
     isActionDrawerOpen,
     isExplaining,
     displayRating,
@@ -592,8 +591,8 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     togglePDFViewer,
     closePDFViewer,
     handleFinderButtonClick,
-    handleFilePickerSelect,
-    closeFilePicker,
+    handleFinderFileSelect,
+    closeFinderDropdown,
     isDropboxLinkModalOpen,
     dropboxLinkDraft,
     dropboxLinkError,

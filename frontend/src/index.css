@@ -19,7 +19,6 @@
     --z-shell-menu-bar: 6000;
     --z-overlay-floating-drawer: 7000;
     --z-overlay-user-profile-card: 7050;
-    --z-overlay-file-picker: 7100;
 
     /* --- Shared Theme Tokens --- */
     --theme-page-background: #1e1914;
@@ -433,66 +432,6 @@ html {
     .action-row {
         width: 200px;
     }
-}
-
-.file-picker-overlay {
-    position: fixed;
-    inset: 0;
-    background: var(--overlay-black-65);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: var(--z-overlay-file-picker);
-}
-
-.file-picker-card {
-    color: var(--theme-quote-card-accent);
-    border-radius: 14px;
-    background: var(--paper-cream-warm);
-    box-shadow: 0 20px 60px var(--overlay-black-35);
-    padding: 32px 28px 20px 28px;
-    width: min(90vw, 320px);
-    text-align: center;
-}
-
-.file-picker-card h3 {
-    margin: 0 0 16px;
-    font-size: 1rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.file-picker-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 18px;
-}
-
-.file-picker-option {
-    border: none;
-    box-shadow: 2px 2px var(--overlay-wood-20);
-    background: var(--paper-cream-soft);
-    border-radius: 8px;
-    padding: 10px 14px;
-    text-align: left;
-    cursor: pointer;
-    font-size: 0.95rem;
-    font-family: "Libre Baskerville";
-    color: var(--theme-quote-card-accent);
-}
-
-.file-picker-option:hover {
-    border-color: var(--paper-ink-soft);
-}
-
-.file-picker-close {
-    background: transparent;
-    padding-top: 8px;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    color: var(--theme-quote-card-accent);
 }
 
 /* =========================================================

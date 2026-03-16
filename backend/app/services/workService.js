@@ -2,6 +2,13 @@ const fs = require("fs");
 const { getPublicPath } = require("../utils/paths");
 const path = require("path");
 
+let PUBLISHER_LABELS = {};
+try {
+  PUBLISHER_LABELS = require("../../public/data/publishers");
+} catch {
+  PUBLISHER_LABELS = {};
+}
+
 function createWorkService({ db, BACKEND_URL }) {
   const GENRE_TAG_PREFIX = "genre:";
 
@@ -44,10 +51,52 @@ function createWorkService({ db, BACKEND_URL }) {
       .sort();
   }
 
-  function getWorkFileUrls(workId) {
-    return getWorkFileNames(workId).map(
-      (filename) => `${BACKEND_URL}/files/${filename}`,
-    );
+  function buildWorkFileLabel(filename, workId) {
+    let label = filename.replace(/\.[^/.]+$/, "");
+    const lowerLabel = label.toLowerCase();
+    const lowerPrefix = workId.toLowerCase();
+
+    if (lowerLabel.startsWith(`${lowerPrefix}_`)) {
+      label = label.slice(workId.length + 1);
+    } else if (lowerLabel.startsWith(lowerPrefix)) {
+      label = label.slice(workId.length);
+    }
+
+    label = label.replace(/^_+/, "");
+    const segments = label.split(/[_\s-]+/).filter(Boolean);
+    const mapped = segments.map((segment) => {
+      const lower = segment.toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(PUBLISHER_LABELS, lower)) {
+        return PUBLISHER_LABELS[lower];
+      }
+      if (/^\d+$/.test(lower)) return `Vol.${Number(segment)}`;
+      return segment;
+    });
+
+    return mapped.join(" ") || "Edition";
+  }
+
+  function getWorkFiles(workId) {
+    const filenames = getWorkFileNames(workId);
+    const files = {};
+
+    filenames.forEach((filename) => {
+      const baseLabel =
+        filenames.length === 1
+          ? workId
+          : buildWorkFileLabel(filename, workId);
+      let label = baseLabel;
+      let duplicateIndex = 2;
+
+      while (files[label]) {
+        label = `${baseLabel} (${duplicateIndex})`;
+        duplicateIndex += 1;
+      }
+
+      files[label] = `${BACKEND_URL}/files/${filename}`;
+    });
+
+    return files;
   }
 
   function isWorkAvailable(workOrId) {
@@ -61,7 +110,6 @@ function createWorkService({ db, BACKEND_URL }) {
   }
 
   function processWork(work) {
-    const fileUrls = getWorkFileUrls(work.id);
     return {
       ...work,
       cover_img_url: getStaticUrlIfItExists(
@@ -69,7 +117,7 @@ function createWorkService({ db, BACKEND_URL }) {
         `${work.id}.png`,
       ),
       background_img_url: getGenreBackgroundUrl(work.tags),
-      file_urls: fileUrls,
+      files: getWorkFiles(work.id),
     };
   }
 
@@ -287,7 +335,7 @@ function createWorkService({ db, BACKEND_URL }) {
     recordReadingActivity,
     getGenreBackgroundUrl,
     getWorkFileNames,
-    getWorkFileUrls,
+    getWorkFiles,
     isWorkAvailable,
   };
 }
