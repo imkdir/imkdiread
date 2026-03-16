@@ -870,7 +870,8 @@ function DetailPage({ workId, initialWork }: Props) {
                       </MetadataPill>
                     )
                   )}
-
+                </div>
+                <div className="detail-urls">
                   {canUseFinder && (
                     <FinderButton onClick={handleFinderButtonClick} />
                   )}

@@ -295,6 +295,14 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 16px;
+    margin-bottom: 20px;
+}
+
+.detail-urls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
 }
 
 .detail-page-count-pill {
