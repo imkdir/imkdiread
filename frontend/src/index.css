@@ -19,6 +19,7 @@
     --z-shell-menu-bar: 6000;
     --z-overlay-floating-drawer: 7000;
     --z-overlay-user-profile-card: 7050;
+    --z-overlay-popover: 7100;
 
     /* --- Shared Theme Tokens --- */
     --theme-page-background: #1e1914;
