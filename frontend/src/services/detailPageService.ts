@@ -268,6 +268,29 @@ export async function updateWorkPageCount(
   }
 }
 
+export async function updateWorkTitle(
+  work: Work,
+  title: string,
+): Promise<void> {
+  const res = await request(`/api/works/${encodeURIComponent(work.id)}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      id: work.id,
+      title,
+      goodreads_id: work.goodreads_id || "",
+      page_count: work.page_count,
+      dropbox_link: work.dropbox_link || "",
+      amazon_asin: work.amazon_asin || "",
+      authors: work.authors || [],
+      tags: work.tags || [],
+    }),
+  });
+  const data = await readJsonSafe<ApiSuccessResponse>(res);
+  if (!res.ok || !data?.success) {
+    throw new Error(getApiErrorMessage(data, "Failed to update title."));
+  }
+}
+
 export async function updateWorkAuthors(
   work: Work,
   authors: string[],

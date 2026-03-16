@@ -29,6 +29,7 @@ import {
   updateWorkAuthors,
   updateWorkPageCount,
   updateWorkTags,
+  updateWorkTitle,
   uploadWorkCover,
 } from "../services/detailPageService";
 import { formatTagLabel, isGenreTag } from "../utils/tags";
@@ -166,8 +167,10 @@ function DetailPage({ workId, initialWork }: Props) {
   const [isAuthorDropdownOpen, setIsAuthorDropdownOpen] = useState(false);
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+  const [isTitleModalOpen, setIsTitleModalOpen] = useState(false);
   const [isPageCountModalOpen, setIsPageCountModalOpen] = useState(false);
   const [isReadingFocusModalOpen, setIsReadingFocusModalOpen] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
   const [pageCountDraft, setPageCountDraft] = useState("");
   const [authorDrafts, setAuthorDrafts] = useState<AuthorDraft[]>([]);
   const [tagDrafts, setTagDrafts] = useState<TagDraft[]>([]);
@@ -175,6 +178,7 @@ function DetailPage({ workId, initialWork }: Props) {
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [isSavingAuthors, setIsSavingAuthors] = useState(false);
   const [isSavingTags, setIsSavingTags] = useState(false);
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [isSavingPageCount, setIsSavingPageCount] = useState(false);
   const [readingFocusSettings, setReadingFocusSettings] = useState(
     loadReadingFocusSettings,
@@ -319,6 +323,7 @@ function DetailPage({ workId, initialWork }: Props) {
     setTagDrafts(buildTagDrafts(work.tags || []));
     setEditingTagId(null);
     setIsTagDropdownOpen(false);
+    setTitleDraft(work.title || "");
     setPageCountDraft(String(work.page_count || 0));
   }, [work]);
 
@@ -559,6 +564,44 @@ function DetailPage({ workId, initialWork }: Props) {
     setIsPageCountModalOpen(true);
   };
 
+  const openTitleModal = () => {
+    if (!work) return;
+    setTitleDraft(work.title || "");
+    setIsTitleModalOpen(true);
+  };
+
+  const closeTitleModal = () => {
+    if (!work || isSavingTitle) return;
+    setTitleDraft(work.title || "");
+    setIsTitleModalOpen(false);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!work) return;
+
+    const nextTitle = titleDraft.trim();
+    if (!nextTitle) {
+      showToast("Title is required.", { tone: "error" });
+      return;
+    }
+
+    setIsSavingTitle(true);
+
+    try {
+      await updateWorkTitle(work, nextTitle);
+      await fetchData();
+      setIsTitleModalOpen(false);
+      showToast("Title updated.", { tone: "success" });
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to update title.",
+        { tone: "error" },
+      );
+    } finally {
+      setIsSavingTitle(false);
+    }
+  };
+
   const closePageCountModal = () => {
     if (!work || isSavingPageCount) return;
     setPageCountDraft(String(work.page_count || 0));
@@ -591,6 +634,15 @@ function DetailPage({ workId, initialWork }: Props) {
     } finally {
       setIsSavingPageCount(false);
     }
+  };
+
+  const handleAdjustPageCount = (delta: number) => {
+    setPageCountDraft((current) => {
+      const parsed = Number(current.trim());
+      const baseValue =
+        Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+      return String(Math.max(0, baseValue + delta));
+    });
   };
 
   const openReadingFocusModal = () => {
@@ -695,7 +747,25 @@ function DetailPage({ workId, initialWork }: Props) {
             >
               <div>
                 <h1 className="detail-title">
-                  {work.title || "Untitled Work"}
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      className="detail-title-button"
+                      onClick={openTitleModal}
+                    >
+                      <span className="detail-title-button__text">
+                        {work.title || "Untitled Work"}
+                      </span>
+                      <span
+                        className="detail-title-button__icon"
+                        aria-hidden="true"
+                      >
+                        <AppIcon name="edit" title="Edit title" size={18} />
+                      </span>
+                    </button>
+                  ) : (
+                    work.title || "Untitled Work"
+                  )}
                 </h1>
 
                 <div className="detail-metadata">
@@ -896,9 +966,13 @@ function DetailPage({ workId, initialWork }: Props) {
                       <FinderButton
                         onClick={handleFinderButtonClick}
                         aria-expanded={
-                          finderFiles.length > 1 ? isFinderDropdownOpen : undefined
+                          finderFiles.length > 1
+                            ? isFinderDropdownOpen
+                            : undefined
                         }
-                        aria-haspopup={finderFiles.length > 1 ? "menu" : undefined}
+                        aria-haspopup={
+                          finderFiles.length > 1 ? "menu" : undefined
+                        }
                         aria-label={
                           finderFiles.length > 1
                             ? "Choose a file version"
@@ -1219,7 +1293,7 @@ function DetailPage({ workId, initialWork }: Props) {
       >
         <div className="modal-header">
           <AppIcon name="users" title="Authors" size={16} />
-          <p className="modal-subtitle">Edit this work&apos;s authors</p>
+          <p className="modal-subtitle">Authors</p>
         </div>
 
         <div className="detail-tag-editor">
@@ -1315,7 +1389,7 @@ function DetailPage({ workId, initialWork }: Props) {
       >
         <div className="modal-header">
           <AppIcon name="tag" title="Tags" size={16} />
-          <p className="modal-subtitle">Edit this work's tags</p>
+          <p className="modal-subtitle">Tags</p>
         </div>
 
         <div className="detail-tag-editor">
@@ -1405,28 +1479,98 @@ function DetailPage({ workId, initialWork }: Props) {
       </Modal>
 
       <Modal
+        isOpen={isAdmin && isTitleModalOpen}
+        onClose={closeTitleModal}
+        cardClassName="detail-title-modal"
+      >
+        <div className="modal-header">
+          <AppIcon name="edit" title="Title" size={16} />
+          <p className="modal-subtitle">Title</p>
+        </div>
+
+        <label className="detail-page-count-modal__field">
+          <input
+            type="text"
+            value={titleDraft}
+            onChange={(event) => setTitleDraft(event.target.value)}
+            className="modal-input"
+            placeholder="Enter title"
+            autoFocus
+          />
+        </label>
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            onClick={closeTitleModal}
+            className="modal-btn modal-btn--cancel"
+            disabled={isSavingTitle}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void handleSaveTitle();
+            }}
+            className="modal-btn modal-btn--primary"
+            disabled={isSavingTitle}
+          >
+            {isSavingTitle ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
         isOpen={isAdmin && isPageCountModalOpen}
         onClose={closePageCountModal}
         cardClassName="detail-page-count-modal"
       >
         <div className="modal-header">
-          <AppIcon name="pdf" title="Page count" size={16} />
-          <p className="modal-subtitle">Update this work&apos;s page count</p>
+          <AppIcon name="edit" title="Page count" size={16} />
+          <p className="modal-subtitle">Page count</p>
         </div>
 
         <label className="detail-page-count-modal__field">
-          <span className="detail-page-count-modal__label">Pages</span>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            inputMode="numeric"
-            value={pageCountDraft}
-            onChange={(event) => setPageCountDraft(event.target.value)}
-            className="modal-input"
-            placeholder="Enter page count"
-            autoFocus
-          />
+          <div className="detail-page-count-stepper">
+            <button
+              type="button"
+              className="detail-page-count-stepper__button"
+              onClick={() => handleAdjustPageCount(-1)}
+              aria-label="Decrease page count"
+            >
+              <span
+                className="detail-page-count-stepper__symbol"
+                aria-hidden="true"
+              >
+                -
+              </span>
+            </button>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              inputMode="numeric"
+              value={pageCountDraft}
+              onChange={(event) => setPageCountDraft(event.target.value)}
+              className="modal-input detail-page-count-stepper__input"
+              placeholder="Enter page count"
+              autoFocus
+            />
+            <button
+              type="button"
+              className="detail-page-count-stepper__button"
+              onClick={() => handleAdjustPageCount(1)}
+              aria-label="Increase page count"
+            >
+              <AppIcon
+                name="close"
+                size={12}
+                title="Increase page count"
+                style={{ transform: "rotate(45deg)" }}
+              />
+            </button>
+          </div>
         </label>
 
         <div className="modal-actions">
