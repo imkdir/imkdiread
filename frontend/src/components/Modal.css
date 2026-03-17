@@ -6,8 +6,16 @@
     align-items: center;
     padding: 28px;
     background:
-        radial-gradient(circle at top, rgba(246, 235, 209, 0.16), transparent 34%),
-        radial-gradient(circle at bottom, rgba(126, 88, 52, 0.12), transparent 38%),
+        radial-gradient(
+            circle at top,
+            rgba(246, 235, 209, 0.16),
+            transparent 34%
+        ),
+        radial-gradient(
+            circle at bottom,
+            rgba(126, 88, 52, 0.12),
+            transparent 38%
+        ),
         rgba(29, 21, 15, 0.74);
     backdrop-filter: blur(10px) saturate(105%);
     -webkit-backdrop-filter: blur(10px) saturate(105%);
@@ -19,8 +27,16 @@
     width: min(460px, 90vw);
     padding: 28px;
     background:
-        radial-gradient(circle at top, rgba(255, 255, 255, 0.42), transparent 32%),
-        linear-gradient(180deg, rgba(252, 248, 240, 0.98), rgba(243, 232, 212, 0.96)),
+        radial-gradient(
+            circle at top,
+            rgba(255, 255, 255, 0.42),
+            transparent 32%
+        ),
+        linear-gradient(
+            180deg,
+            rgba(252, 248, 240, 0.98),
+            rgba(243, 232, 212, 0.96)
+        ),
         repeating-linear-gradient(
             0deg,
             rgba(120, 90, 54, 0.015) 0,
@@ -62,7 +78,11 @@
     border-radius: 12px;
     border: 1px solid rgba(123, 92, 58, 0.22);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(241, 231, 214, 0.92)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.55),
+            rgba(241, 231, 214, 0.92)
+        ),
         rgba(255, 250, 243, 0.9);
     color: #2f241a;
     font-family: var(--font-primary-stack);
@@ -117,7 +137,11 @@
 
 .modal-btn--cancel {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(236, 225, 207, 0.95)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.55),
+            rgba(236, 225, 207, 0.95)
+        ),
         rgba(247, 241, 230, 0.92);
     border: 1px solid rgba(122, 91, 57, 0.18);
     color: #4d3b29;
@@ -126,7 +150,11 @@
 .modal-btn--save,
 .modal-btn--primary {
     background:
-        linear-gradient(180deg, rgba(142, 93, 48, 0.96), rgba(98, 63, 32, 0.96)),
+        linear-gradient(
+            180deg,
+            rgba(142, 93, 48, 0.96),
+            rgba(98, 63, 32, 0.96)
+        ),
         rgba(94, 60, 31, 0.94);
     border: 1px solid rgba(92, 59, 31, 0.45);
     color: #fbf4ea;
@@ -164,7 +192,11 @@
     border: 1px solid rgba(122, 91, 57, 0.16);
     border-radius: 14px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(240, 229, 211, 0.9)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.46),
+            rgba(240, 229, 211, 0.9)
+        ),
         rgba(248, 242, 232, 0.9);
     color: #3f2f21;
     text-align: left;
@@ -179,9 +211,6 @@
 .modal-menu__item:hover {
     transform: translateY(-1px);
     border-color: rgba(126, 88, 52, 0.24);
-    box-shadow:
-        0 16px 30px rgba(63, 38, 17, 0.16),
-        inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
 .modal-menu__icon {

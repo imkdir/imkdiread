@@ -11,6 +11,8 @@ try {
 
 function createWorkService({ db, BACKEND_URL }) {
   const GENRE_TAG_PREFIX = "genre:";
+  const workFilesDir = getPublicPath("files");
+  let workFileNamesById = new Map();
 
   const getStaticUrlIfItExists = (subDirs, filename) => {
     if (!filename) return null;
@@ -19,6 +21,44 @@ function createWorkService({ db, BACKEND_URL }) {
       ? `${BACKEND_URL}/${subDirs.join("/")}/${filename}`
       : null;
   };
+
+  function listWorkFilesFromDisk() {
+    if (!fs.existsSync(workFilesDir)) return [];
+
+    return fs
+      .readdirSync(workFilesDir)
+      .filter((name) => {
+        try {
+          return fs.statSync(path.join(workFilesDir, name)).isFile();
+        } catch {
+          return false;
+        }
+      })
+      .sort();
+  }
+
+  function refreshWorkFileCache() {
+    const filenames = listWorkFilesFromDisk();
+    const cache = new Map();
+    const workRows = db.prepare("SELECT id FROM works").all();
+
+    workRows.forEach(({ id }) => {
+      cache.set(
+        id,
+        filenames.filter((name) => name.startsWith(id)),
+      );
+    });
+
+    workFileNamesById = cache;
+
+    return {
+      total_work_count: workRows.length,
+      total_file_count: filenames.length,
+      works_with_files_count: Array.from(cache.values()).filter(
+        (workFiles) => workFiles.length > 0,
+      ).length,
+    };
+  }
 
   function getGenreBackgroundUrl(tags = []) {
     const genreTags = Array.isArray(tags)
@@ -36,19 +76,7 @@ function createWorkService({ db, BACKEND_URL }) {
   }
 
   function getWorkFileNames(workId) {
-    const filesDir = getPublicPath("files");
-    if (!fs.existsSync(filesDir)) return [];
-    return fs
-      .readdirSync(filesDir)
-      .filter((name) => name.startsWith(workId))
-      .filter((name) => {
-        try {
-          return fs.statSync(path.join(filesDir, name)).isFile();
-        } catch {
-          return false;
-        }
-      })
-      .sort();
+    return workFileNamesById.get(workId) || [];
   }
 
   function buildWorkFileLabel(filename, workId) {
@@ -261,6 +289,8 @@ function createWorkService({ db, BACKEND_URL }) {
     return trimmed;
   }
 
+  refreshWorkFileCache();
+
   function ensureUserWorkInteraction(userId, workId) {
     db.prepare(
       `INSERT OR IGNORE INTO user_work_interactions (user_id, work_id) VALUES (?, ?)`,
@@ -337,6 +367,7 @@ function createWorkService({ db, BACKEND_URL }) {
     getWorkFileNames,
     getWorkFiles,
     isWorkAvailable,
+    refreshWorkFileCache,
   };
 }
 

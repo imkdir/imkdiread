@@ -24,6 +24,14 @@ interface ProfileResponse {
   quotes?: Quote[];
 }
 
+interface RescanWorksResponse {
+  success?: boolean;
+  total_work_count?: number;
+  total_file_count?: number;
+  works_with_files_count?: number;
+  error?: string;
+}
+
 interface CSVWorkRow {
   id?: string;
   goodreads_id?: string;
@@ -157,6 +165,7 @@ export const SidebarLayout: React.FC = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchInitialQuery, setSearchInitialQuery] = useState("");
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
+  const [isRescanningWorks, setIsRescanningWorks] = useState(false);
   const [unreadInboxCount, setUnreadInboxCount] = useState(0);
   const [inboxAnchorRect, setInboxAnchorRect] = useState<DOMRect | null>(null);
   const [dictionaryAnchorRect, setDictionaryAnchorRect] =
@@ -266,6 +275,36 @@ export const SidebarLayout: React.FC = () => {
         error instanceof Error ? error.message : "Failed to export works.",
         { tone: "error" },
       );
+    }
+  };
+
+  const handleRescanWorks = async () => {
+    if (!isAdmin || isRescanningWorks) return;
+
+    setIsRescanningWorks(true);
+
+    try {
+      const res = await request("/api/works/rescan", { method: "POST" });
+      const data = await readJsonSafe<RescanWorksResponse>(res);
+
+      if (!res.ok) {
+        throw new Error(
+          getApiErrorMessage(data, "Failed to rescan work files."),
+        );
+      }
+
+      showToast(
+        `Rescanned ${data?.total_file_count ?? 0} files across ${data?.works_with_files_count ?? 0} works.`,
+        { tone: "success" },
+      );
+    } catch (error) {
+      console.error("Failed to rescan works", error);
+      showToast(
+        error instanceof Error ? error.message : "Failed to rescan work files.",
+        { tone: "error" },
+      );
+    } finally {
+      setIsRescanningWorks(false);
     }
   };
 
@@ -560,6 +599,22 @@ export const SidebarLayout: React.FC = () => {
           <p className="modal-subtitle">Library admin actions</p>
         </div>
         <div className="modal-menu">
+          <button
+            type="button"
+            className="modal-menu__item"
+            disabled={isRescanningWorks}
+            onClick={() => {
+              setIsAdminMenuOpen(false);
+              void handleRescanWorks();
+            }}
+          >
+            <span className="modal-menu__icon">
+              <AppIcon name="search" title="Rescan Works" size={18} />
+            </span>
+            <span className="modal-menu__text">
+              {isRescanningWorks ? "Rescanning works..." : "Rescan works"}
+            </span>
+          </button>
           <button
             type="button"
             className="modal-menu__item"

@@ -166,7 +166,9 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
       }>(res);
 
       if (!res.ok || !data?.success || !data.author) {
-        throw new Error(getApiErrorMessage(data, "Failed to update author bio."));
+        throw new Error(
+          getApiErrorMessage(data, "Failed to update author bio."),
+        );
       }
 
       this.setState({
@@ -204,7 +206,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
     const isAdmin = this.getIsAdmin();
 
     if (loading) {
-      return <div className="author-page__loading">Loading author…</div>;
+      return <div className="author-page__loading" />;
     }
 
     if (!profile) {
@@ -361,7 +363,9 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
           <form onSubmit={this.saveBio} className="author-page__bio-modal-form">
             <textarea
               value={bioDraft}
-              onChange={(event) => this.setState({ bioDraft: event.target.value })}
+              onChange={(event) =>
+                this.setState({ bioDraft: event.target.value })
+              }
               className="modal-input author-page__bio-modal-textarea"
               placeholder="Write a short author bio..."
               rows={8}

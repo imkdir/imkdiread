@@ -271,11 +271,27 @@ function createWorksRouter({ db, workService, inboxService }) {
         workService.syncAuthors(work.id, work.authors);
         workService.syncTags(work.id, work.tags, "work_tags", "work_id");
       })();
+      workService.refreshWorkFileCache();
       res.json({ success: true });
     } catch (error) {
       jsonError(res, 500, "Failed to add work");
     }
   });
+
+  router.post(
+    "/api/works/rescan",
+    authenticateToken,
+    requireAdmin,
+    (_req, res) => {
+      try {
+        const stats = workService.refreshWorkFileCache();
+        res.json({ success: true, ...stats });
+      } catch (error) {
+        console.error("Failed to rescan work files:", error);
+        jsonError(res, 500, "Failed to rescan work files.");
+      }
+    },
+  );
 
   router.put("/api/works/:id", authenticateToken, requireAdmin, (req, res) => {
     try {
@@ -347,6 +363,7 @@ function createWorksRouter({ db, workService, inboxService }) {
         db.transaction(executeWorkUpdate)();
       }
 
+      workService.refreshWorkFileCache();
       inboxService.notifyWorkAvailabilityIfNeeded(work.id, wasAvailable);
       res.json({ success: true });
     } catch (error) {
@@ -472,6 +489,7 @@ function createWorksRouter({ db, workService, inboxService }) {
           return jsonError(res, 400, "File is required.");
         }
 
+        workService.refreshWorkFileCache();
         const hadOtherFiles = workService
           .getWorkFileNames(workId)
           .some((filename) => filename !== req.file.filename);
@@ -529,6 +547,7 @@ function createWorksRouter({ db, workService, inboxService }) {
             workService.syncTags(work.id, work.tags, "work_tags", "work_id");
           }
         })();
+        workService.refreshWorkFileCache();
         res.json({
           success: true,
           message: `Imported ${parsedWorks.length} works successfully`,
@@ -648,6 +667,7 @@ function createWorksRouter({ db, workService, inboxService }) {
           ).run(id);
           db.prepare("DELETE FROM works WHERE id = ?").run(id);
         })();
+        workService.refreshWorkFileCache();
         res.json({ success: true });
       } catch (error) {
         jsonError(res, 500, "Failed to delete work");
