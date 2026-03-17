@@ -8,8 +8,8 @@ import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { AppIcon } from "./AppIcon";
 import { useAuth } from "./AuthContext";
-import { FloatingDrawer } from "./FloatingDrawer";
 import { showToast } from "../utils/toast";
+import "./Modal.css";
 import "./QuoteCard.css";
 
 interface Props {
@@ -237,8 +237,10 @@ class QuoteCardClass extends React.Component<Props, State> {
 
     return (
       <div className="quote-card-explanation quote-card-explanation--drawer">
-        <div className="quote-card-explanation-scroll">
-          <p className="quote-card-explanation-text">{quote.explanation}</p>
+        <div className="quote-card-explanation-panel">
+          <div className="quote-card-explanation-scroll">
+            <p className="quote-card-explanation-text">{quote.explanation}</p>
+          </div>
         </div>
       </div>
     );
@@ -256,51 +258,50 @@ class QuoteCardClass extends React.Component<Props, State> {
       <AnimatePresence>
         {activeDrawer &&
           !(activeDrawer === "explain" && !quote.explanation) && (
-            <>
+            <motion.div
+              className="modal-overlay quote-card-modal-overlay"
+              onClick={this.closeDrawer}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
               <motion.div
-                className="quote-card-drawer-backdrop"
-                onClick={this.closeDrawer}
-                aria-hidden="true"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
-              />
-              <FloatingDrawer
-                isOpen
-                title={activeDrawer === "edit" ? "Edit Quote" : "Gemini"}
-                onClose={this.closeDrawer}
-                variant="classic"
-                defaultPlacement="center"
-                defaultViewportRatio={{
-                  width: activeDrawer === "edit" ? 0.23 : 0.3,
-                  height: activeDrawer === "edit" ? 0.54 : 0.54,
-                }}
-                minSize={{ width: 280, height: 280 }}
-                bodyStyle={{
-                  display: "flex",
-                  minHeight: 0,
-                  padding: "10px 12px 14px",
-                }}
-                motionProps={{
-                  initial: { opacity: 0, scale: 0.94, y: 18 },
-                  animate: { opacity: 1, scale: 1, y: 0 },
-                  exit: { opacity: 0, scale: 0.97, y: 10 },
-                  transition: {
-                    type: "spring",
-                    stiffness: 260,
-                    damping: 24,
-                    mass: 0.9,
-                  },
+                className={`quote-card-modal-shell ${activeDrawer === "edit" ? "quote-card-modal-shell--edit" : "quote-card-modal-shell--explain"}`}
+                onClick={(event) => event.stopPropagation()}
+                initial={{ scale: 0.92, y: 24, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.96, y: 12, opacity: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 180,
+                  damping: 22,
+                  mass: 0.9,
                 }}
               >
-                <div className="quote-card-explanation-drawer-theme">
-                  {activeDrawer === "edit"
-                    ? this.renderEditForm()
-                    : this.renderExplanation()}
+                <div className="quote-card-modal-panel">
+                  <div className="quote-card-modal-header">
+                    <h3 className="quote-card-modal-title">
+                      {activeDrawer === "edit" ? "Edit Quote" : "Explanation"}
+                    </h3>
+                    <button
+                      type="button"
+                      className="quote-card-modal-close"
+                      onClick={this.closeDrawer}
+                      aria-label="Close"
+                    >
+                      <AppIcon name="close" size={18} />
+                    </button>
+                  </div>
+                  <div className="quote-card-modal-face">
+                    <div className="quote-card-drawer-theme">
+                      {activeDrawer === "edit"
+                        ? this.renderEditForm()
+                        : this.renderExplanation()}
+                    </div>
+                  </div>
                 </div>
-              </FloatingDrawer>
-            </>
+              </motion.div>
+            </motion.div>
           )}
       </AnimatePresence>,
       document.body,

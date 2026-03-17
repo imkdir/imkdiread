@@ -25,6 +25,8 @@ interface UseDetailPageOptions {
 
 type EditTarget = "quote" | "progress";
 
+const DICTIONARY_PASTE_PATTERN = /^[\p{L}\p{M}\s]+$/u;
+
 function createEmptyForm(
   target: EditTarget,
   currentPage?: number,
@@ -132,7 +134,13 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
 
   const handleGlobalPaste = useCallback((e: ClipboardEvent) => {
     const target = e.target as HTMLElement;
-    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+    if (
+      target?.tagName === "INPUT" ||
+      target?.tagName === "TEXTAREA" ||
+      target?.isContentEditable
+    ) {
+      return;
+    }
     e.preventDefault();
 
     let pastedText = e.clipboardData?.getData("text/plain") || "";
@@ -146,10 +154,16 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
       .map((paragraph) => paragraph.replace(/\r?\n/g, " "))
       .join("\n\n");
     cleanedText = cleanedText.replace(/ {2,}/g, " ");
+    const normalizedText = cleanedText.replace(/\s+/g, " ").trim();
 
-    if (!cleanedText.includes(" ") && cleanedText.length > 0) {
+    if (normalizedText && DICTIONARY_PASTE_PATTERN.test(normalizedText)) {
       window.dispatchEvent(
-        new CustomEvent("open-dictionary", { detail: cleanedText }),
+        new CustomEvent("open-dictionary", {
+          detail: {
+            query: normalizedText,
+            mode: normalizedText.includes(" ") ? "context" : "word",
+          },
+        }),
       );
       return;
     }

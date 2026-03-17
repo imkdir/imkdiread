@@ -47,13 +47,16 @@ interface UserPreviewPosition {
   left: number;
 }
 
-type LookupMode = "word" | "context";
+export type LookupMode = "word" | "context";
 
 interface Props {
   workId: string;
   isOpen: boolean;
   onClose: () => void;
   anchorRect?: DOMRect | null;
+  initialQuery?: string;
+  initialLookupMode?: LookupMode;
+  initialRequestKey?: number;
 }
 
 export const DictionaryDrawer: React.FC<Props> = ({
@@ -61,6 +64,9 @@ export const DictionaryDrawer: React.FC<Props> = ({
   isOpen,
   onClose,
   anchorRect,
+  initialQuery = "",
+  initialLookupMode = "context",
+  initialRequestKey = 0,
 }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -77,6 +83,21 @@ export const DictionaryDrawer: React.FC<Props> = ({
   const previewCacheRef = useRef<Record<string, UserPreviewData>>({});
   const showPreviewTimerRef = useRef<number | null>(null);
   const hidePreviewTimerRef = useRef<number | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isOpen || !initialRequestKey || !initialQuery.trim()) return;
+
+    setSearchQuery(initialQuery);
+    setLookupMode(initialLookupMode);
+
+    const frameId = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [initialLookupMode, initialQuery, initialRequestKey, isOpen]);
 
   const fetchVocabularies = useCallback(async () => {
     try {
@@ -323,6 +344,8 @@ export const DictionaryDrawer: React.FC<Props> = ({
     >
       <form onSubmit={handleSearch} style={styles.searchForm}>
         <input
+          ref={searchInputRef}
+          id="dictionary-search-input"
           type="text"
           placeholder={
             lookupMode === "context"

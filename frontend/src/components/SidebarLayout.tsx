@@ -15,7 +15,10 @@ import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
 
 import { AppIcon } from "./AppIcon";
-import { DictionaryDrawer } from "./DictionaryDrawer";
+import {
+  DictionaryDrawer,
+  type LookupMode as DictionaryLookupMode,
+} from "./DictionaryDrawer";
 import { InboxDrawer } from "./InboxDrawer";
 import { Modal } from "./Modal";
 import { SearchDrawer } from "../pages/SearchPage";
@@ -39,6 +42,11 @@ interface CSVWorkRow {
   title?: string;
   authors?: string;
   tags?: string;
+}
+
+interface OpenDictionaryDetail {
+  query?: string;
+  mode?: DictionaryLookupMode;
 }
 
 function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
@@ -170,6 +178,10 @@ export const SidebarLayout: React.FC = () => {
   const [inboxAnchorRect, setInboxAnchorRect] = useState<DOMRect | null>(null);
   const [dictionaryAnchorRect, setDictionaryAnchorRect] =
     useState<DOMRect | null>(null);
+  const [dictionaryInitialQuery, setDictionaryInitialQuery] = useState("");
+  const [dictionaryInitialLookupMode, setDictionaryInitialLookupMode] =
+    useState<DictionaryLookupMode>("context");
+  const [dictionaryRequestKey, setDictionaryRequestKey] = useState(0);
 
   const isDictOpen = Boolean(workId) && openDictionaryForWorkId === workId;
 
@@ -402,6 +414,39 @@ export const SidebarLayout: React.FC = () => {
       window.removeEventListener("open-search-drawer", handleOpenSearchDrawer);
   }, []);
 
+  useEffect(() => {
+    const handleOpenDictionary = (event: Event) => {
+      if (!workId) return;
+
+      const customEvent = event as CustomEvent<OpenDictionaryDetail | string>;
+      const rawDetail = customEvent.detail;
+      const query =
+        typeof rawDetail === "string"
+          ? rawDetail.trim()
+          : rawDetail?.query?.trim() || "";
+
+      if (!query) return;
+
+      setDictionaryInitialQuery(query);
+      setDictionaryInitialLookupMode(
+        typeof rawDetail === "string"
+          ? query.includes(" ")
+            ? "context"
+            : "word"
+          : rawDetail?.mode || (query.includes(" ") ? "context" : "word"),
+      );
+      setDictionaryRequestKey((current) => current + 1);
+      setDictionaryAnchorRect(null);
+      setOpenDictionaryForWorkId(workId);
+      setIsInboxOpen(false);
+      setIsSearchOpen(false);
+    };
+
+    window.addEventListener("open-dictionary", handleOpenDictionary);
+    return () =>
+      window.removeEventListener("open-dictionary", handleOpenDictionary);
+  }, [workId]);
+
   // 3. Global Shortcuts (Escape to close modals / Cmd+K to search)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -578,6 +623,9 @@ export const SidebarLayout: React.FC = () => {
         isOpen={isDictOpen}
         onClose={() => setOpenDictionaryForWorkId(null)}
         anchorRect={dictionaryAnchorRect}
+        initialQuery={dictionaryInitialQuery}
+        initialLookupMode={dictionaryInitialLookupMode}
+        initialRequestKey={dictionaryRequestKey}
       />
 
       <SearchDrawer
