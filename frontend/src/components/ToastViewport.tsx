@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { TOAST_EVENT, type ToastPayload } from "../utils/toast";
+import { AppIcon } from "./AppIcon";
 
 import "./ToastViewport.css";
 
@@ -10,6 +11,25 @@ interface ActiveToast extends ToastPayload {
 
 export function ToastViewport() {
   const [toasts, setToasts] = useState<ActiveToast[]>([]);
+  const timeoutIdsRef = useRef<Map<string, number>>(new Map());
+
+  const dismissToast = useCallback((id: string) => {
+    const timeoutId = timeoutIdsRef.current.get(id);
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+      timeoutIdsRef.current.delete(id);
+    }
+
+    setToasts((current) =>
+      current.map((toast) =>
+        toast.id === id ? { ...toast, isLeaving: true } : toast,
+      ),
+    );
+
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((toast) => toast.id !== id));
+    }, 220);
+  }, []);
 
   useEffect(() => {
     const handleToast = (event: Event) => {
@@ -25,34 +45,55 @@ export function ToastViewport() {
         },
       ]);
 
-      window.setTimeout(() => {
-        setToasts((current) =>
-          current.map((toast) =>
-            toast.id === payload.id ? { ...toast, isLeaving: true } : toast,
-          ),
-        );
+      if (!payload.persistent) {
+        const timeoutId = window.setTimeout(() => {
+          dismissToast(payload.id);
+        }, payload.durationMs);
 
-        window.setTimeout(() => {
-          setToasts((current) =>
-            current.filter((toast) => toast.id !== payload.id),
-          );
-        }, 220);
-      }, payload.durationMs);
+        timeoutIdsRef.current.set(payload.id, timeoutId);
+      }
     };
 
     window.addEventListener(TOAST_EVENT, handleToast as EventListener);
-    return () =>
+    return () => {
+      timeoutIdsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      timeoutIdsRef.current.clear();
       window.removeEventListener(TOAST_EVENT, handleToast as EventListener);
-  }, []);
+    };
+  }, [dismissToast]);
 
   return (
     <div className="toast-viewport" aria-live="polite" aria-atomic="true">
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`toast toast--${toast.tone} ${toast.isLeaving ? "toast--leaving" : ""}`}
+          className={`toast toast--${toast.tone} toast--${toast.variant} ${toast.isLeaving ? "toast--leaving" : ""}`}
         >
-          <span className="toast__message">{toast.message}</span>
+          <div className="toast__content">
+            <span className="toast__message">{toast.message}</span>
+            <div className="toast__actions">
+              {toast.actionLabel && toast.onAction && (
+                <button
+                  type="button"
+                  className="toast__action"
+                  onClick={() => {
+                    toast.onAction?.();
+                    dismissToast(toast.id);
+                  }}
+                >
+                  {toast.actionLabel}
+                </button>
+              )}
+              <button
+                type="button"
+                className="toast__close"
+                aria-label="Dismiss notification"
+                onClick={() => dismissToast(toast.id)}
+              >
+                <AppIcon name="close" width={14} height={14} />
+              </button>
+            </div>
+          </div>
         </div>
       ))}
     </div>

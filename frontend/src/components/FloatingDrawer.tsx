@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { motion, type MotionProps } from "framer-motion";
 import { AppIcon } from "./AppIcon";
 import "./FloatingDrawer.css";
 
@@ -23,6 +24,7 @@ interface FloatingDrawerProps {
   };
   children: React.ReactNode;
   bodyStyle?: React.CSSProperties;
+  motionProps?: MotionProps;
 }
 
 interface DrawerRect {
@@ -131,6 +133,7 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
   minSize = { width: 320, height: 260 },
   children,
   bodyStyle,
+  motionProps,
 }) => {
   const defaultRect = useMemo(
     () =>
@@ -236,7 +239,7 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
   };
 
   return (
-    <div
+    <motion.div
       className={`floating-drawer floating-drawer--${variant}`}
       style={{
         left: rect.left,
@@ -244,6 +247,7 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
         width: rect.width,
         height: rect.height,
       }}
+      {...motionProps}
     >
       <div className="floating-drawer__header" onPointerDown={startDrag}>
         <h2 className="floating-drawer__title">{title}</h2>
@@ -261,6 +265,6 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
       </div>
 
       <div className="floating-drawer__resize-handle" onPointerDown={startResize} />
-    </div>
+    </motion.div>
   );
 };

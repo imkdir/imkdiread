@@ -1,80 +1,103 @@
 .quote-card-container {
     position: relative;
-    perspective: 1200px;
-    --quote-card-explain-border: transparent;
-    --quote-card-explain-text: var(--theme-quote-card-accent);
-    --quote-card-input-border: var(--theme-quote-card-input-border);
-    --quote-card-input-bg: var(--theme-quote-card-input-bg);
-    --quote-card-input-text: var(--theme-quote-card-input-text);
-    --quote-card-label: var(--theme-quote-card-muted);
-    --quote-card-delete-border: var(--theme-quote-card-danger);
-    --quote-card-delete-text: var(--theme-quote-card-danger);
-    --quote-card-cancel-border: var(--theme-quote-card-input-border);
-    --quote-card-cancel-text: var(--theme-quote-card-accent);
-    --quote-card-save-bg: var(--theme-quote-card-primary-action-bg);
-    --quote-card-save-text: var(--theme-quote-card-primary-action-text);
-    --quote-card-explanation-label: var(--theme-quote-card-accent);
-    --quote-card-explanation-close: var(--theme-quote-card-muted);
-    --quote-card-explanation-text: var(--theme-quote-card-explanation-text);
+    --quote-card-text: rgba(255, 255, 255, 0.92);
+    --quote-card-muted: rgba(255, 255, 255, 0.68);
+    --quote-card-accent: rgba(255, 255, 255, 0.86);
+    --quote-card-input-bg: rgba(255, 255, 255, 0.1);
+    --quote-card-input-border: rgba(255, 255, 255, 0.16);
+    --quote-card-input-text: rgba(255, 255, 255, 0.92);
+    --quote-card-danger: rgba(255, 120, 120, 0.92);
+    --quote-card-save-bg: rgba(255, 255, 255, 0.14);
+    --quote-card-save-text: rgba(255, 255, 255, 0.94);
+    --quote-card-explanation-text: rgba(255, 255, 255, 0.9);
 }
 
-.quote-card-flipper {
+.quote-card-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-overlay-floating-drawer) - 1);
+    background: rgba(7, 10, 18, 0.22);
+    backdrop-filter: blur(12px) saturate(115%);
+    -webkit-backdrop-filter: blur(12px) saturate(115%);
+}
+
+.quote-face-front {
     position: relative;
-    display: grid;
-    transform-style: preserve-3d;
     width: 100%;
-    box-sizing: border-box;
-}
-
-.quote-face-front,
-.quote-face-back {
-    grid-area: 1 / 1;
-    top: 0;
-    left: 0;
-    width: 100%;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
+    overflow: hidden;
+    transition:
+        background 0.28s ease,
+        box-shadow 0.28s ease,
+        color 0.28s ease,
+        transform 0.28s ease,
+        backdrop-filter 0.28s ease,
+        -webkit-backdrop-filter 0.28s ease;
 }
 
 .quote-face-front {
     padding: 24px 32px;
-    background: linear-gradient(
-        135deg,
-        var(--theme-quote-card-front-bg) 0%,
-        color-mix(in srgb, var(--theme-quote-card-front-bg) 78%, #fff 22%) 100%
+    background: transparent;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+    border: 1px solid transparent;
+    border-radius: 2px;
+    backdrop-filter: blur(18px) saturate(120%);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    transform-origin: center center;
+    will-change: transform, box-shadow;
+}
+
+.quote-face-front::before,
+.quote-face-front::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.quote-face-front::before {
+    inset: 0;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.12) 0,
+            rgba(255, 255, 255, 0.05) 1px,
+            transparent 12px
+        ),
+        linear-gradient(
+            270deg,
+            rgba(255, 255, 255, 0.18) 0,
+            rgba(255, 255, 255, 0.06) 1px,
+            transparent 16px
+        );
+    background-position: top, right;
+    background-repeat: no-repeat;
+    background-size:
+        100% 14px,
+        18px 100%;
+    opacity: 0.5;
+}
+
+.quote-face-front::after {
+    inset: 0;
+    background: radial-gradient(
+        circle at top right,
+        rgba(255, 255, 255, 0.12) 0,
+        rgba(255, 255, 255, 0.05) 8%,
+        transparent 30%
     );
+    opacity: 0.24;
+}
+
+.quote-card-container:hover .quote-face-front {
+    transform: translateY(-5px);
     box-shadow:
-        2px 6px 15px var(--overlay-black-40),
-        inset 0 0 20px var(--overlay-paper-shadow);
-    border: 1px solid var(--theme-quote-card-front-border);
-    border-radius: 2px;
+        0 24px 46px rgba(0, 0, 0, 0.24),
+        0 6px 12px rgba(255, 255, 255, 0.06);
 }
 
-.quote-face-back {
-    transform: rotateY(180deg);
-    display: flex;
-    flex-direction: column;
-    padding: 24px 32px;
-    background: linear-gradient(
-        135deg,
-        var(--theme-quote-card-back-bg) 0%,
-        color-mix(in srgb, var(--theme-quote-card-back-bg) 72%, #000 12%) 100%
-    );
-    box-shadow: inset 2px 4px 15px var(--overlay-black-08);
-    border: 1px solid var(--theme-quote-card-back-border);
-    border-radius: 2px;
-}
-
-.quote-face-front--visible,
-.quote-face-back--visible {
+.quote-face-front--visible {
     position: relative;
     pointer-events: auto;
-}
-
-.quote-face-front--hidden,
-.quote-face-back--hidden {
-    position: absolute;
-    pointer-events: none;
 }
 
 .quote-face-front:hover {
@@ -83,12 +106,13 @@
 
 .quote-edit-hint {
     position: absolute;
+    z-index: 1;
     top: 12px;
     right: 16px;
     padding: 0;
     border: none;
     background: none;
-    color: var(--theme-quote-card-muted);
+    color: var(--quote-card-muted);
     cursor: pointer;
     font-family: inherit;
     font-size: 11px;
@@ -97,32 +121,53 @@
     opacity: 0;
     text-align: right;
     text-transform: uppercase;
-    transition: opacity 0.2s;
+    transform: translateY(6px);
+    transition:
+        opacity 0.2s,
+        color 0.28s ease,
+        transform 0.28s ease;
 }
 
-.quote-face-front:hover .quote-edit-hint {
+.quote-card-container:hover .quote-edit-hint {
     opacity: 1;
+    transform: translateY(-1px);
 }
 
 .quote-text {
     position: relative;
+    z-index: 1;
     margin: 0;
-    color: var(--theme-quote-card-front-text);
+    color: var(--quote-card-text);
     font-family: "Libre Baskerville", ui-serif, Georgia, serif;
     font-size: 1rem;
     line-height: 1.65;
     white-space: pre-line;
+    opacity: 0.5;
+    transition:
+        color 0.28s ease,
+        opacity 0.28s ease;
+}
+
+.quote-card-container:hover .quote-text,
+.quote-card-container:focus-within .quote-text {
+    opacity: 0.8;
 }
 
 .quote-meta {
     display: flex;
+    position: relative;
+    z-index: 1;
     align-items: flex-end;
     justify-content: space-between;
     gap: 0.3rem;
     margin-top: 2rem;
     padding-top: 1.5rem;
-    border-top: 1px solid color-mix(in srgb, var(--theme-quote-card-front-text) 18%, transparent);
-    color: var(--theme-quote-card-front-text);
+    border-top: 1px solid
+        color-mix(in srgb, var(--quote-card-text) 10%, transparent);
+    color: var(--quote-card-text);
+    transition:
+        border-color 0.28s ease,
+        color 0.28s ease;
 }
 
 .quote-meta--card {
@@ -132,19 +177,22 @@
 }
 
 .quote-number {
-    color: var(--theme-quote-card-front-text);
+    color: var(--quote-card-text);
+    opacity: 0.5;
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 0.85rem;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+    transition: color 0.28s ease;
 }
 
 .quote-source {
-    color: var(--theme-quote-card-front-text);
+    color: var(--quote-card-text);
     font-family: "Libre Baskerville", ui-serif, Georgia, serif;
     font-size: 0.95rem;
     text-align: right;
     text-decoration: none;
+    transition: color 0.28s ease;
 }
 
 .quote-explain-button {
@@ -153,14 +201,18 @@
     gap: 4px;
     margin-left: auto;
     padding: 4px 8px;
-    border: 1px solid var(--quote-card-explain-border);
+    border: 1px solid transparent;
     border-radius: 4px;
-    background: transparent;
-    color: var(--quote-card-explain-text);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--quote-card-accent);
     cursor: pointer;
     font-family: "Fredoka";
     font-size: 11px;
     font-weight: 700;
+    transition:
+        border-color 0.28s ease,
+        background-color 0.28s ease,
+        color 0.28s ease;
 }
 
 .quote-explain-icon {
@@ -176,25 +228,121 @@
     height: 100%;
 }
 
+.quote-card-form--drawer,
+.quote-card-explanation--drawer {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    border-radius: 14px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.06),
+            rgba(255, 255, 255, 0.02)
+        ),
+        rgba(255, 255, 255, 0.02);
+    box-shadow:
+        0 16px 36px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.quote-card-form--drawer {
+    gap: 16px;
+    padding: 18px 20px 20px;
+}
+
+.quote-card-form--drawer > * {
+    position: relative;
+    z-index: 1;
+}
+
+.quote-card-form--drawer textarea {
+    flex: 1;
+    min-height: 180px;
+    overflow: auto;
+}
+
+.quote-card-form--drawer .quote-card-actions {
+    margin-top: 4px;
+}
+
+.quote-card-form--drawer .quote-card-delete-button {
+    margin-left: auto;
+}
+
+.quote-card-form--drawer::before,
+.quote-card-explanation--drawer::before,
+.quote-card-form--drawer::after,
+.quote-card-explanation--drawer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.quote-card-form--drawer::before,
+.quote-card-explanation--drawer::before {
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.1) 0,
+            rgba(255, 255, 255, 0.04) 1px,
+            transparent 14px
+        ),
+        linear-gradient(
+            270deg,
+            rgba(255, 255, 255, 0.14) 0,
+            rgba(255, 255, 255, 0.05) 1px,
+            transparent 18px
+        );
+    background-position: top, right;
+    background-repeat: no-repeat;
+    background-size:
+        100% 16px,
+        20px 100%;
+    opacity: 0.55;
+}
+
+.quote-card-form--drawer::after,
+.quote-card-explanation--drawer::after {
+    background: radial-gradient(
+        circle at top right,
+        rgba(255, 255, 255, 0.12) 0,
+        rgba(255, 255, 255, 0.04) 10%,
+        transparent 34%
+    );
+    opacity: 0.26;
+}
+
 .quote-card-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .quote-card-page-group {
     display: flex;
     align-items: center;
     gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .quote-card-label {
     margin: 0;
-    color: var(--quote-card-label);
+    color: var(--quote-card-muted);
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+    transition: color 0.28s ease;
 }
 
 .quote-card-input {
@@ -209,6 +357,15 @@
     font-size: 14px;
     outline: none;
     resize: none;
+    transition:
+        border-color 0.28s ease,
+        background-color 0.28s ease,
+        color 0.28s ease;
+}
+
+.quote-card-input:focus {
+    border-color: rgba(255, 255, 255, 0.28);
+    background-color: rgba(255, 255, 255, 0.14);
 }
 
 .quote-card-input--quote {
@@ -218,6 +375,13 @@
 .quote-card-input--page {
     width: 60px;
     padding: 6px;
+    border-color: rgba(255, 255, 255, 0.24);
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow:
+        0 6px 16px rgba(0, 0, 0, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    font-weight: 600;
+    text-align: center;
 }
 
 .quote-card-delete-button,
@@ -229,12 +393,27 @@
 
 .quote-card-delete-button {
     padding: 6px 12px;
-    border: 1px solid var(--quote-card-delete-border);
+    border: 1px solid var(--quote-card-danger);
     border-radius: 4px;
-    background-color: transparent;
-    color: var(--quote-card-delete-text);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 108, 108, 0.18),
+            rgba(255, 82, 82, 0.1)
+        ),
+        rgba(255, 255, 255, 0.03);
+    box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 214, 214, 0.08);
+    color: var(--quote-card-danger);
     font-size: 12px;
     font-weight: 700;
+    transition:
+        border-color 0.28s ease,
+        color 0.28s ease,
+        background-color 0.28s ease,
+        box-shadow 0.28s ease,
+        transform 0.28s ease;
 }
 
 .quote-card-actions {
@@ -245,50 +424,77 @@
 
 .quote-card-action-button {
     flex: 1;
-    padding: 8px;
+    padding: 10px 12px;
+    box-shadow:
+        0 6px 14px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
     border-radius: 4px;
     font-weight: 600;
+    transition:
+        border-color 0.28s ease,
+        background-color 0.28s ease,
+        color 0.28s ease,
+        box-shadow 0.28s ease,
+        transform 0.28s ease;
 }
 
 .quote-card-action-button--cancel {
-    border: 1px solid var(--quote-card-cancel-border);
+    border: 1px solid var(--quote-card-input-border);
     background-color: transparent;
-    color: var(--quote-card-cancel-text);
+    color: rgba(255, 255, 255, 0.62);
 }
 
 .quote-card-action-button--save {
     border: none;
     background-color: var(--quote-card-save-bg);
+    box-shadow:
+        0 0 18px rgba(255, 255, 255, 0.06),
+        0 8px 18px rgba(0, 0, 0, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
     color: var(--quote-card-save-text);
     font-weight: 700;
 }
 
-.quote-card-explanation-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
+.quote-card-delete-button:hover,
+.quote-card-action-button:hover {
+    transform: translateY(-2px);
 }
 
-.quote-card-explanation-label {
-    color: var(--quote-card-explanation-label);
+.quote-card-delete-button:hover {
+    border-color: rgba(255, 126, 126, 0.8);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 126, 126, 0.24),
+            rgba(255, 82, 82, 0.14)
+        ),
+        rgba(255, 255, 255, 0.05);
+    color: rgba(255, 214, 214, 0.98);
+    box-shadow:
+        0 12px 24px rgba(0, 0, 0, 0.16),
+        inset 0 1px 0 rgba(255, 214, 214, 0.1);
 }
 
-.quote-card-explanation-close {
-    display: flex;
-    padding: 4px;
-    border: none;
-    background: none;
-    color: var(--quote-card-explanation-close);
+.quote-card-action-button--cancel:hover {
+    box-shadow:
+        0 10px 20px rgba(0, 0, 0, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.quote-card-explanation-close-icon {
-    width: 16px;
-    height: 16px;
+.quote-card-action-button--save:hover {
+    box-shadow:
+        0 0 20px rgba(255, 255, 255, 0.08),
+        0 12px 24px rgba(0, 0, 0, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .quote-card-explanation-scroll {
-    padding-right: 4px;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    position: relative;
+    z-index: 1;
+    padding: 18px 20px;
 }
 
 .quote-card-explanation-text {
@@ -298,4 +504,12 @@
     font-size: 16px;
     line-height: 1.6;
     white-space: pre-wrap;
+    transition: color 0.28s ease;
+}
+
+.quote-card-explanation-drawer-theme {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    color: rgba(255, 255, 255, 0.9);
 }

@@ -1,22 +1,38 @@
 export type ToastTone = "info" | "success" | "error";
+export type ToastVariant = "default" | "destructive-confirm";
 
 export interface ToastPayload {
   id: string;
   message: string;
   tone: ToastTone;
   durationMs: number;
+  variant: ToastVariant;
+  persistent: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 export interface ShowToastOptions {
   tone?: ToastTone;
   durationMs?: number;
+  variant?: ToastVariant;
+  persistent?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 export const TOAST_EVENT = "imkdiread:toast";
 
 export function showToast(
   message: string,
-  { tone = "info", durationMs = 3200 }: ShowToastOptions = {},
+  {
+    tone = "info",
+    durationMs = 3200,
+    variant = "default",
+    persistent = false,
+    actionLabel,
+    onAction,
+  }: ShowToastOptions = {},
 ) {
   if (typeof window === "undefined") return;
 
@@ -27,8 +43,11 @@ export function showToast(
         message,
         tone,
         durationMs,
+        variant,
+        persistent,
+        actionLabel,
+        onAction,
       },
     }),
   );
 }
-

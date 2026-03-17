@@ -50,42 +50,26 @@ export function DetailQuoteModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="detail-quote-modal-shell">
+          <div
+            className={`detail-quote-modal-shell ${isEditProgress ? "detail-quote-modal-shell--progress" : "detail-quote-modal-shell--quote"}`}
+          >
             <motion.div
-              className="quote-card-flipper detail-quote-modal-flipper"
-              initial={{ scale: 0.8, rotateY: 180, y: 50 }}
-              animate={{ scale: 1, rotateY: isSaving ? 0 : 180, y: 0 }}
-              exit={
-                isSaving
-                  ? { scale: 0.3, y: 400, opacity: 0 }
-                  : { scale: 0.9, opacity: 0, transition: { duration: 0.2 } }
-              }
+              className="detail-quote-modal-panel detail-modal-quote-face detail-modal-quote-face--relative"
+              initial={{ scale: 0.92, y: 24, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.96, y: 12, opacity: 0 }}
               transition={{
                 type: "spring",
-                stiffness: 90,
-                damping: 15,
-                mass: 1.2,
+                stiffness: 180,
+                damping: 22,
+                mass: 0.9,
               }}
             >
-              <div
-                className={`quote-face-front detail-modal-quote-face ${isSaving ? "detail-modal-quote-face--relative" : "detail-modal-quote-face--absolute"}`}
-              >
-                <blockquote className="quote-text">
-                  {editingForm.quote}
-                </blockquote>
-                {editingForm.pageNumber && (
-                  <div className="quote-meta">
-                    <span className="quote-number">
-                      P{editingForm.pageNumber}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div
-                className={`quote-face-back detail-modal-quote-face ${isSaving ? "detail-modal-quote-face--absolute" : "detail-modal-quote-face--relative"}`}
-              >
-                <form onSubmit={onSubmit} className="detail-quote-form">
+              <div className="detail-modal-quote-face detail-modal-quote-face--relative">
+                <form
+                  onSubmit={onSubmit}
+                  className={`detail-quote-form ${isEditProgress ? "detail-quote-form--progress" : "detail-quote-form--quote"}`}
+                >
                   {isEditProgress ? (
                     <div className="detail-progress-header">
                       <div className="detail-progress-inline">

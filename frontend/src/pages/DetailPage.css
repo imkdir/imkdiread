@@ -985,7 +985,6 @@
 .detail-quote-modal-shell {
     position: relative;
     z-index: 1;
-    perspective: 1200px;
     width: 100%;
     max-width: 460px;
     isolation: isolate;
@@ -1057,12 +1056,22 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-.detail-quote-modal-flipper {
+.detail-quote-modal-panel {
     position: relative;
     width: 100%;
     z-index: 1;
     will-change: transform;
     transform: translateZ(0);
+    border-radius: 18px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+        rgba(14, 14, 14, 0.22);
+    box-shadow:
+        0 18px 42px rgba(0, 0, 0, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(18px) saturate(120%);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    overflow: hidden;
 }
 
 .detail-modal-quote-face {
@@ -1072,6 +1081,7 @@
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    padding: 18px 20px 20px;
 }
 
 .detail-modal-quote-face--absolute {
@@ -1088,16 +1098,33 @@
     gap: 12px;
 }
 
+.detail-quote-form--quote {
+    gap: 14px;
+}
+
+.detail-quote-form--progress {
+    gap: 14px;
+}
+
 .detail-progress-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
+.detail-quote-form--progress .detail-progress-header {
+    gap: 16px;
+}
+
 .detail-progress-inline {
     display: flex;
     gap: 8px;
     align-items: center;
+}
+
+.detail-quote-form--progress .detail-progress-inline {
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .detail-label {
@@ -1114,11 +1141,19 @@
     color: var(--color-text-panel-paper-primary);
 }
 
+.detail-quote-form--progress .detail-secondary-label {
+    color: rgba(255, 255, 255, 0.84);
+}
+
 .detail-finished-btn {
     text-decoration-line: underline;
     font-size: 14px;
     font-family: Fredoka;
     color: var(--color-text-accent-teal);
+}
+
+.detail-quote-form--progress .detail-finished-btn {
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .detail-modal-title {
@@ -1127,6 +1162,15 @@
     font-size: 16px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+
+.detail-quote-form--quote .detail-modal-title {
+    margin-bottom: 2px;
+    color: rgba(255, 255, 255, 0.92);
+    font-family: "Fredoka";
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
 }
 
 .detail-input {
@@ -1142,6 +1186,23 @@
     box-shadow: inset 0 1px 4px var(--overlay-black-05);
 }
 
+.detail-quote-form--progress .detail-input,
+.detail-quote-form--quote .detail-input {
+    border-color: rgba(255, 255, 255, 0.14);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+        rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.92);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.detail-quote-form--progress .detail-input::placeholder,
+.detail-quote-form--quote .detail-input::placeholder {
+    color: rgba(255, 255, 255, 0.42);
+}
+
 .detail-input--quote {
     flex: 1;
     min-height: 120px;
@@ -1153,6 +1214,12 @@
     padding: 2px 4px;
 }
 
+.detail-quote-form--progress .detail-input--page-inline {
+    width: 46px;
+    padding: 4px 6px;
+    text-align: center;
+}
+
 .detail-input--page {
     width: 60px;
     padding: 6px;
@@ -1161,6 +1228,11 @@
 .detail-explain-row {
     margin-top: 12px;
     margin-bottom: 16px;
+}
+
+.detail-quote-form--quote .detail-explain-row {
+    margin-top: 4px;
+    margin-bottom: 6px;
 }
 
 .detail-explain-btn {
@@ -1178,6 +1250,13 @@
     gap: 6px;
 }
 
+.detail-quote-form--quote .detail-explain-btn {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.88);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
 .detail-explain-btn:disabled {
     cursor: wait;
     opacity: 0.5;
@@ -1192,6 +1271,15 @@
     overflow-y: auto;
 }
 
+.detail-quote-form--quote .detail-explanation-panel {
+    margin-bottom: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03)),
+        rgba(255, 255, 255, 0.03);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
 .detail-explanation-text {
     margin: 0;
     font-size: 14px;
@@ -1199,6 +1287,10 @@
     color: var(--color-text-panel-paper-primary);
     font-family: var(--font-primary-stack);
     white-space: pre-wrap;
+}
+
+.detail-quote-form--quote .detail-explanation-text {
+    color: rgba(255, 255, 255, 0.88);
 }
 
 .detail-quote-meta-row {
@@ -1211,6 +1303,14 @@
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.detail-quote-form--quote .detail-page-field {
+    gap: 10px;
+}
+
+.detail-quote-form--quote .detail-label {
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .detail-form-actions {
@@ -1227,10 +1327,25 @@
     font-weight: 600;
 }
 
+.detail-quote-form--progress .detail-btn,
+.detail-quote-form--quote .detail-btn {
+    transition:
+        border-color 0.22s ease,
+        background-color 0.22s ease,
+        color 0.22s ease,
+        transform 0.22s ease;
+}
+
 .detail-btn--cancel {
     background-color: transparent;
     border: 1px solid var(--color-border-paper-strong);
     color: var(--color-text-panel-paper-primary);
+}
+
+.detail-quote-form--progress .detail-btn--cancel,
+.detail-quote-form--quote .detail-btn--cancel {
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.84);
 }
 
 .detail-btn--save {
@@ -1238,4 +1353,11 @@
     border: none;
     color: var(--color-bg-panel-paper);
     font-weight: bold;
+}
+
+.detail-quote-form--progress .detail-btn--save,
+.detail-quote-form--quote .detail-btn--save {
+    background: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.94);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }

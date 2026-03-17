@@ -18,7 +18,6 @@ import { AppIcon } from "./AppIcon";
 import { DictionaryDrawer } from "./DictionaryDrawer";
 import { InboxDrawer } from "./InboxDrawer";
 import { Modal } from "./Modal";
-import { ThemeEditorDrawer } from "./ThemeEditorDrawer";
 import { SearchDrawer } from "../pages/SearchPage";
 
 interface ProfileResponse {
@@ -155,7 +154,6 @@ export const SidebarLayout: React.FC = () => {
     string | null
   >(null);
   const [isInboxOpen, setIsInboxOpen] = useState(false);
-  const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchInitialQuery, setSearchInitialQuery] = useState("");
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
@@ -163,7 +161,6 @@ export const SidebarLayout: React.FC = () => {
   const [inboxAnchorRect, setInboxAnchorRect] = useState<DOMRect | null>(null);
   const [dictionaryAnchorRect, setDictionaryAnchorRect] =
     useState<DOMRect | null>(null);
-  const [themeAnchorRect, setThemeAnchorRect] = useState<DOMRect | null>(null);
 
   const isDictOpen = Boolean(workId) && openDictionaryForWorkId === workId;
 
@@ -354,7 +351,6 @@ export const SidebarLayout: React.FC = () => {
       setSearchInitialQuery(customEvent.detail?.query || "");
       setIsSearchOpen(true);
       setIsInboxOpen(false);
-      setIsThemeOpen(false);
       setOpenDictionaryForWorkId(null);
       setTimeout(
         () => document.getElementById("global-search-input")?.focus(),
@@ -375,7 +371,6 @@ export const SidebarLayout: React.FC = () => {
         e.preventDefault();
         setIsSearchOpen(true);
         setIsInboxOpen(false);
-        setIsThemeOpen(false);
         setOpenDictionaryForWorkId(null);
         setTimeout(
           () => document.getElementById("global-search-input")?.focus(),
@@ -396,10 +391,6 @@ export const SidebarLayout: React.FC = () => {
         }
         if (isInboxOpen) {
           setIsInboxOpen(false);
-          return;
-        }
-        if (isThemeOpen) {
-          setIsThemeOpen(false);
           return;
         }
 
@@ -428,7 +419,7 @@ export const SidebarLayout: React.FC = () => {
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [navigate, isDictOpen, isSearchOpen, isInboxOpen, isThemeOpen]);
+  }, [navigate, isDictOpen, isSearchOpen, isInboxOpen]);
 
   return (
     <div className="layout-container" style={styles.layoutContainer}>
@@ -455,7 +446,6 @@ export const SidebarLayout: React.FC = () => {
               setSearchInitialQuery("");
               setIsSearchOpen(true);
               setIsInboxOpen(false);
-              setIsThemeOpen(false);
               setOpenDictionaryForWorkId(null);
               setTimeout(
                 () => document.getElementById("global-search-input")?.focus(),
@@ -484,7 +474,6 @@ export const SidebarLayout: React.FC = () => {
                   current === workId ? null : workId,
                 );
                 setIsInboxOpen(false);
-                setIsThemeOpen(false);
               }}
             >
               <AppIcon name="dictionary" title="Dictionary" />
@@ -499,7 +488,6 @@ export const SidebarLayout: React.FC = () => {
                 setIsInboxOpen((current) => !current);
                 setOpenDictionaryForWorkId(null);
                 setIsSearchOpen(false);
-                setIsThemeOpen(false);
               }}
             >
               <span className="sidebar-icon-badge">
@@ -510,19 +498,6 @@ export const SidebarLayout: React.FC = () => {
               </span>
             </SidebarInteractiveItem>
           )}
-
-          <SidebarInteractiveItem
-            title="Quote Theme"
-            onClick={(event) => {
-              setThemeAnchorRect(event.currentTarget.getBoundingClientRect());
-              setIsThemeOpen((current) => !current);
-              setOpenDictionaryForWorkId(null);
-              setIsInboxOpen(false);
-              setIsSearchOpen(false);
-            }}
-          >
-            <AppIcon name="brush" title="Quote Theme" />
-          </SidebarInteractiveItem>
 
           {auth.user &&
             (isOwnProfileRoute ? (
@@ -577,12 +552,6 @@ export const SidebarLayout: React.FC = () => {
         onClose={() => setIsInboxOpen(false)}
         anchorRect={inboxAnchorRect}
         onUnreadCountChange={setUnreadInboxCount}
-      />
-
-      <ThemeEditorDrawer
-        isOpen={isThemeOpen}
-        onClose={() => setIsThemeOpen(false)}
-        anchorRect={themeAnchorRect}
       />
 
       <Modal isOpen={isAdminMenuOpen} onClose={() => setIsAdminMenuOpen(false)}>

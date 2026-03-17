@@ -1,12 +1,14 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 
-import { motion, type Transition } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import type { Quote, User } from "../types";
 import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { AppIcon } from "./AppIcon";
 import { useAuth } from "./AuthContext";
+import { FloatingDrawer } from "./FloatingDrawer";
 import { showToast } from "../utils/toast";
 import "./QuoteCard.css";
 
@@ -15,99 +17,13 @@ interface Props {
   displaySource?: boolean;
   onRefresh: () => void;
   user: User | null;
-  theme?: QuoteCardTheme;
-}
-
-export interface QuoteCardTheme {
-  explainButtonBorderColor?: string;
-  explainButtonTextColor?: string;
-  inputBorderColor?: string;
-  inputBackgroundColor?: string;
-  inputTextColor?: string;
-  labelColor?: string;
-  deleteBorderColor?: string;
-  deleteTextColor?: string;
-  cancelBorderColor?: string;
-  cancelTextColor?: string;
-  saveBackgroundColor?: string;
-  saveTextColor?: string;
-  explanationLabelColor?: string;
-  explanationCloseColor?: string;
-  explanationTextColor?: string;
 }
 
 interface State {
-  isFlipped: boolean;
-  flipMode: "edit" | "explain" | null;
+  activeDrawer: "edit" | "explain" | null;
   editQuote: string;
   editPageNum: string;
   isSaving: boolean;
-}
-
-const TEXTAREA_RESIZE_DELAY_MS = 10;
-const FLIP_TRANSITION: Transition = {
-  type: "spring",
-  stiffness: 90,
-  damping: 15,
-  mass: 1.2,
-};
-
-type QuoteCardThemeVars = React.CSSProperties & Record<`--${string}`, string>;
-
-function getQuoteCardThemeVars(theme?: QuoteCardTheme): QuoteCardThemeVars {
-  const vars = {} as QuoteCardThemeVars;
-
-  if (!theme) {
-    return vars;
-  }
-
-  if (theme.explainButtonBorderColor) {
-    vars["--quote-card-explain-border"] = theme.explainButtonBorderColor;
-  }
-  if (theme.explainButtonTextColor) {
-    vars["--quote-card-explain-text"] = theme.explainButtonTextColor;
-  }
-  if (theme.inputBorderColor) {
-    vars["--quote-card-input-border"] = theme.inputBorderColor;
-  }
-  if (theme.inputBackgroundColor) {
-    vars["--quote-card-input-bg"] = theme.inputBackgroundColor;
-  }
-  if (theme.inputTextColor) {
-    vars["--quote-card-input-text"] = theme.inputTextColor;
-  }
-  if (theme.labelColor) {
-    vars["--quote-card-label"] = theme.labelColor;
-  }
-  if (theme.deleteBorderColor) {
-    vars["--quote-card-delete-border"] = theme.deleteBorderColor;
-  }
-  if (theme.deleteTextColor) {
-    vars["--quote-card-delete-text"] = theme.deleteTextColor;
-  }
-  if (theme.cancelBorderColor) {
-    vars["--quote-card-cancel-border"] = theme.cancelBorderColor;
-  }
-  if (theme.cancelTextColor) {
-    vars["--quote-card-cancel-text"] = theme.cancelTextColor;
-  }
-  if (theme.saveBackgroundColor) {
-    vars["--quote-card-save-bg"] = theme.saveBackgroundColor;
-  }
-  if (theme.saveTextColor) {
-    vars["--quote-card-save-text"] = theme.saveTextColor;
-  }
-  if (theme.explanationLabelColor) {
-    vars["--quote-card-explanation-label"] = theme.explanationLabelColor;
-  }
-  if (theme.explanationCloseColor) {
-    vars["--quote-card-explanation-close"] = theme.explanationCloseColor;
-  }
-  if (theme.explanationTextColor) {
-    vars["--quote-card-explanation-text"] = theme.explanationTextColor;
-  }
-
-  return vars;
 }
 
 class QuoteCardClass extends React.Component<Props, State> {
@@ -116,14 +32,21 @@ class QuoteCardClass extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
-      isFlipped: false,
-      flipMode: null,
+      activeDrawer: null,
       editQuote: props.quote.quote,
       editPageNum: props.quote.page_number
         ? props.quote.page_number.toString()
         : "",
       isSaving: false,
     };
+  }
+
+  componentDidMount() {
+    window.addEventListener("keydown", this.handleWindowKeyDown);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("keydown", this.handleWindowKeyDown);
   }
 
   // --- OWNERSHIP GUARD ---
@@ -136,8 +59,7 @@ class QuoteCardClass extends React.Component<Props, State> {
   adjustTextareaHeight = () => {
     const el = this.textareaRef.current;
     if (el) {
-      el.style.height = "auto";
-      el.style.height = `${el.scrollHeight}px`;
+      el.style.height = "";
     }
   };
 
@@ -147,26 +69,24 @@ class QuoteCardClass extends React.Component<Props, State> {
     if (mode === "edit" && !this.canEditOrDelete()) return;
 
     this.setState(
-      (prevState) => ({
-        isFlipped: !prevState.isFlipped,
-        // Preserve the mode while flipping back so the UI doesn't switch mid-animation
-        flipMode: !prevState.isFlipped ? mode : prevState.flipMode,
+      {
+        activeDrawer: this.state.activeDrawer === mode ? null : mode,
         editQuote: this.props.quote.quote,
         editPageNum: this.props.quote.page_number
           ? this.props.quote.page_number.toString()
           : "",
-      }),
-      () => {
-        if (this.state.isFlipped && mode === "edit") {
-          setTimeout(this.adjustTextareaHeight, TEXTAREA_RESIZE_DELAY_MS);
-        }
       },
+      this.adjustTextareaHeight,
     );
   };
 
-  handleFlipAnimationComplete = () => {
-    if (!this.state.isFlipped && this.state.flipMode !== null) {
-      this.setState({ flipMode: null });
+  closeDrawer = () => {
+    this.setState({ activeDrawer: null });
+  };
+
+  handleWindowKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && this.state.activeDrawer) {
+      this.closeDrawer();
     }
   };
 
@@ -175,9 +95,7 @@ class QuoteCardClass extends React.Component<Props, State> {
   ) => {
     const { name, value } = e.target;
     if (name === "editQuote") {
-      this.setState({ editQuote: value }, () => {
-        setTimeout(this.adjustTextareaHeight, TEXTAREA_RESIZE_DELAY_MS);
-      });
+      this.setState({ editQuote: value }, this.adjustTextareaHeight);
       return;
     }
     if (name === "editPageNum") {
@@ -207,7 +125,7 @@ class QuoteCardClass extends React.Component<Props, State> {
       })
       .then((data) => {
         void data;
-        this.setState({ isFlipped: false, isSaving: false });
+        this.setState({ activeDrawer: null, isSaving: false });
         this.props.onRefresh();
         showToast("Quote updated.", { tone: "success" });
       })
@@ -221,41 +139,50 @@ class QuoteCardClass extends React.Component<Props, State> {
   };
 
   handleDelete = () => {
-    if (!window.confirm("Permanently delete this quote?")) return;
-
-    request(`/api/quotes/${this.props.quote.id}`, { method: "DELETE" })
-      .then(async (res) => {
-        const data = await readJsonSafe<{ success?: boolean; error?: string }>(
-          res,
-        );
-        if (!res.ok || !data?.success) {
-          throw new Error(getApiErrorMessage(data, "Failed to delete quote."));
-        }
-      })
-      .then((data) => {
-        void data;
-        this.props.onRefresh();
-        showToast("Quote deleted.", { tone: "success" });
-      })
-      .catch((error) =>
-        showToast(
-          error instanceof Error ? error.message : "Failed to delete quote.",
-          { tone: "error" },
-        ),
-      );
+    showToast("Permanently delete this quote?", {
+      tone: "error",
+      variant: "destructive-confirm",
+      persistent: true,
+      actionLabel: "Delete",
+      onAction: () => {
+        request(`/api/quotes/${this.props.quote.id}`, { method: "DELETE" })
+          .then(async (res) => {
+            const data = await readJsonSafe<{
+              success?: boolean;
+              error?: string;
+            }>(res);
+            if (!res.ok || !data?.success) {
+              throw new Error(
+                getApiErrorMessage(data, "Failed to delete quote."),
+              );
+            }
+          })
+          .then((data) => {
+            void data;
+            this.setState({ activeDrawer: null });
+            this.props.onRefresh();
+            showToast("Quote deleted.", { tone: "success" });
+          })
+          .catch((error) =>
+            showToast(
+              error instanceof Error
+                ? error.message
+                : "Failed to delete quote.",
+              { tone: "error" },
+            ),
+          );
+      },
+    });
   };
-
-  getFaceClassName = (
-    baseClassName: "quote-face-front" | "quote-face-back",
-    isVisible: boolean,
-  ) =>
-    `${baseClassName} ${isVisible ? `${baseClassName}--visible` : `${baseClassName}--hidden`}`;
 
   renderEditForm = () => {
     const { editQuote, editPageNum, isSaving } = this.state;
 
     return (
-      <form onSubmit={this.handleSave} className="quote-card-form">
+      <form
+        onSubmit={this.handleSave}
+        className="quote-card-form quote-card-form--drawer"
+      >
         <textarea
           ref={this.textareaRef}
           name="editQuote"
@@ -288,7 +215,7 @@ class QuoteCardClass extends React.Component<Props, State> {
         <div className="quote-card-actions">
           <button
             type="button"
-            onClick={(e) => this.toggleFlip("edit", e)}
+            onClick={this.closeDrawer}
             className="quote-card-action-button quote-card-action-button--cancel"
           >
             Cancel
@@ -309,22 +236,7 @@ class QuoteCardClass extends React.Component<Props, State> {
     const { quote } = this.props;
 
     return (
-      <div className="quote-card-explanation">
-        <div className="quote-card-explanation-header">
-          <label className="quote-card-label quote-card-explanation-label">
-            Gemini says:
-          </label>
-
-          <button
-            type="button"
-            onClick={(e) => this.toggleFlip("explain", e)}
-            className="quote-card-explanation-close"
-            aria-label="Close explanation"
-          >
-            <AppIcon name="close" className="quote-card-explanation-close-icon" />
-          </button>
-        </div>
-
+      <div className="quote-card-explanation quote-card-explanation--drawer">
         <div className="quote-card-explanation-scroll">
           <p className="quote-card-explanation-text">{quote.explanation}</p>
         </div>
@@ -332,30 +244,80 @@ class QuoteCardClass extends React.Component<Props, State> {
     );
   };
 
+  renderDrawer = () => {
+    const { quote } = this.props;
+    const { activeDrawer } = this.state;
+
+    if (typeof document === "undefined") {
+      return null;
+    }
+
+    return createPortal(
+      <AnimatePresence>
+        {activeDrawer &&
+          !(activeDrawer === "explain" && !quote.explanation) && (
+            <>
+              <motion.div
+                className="quote-card-drawer-backdrop"
+                onClick={this.closeDrawer}
+                aria-hidden="true"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+              />
+              <FloatingDrawer
+                isOpen
+                title={activeDrawer === "edit" ? "Edit Quote" : "Gemini"}
+                onClose={this.closeDrawer}
+                variant="classic"
+                defaultPlacement="center"
+                defaultViewportRatio={{
+                  width: activeDrawer === "edit" ? 0.23 : 0.3,
+                  height: activeDrawer === "edit" ? 0.54 : 0.54,
+                }}
+                minSize={{ width: 280, height: 280 }}
+                bodyStyle={{
+                  display: "flex",
+                  minHeight: 0,
+                  padding: "10px 12px 14px",
+                }}
+                motionProps={{
+                  initial: { opacity: 0, scale: 0.94, y: 18 },
+                  animate: { opacity: 1, scale: 1, y: 0 },
+                  exit: { opacity: 0, scale: 0.97, y: 10 },
+                  transition: {
+                    type: "spring",
+                    stiffness: 260,
+                    damping: 24,
+                    mass: 0.9,
+                  },
+                }}
+              >
+                <div className="quote-card-explanation-drawer-theme">
+                  {activeDrawer === "edit"
+                    ? this.renderEditForm()
+                    : this.renderExplanation()}
+                </div>
+              </FloatingDrawer>
+            </>
+          )}
+      </AnimatePresence>,
+      document.body,
+    );
+  };
+
   render() {
-    const { quote, displaySource, theme } = this.props;
-    const { isFlipped, flipMode } = this.state;
+    const { quote, displaySource } = this.props;
 
     const hasPermission = this.canEditOrDelete();
     const showQuoteMeta =
       quote.page_number || (displaySource && quote.work) || quote.explanation;
 
     return (
-      <motion.div
-        layout
-        className="quote-card-container"
-        style={getQuoteCardThemeVars(theme)}
-      >
-        <motion.div
-          className="quote-card-flipper"
-          initial={false}
-          animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={FLIP_TRANSITION}
-          onAnimationComplete={this.handleFlipAnimationComplete}
-        >
-          <div
-            className={this.getFaceClassName("quote-face-front", !isFlipped)}
-          >
+      <>
+        <motion.div layout className="quote-card-container">
+          <div className="quote-face-front quote-face-front--visible">
             <blockquote className="quote-text">{quote.quote}</blockquote>
 
             {showQuoteMeta && (
@@ -383,7 +345,6 @@ class QuoteCardClass extends React.Component<Props, State> {
                         className="quote-explain-icon"
                         title="Gemini"
                       />
-                      Gemini
                     </button>
                   )
                 )}
@@ -396,20 +357,14 @@ class QuoteCardClass extends React.Component<Props, State> {
                 className="quote-edit-hint"
                 onClick={(e) => this.toggleFlip("edit", e)}
               >
-                Tap to edit
+                <AppIcon name="edit" size={16} />
               </button>
             )}
           </div>
-
-          {(hasPermission || quote.explanation) && flipMode && (
-            <div
-              className={this.getFaceClassName("quote-face-back", isFlipped)}
-            >
-              {flipMode === "edit" ? this.renderEditForm() : this.renderExplanation()}
-            </div>
-          )}
         </motion.div>
-      </motion.div>
+
+        {this.renderDrawer()}
+      </>
     );
   }
 }
