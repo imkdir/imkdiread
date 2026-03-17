@@ -9,6 +9,14 @@ interface ApiSuccessResponse {
   error?: string;
 }
 
+interface WorkMetadataUpdate {
+  id?: string;
+  title?: string;
+  page_count?: number;
+  authors?: string[];
+  tags?: string[];
+}
+
 interface ProgressResponse extends ApiSuccessResponse {
   read?: boolean;
 }
@@ -226,90 +234,50 @@ export async function updateWorkTags(
   work: Work,
   tags: string[],
 ): Promise<void> {
-  const res = await request(`/api/works/${encodeURIComponent(work.id)}`, {
-    method: "PUT",
-    body: JSON.stringify({
-      id: work.id,
-      title: work.title,
-      goodreads_id: work.goodreads_id || "",
-      page_count: work.page_count,
-      dropbox_link: work.dropbox_link || "",
-      amazon_asin: work.amazon_asin || "",
-      authors: work.authors || [],
-      tags,
-    }),
-  });
-  const data = await readJsonSafe<ApiSuccessResponse>(res);
-  if (!res.ok || !data?.success) {
-    throw new Error(getApiErrorMessage(data, "Failed to update tags."));
-  }
+  await updateWorkMetadata(work, { tags });
 }
 
 export async function updateWorkPageCount(
   work: Work,
   pageCount: number,
 ): Promise<void> {
+  await updateWorkMetadata(work, { page_count: pageCount });
+}
+
+export async function updateWorkMetadata(
+  work: Work,
+  updates: WorkMetadataUpdate,
+): Promise<void> {
   const res = await request(`/api/works/${encodeURIComponent(work.id)}`, {
     method: "PUT",
     body: JSON.stringify({
-      id: work.id,
-      title: work.title,
+      id: updates.id ?? work.id,
+      title: updates.title ?? work.title,
       goodreads_id: work.goodreads_id || "",
-      page_count: pageCount,
+      page_count: updates.page_count ?? work.page_count,
       dropbox_link: work.dropbox_link || "",
       amazon_asin: work.amazon_asin || "",
-      authors: work.authors || [],
-      tags: work.tags || [],
+      authors: updates.authors ?? (work.authors || []),
+      tags: updates.tags ?? (work.tags || []),
     }),
   });
   const data = await readJsonSafe<ApiSuccessResponse>(res);
   if (!res.ok || !data?.success) {
-    throw new Error(getApiErrorMessage(data, "Failed to update page count."));
+    throw new Error(getApiErrorMessage(data, "Failed to update work."));
   }
 }
 
 export async function updateWorkTitle(
   work: Work,
   title: string,
+  id?: string,
 ): Promise<void> {
-  const res = await request(`/api/works/${encodeURIComponent(work.id)}`, {
-    method: "PUT",
-    body: JSON.stringify({
-      id: work.id,
-      title,
-      goodreads_id: work.goodreads_id || "",
-      page_count: work.page_count,
-      dropbox_link: work.dropbox_link || "",
-      amazon_asin: work.amazon_asin || "",
-      authors: work.authors || [],
-      tags: work.tags || [],
-    }),
-  });
-  const data = await readJsonSafe<ApiSuccessResponse>(res);
-  if (!res.ok || !data?.success) {
-    throw new Error(getApiErrorMessage(data, "Failed to update title."));
-  }
+  await updateWorkMetadata(work, { title, id });
 }
 
 export async function updateWorkAuthors(
   work: Work,
   authors: string[],
 ): Promise<void> {
-  const res = await request(`/api/works/${encodeURIComponent(work.id)}`, {
-    method: "PUT",
-    body: JSON.stringify({
-      id: work.id,
-      title: work.title,
-      goodreads_id: work.goodreads_id || "",
-      page_count: work.page_count,
-      dropbox_link: work.dropbox_link || "",
-      amazon_asin: work.amazon_asin || "",
-      authors,
-      tags: work.tags || [],
-    }),
-  });
-  const data = await readJsonSafe<ApiSuccessResponse>(res);
-  if (!res.ok || !data?.success) {
-    throw new Error(getApiErrorMessage(data, "Failed to update authors."));
-  }
+  await updateWorkMetadata(work, { authors });
 }

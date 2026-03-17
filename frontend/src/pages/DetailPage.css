@@ -378,10 +378,56 @@
     width: min(420px, 92vw);
 }
 
+.detail-title-modal {
+    width: min(500px, 92vw);
+}
+
+.detail-title-modal__fields {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 6px;
+}
+
+.detail-title-modal__field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.detail-title-modal__label {
+    padding-left: 2px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #5e4732;
+}
+
+.detail-title-modal__input {
+    min-height: 54px;
+    padding: 15px 16px;
+    border-radius: 16px;
+}
+
+.detail-title-modal__input--id {
+    font-family:
+        "Space Grotesk",
+        var(--font-primary-stack);
+    font-size: 0.98rem;
+    letter-spacing: 0.01em;
+}
+
 .detail-page-count-modal__field {
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+.detail-page-count-modal__label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-muted-strong);
 }
 
 .detail-page-count-stepper {

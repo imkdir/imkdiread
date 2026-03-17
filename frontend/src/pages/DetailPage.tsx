@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useParams, Link } from "react-router-dom";
+import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import Masonry from "react-masonry-css";
 import type { Work } from "../types";
@@ -161,6 +161,7 @@ export function DetailPageWrapper() {
 
 function DetailPage({ workId, initialWork }: Props) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const detail = useDetailPage({ workId, initialWork });
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const pdfFrameWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -176,6 +177,7 @@ function DetailPage({ workId, initialWork }: Props) {
   const [isTitleModalOpen, setIsTitleModalOpen] = useState(false);
   const [isPageCountModalOpen, setIsPageCountModalOpen] = useState(false);
   const [isReadingFocusModalOpen, setIsReadingFocusModalOpen] = useState(false);
+  const [workIdDraft, setWorkIdDraft] = useState("");
   const [titleDraft, setTitleDraft] = useState("");
   const [pageCountDraft, setPageCountDraft] = useState("");
   const [authorDrafts, setAuthorDrafts] = useState<AuthorDraft[]>([]);
@@ -329,6 +331,7 @@ function DetailPage({ workId, initialWork }: Props) {
     setTagDrafts(buildTagDrafts(work.tags || []));
     setEditingTagId(null);
     setIsTagDropdownOpen(false);
+    setWorkIdDraft(work.id || "");
     setTitleDraft(work.title || "");
     setPageCountDraft(String(work.page_count || 0));
   }, [work]);
@@ -572,12 +575,14 @@ function DetailPage({ workId, initialWork }: Props) {
 
   const openTitleModal = () => {
     if (!work) return;
+    setWorkIdDraft(work.id || "");
     setTitleDraft(work.title || "");
     setIsTitleModalOpen(true);
   };
 
   const closeTitleModal = () => {
     if (!work || isSavingTitle) return;
+    setWorkIdDraft(work.id || "");
     setTitleDraft(work.title || "");
     setIsTitleModalOpen(false);
   };
@@ -585,7 +590,12 @@ function DetailPage({ workId, initialWork }: Props) {
   const handleSaveTitle = async () => {
     if (!work) return;
 
+    const nextId = workIdDraft.trim();
     const nextTitle = titleDraft.trim();
+    if (!nextId) {
+      showToast("Work ID is required.", { tone: "error" });
+      return;
+    }
     if (!nextTitle) {
       showToast("Title is required.", { tone: "error" });
       return;
@@ -594,13 +604,26 @@ function DetailPage({ workId, initialWork }: Props) {
     setIsSavingTitle(true);
 
     try {
-      await updateWorkTitle(work, nextTitle);
-      await fetchData();
+      await updateWorkTitle(work, nextTitle, nextId);
       setIsTitleModalOpen(false);
-      showToast("Title updated.", { tone: "success" });
+      if (nextId !== work.id) {
+        navigate(`/work/${encodeURIComponent(nextId)}`, {
+          replace: true,
+          state: {
+            work: {
+              ...work,
+              id: nextId,
+              title: nextTitle,
+            },
+          },
+        });
+      } else {
+        await fetchData();
+      }
+      showToast("Work metadata updated.", { tone: "success" });
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : "Failed to update title.",
+        error instanceof Error ? error.message : "Failed to update work.",
         { tone: "error" },
       );
     } finally {
@@ -1495,19 +1518,36 @@ function DetailPage({ workId, initialWork }: Props) {
       >
         <div className="modal-header">
           <AppIcon name="edit" title="Title" size={16} />
-          <p className="modal-subtitle">Title</p>
+          <p className="modal-subtitle">Update the title or correct the canonical work ID.</p>
         </div>
 
-        <label className="detail-page-count-modal__field">
-          <input
-            type="text"
-            value={titleDraft}
-            onChange={(event) => setTitleDraft(event.target.value)}
-            className="modal-input"
-            placeholder="Enter title"
-            autoFocus
-          />
-        </label>
+        <div className="detail-title-modal__fields">
+          <label className="detail-title-modal__field">
+            <span className="detail-title-modal__label">Work ID</span>
+            <input
+              type="text"
+              value={workIdDraft}
+              onChange={(event) => setWorkIdDraft(event.target.value)}
+              className="modal-input detail-title-modal__input detail-title-modal__input--id"
+              placeholder="Enter work ID"
+              autoFocus
+              spellCheck={false}
+              autoCapitalize="none"
+              autoCorrect="off"
+            />
+          </label>
+
+          <label className="detail-title-modal__field">
+            <span className="detail-title-modal__label">Title</span>
+            <input
+              type="text"
+              value={titleDraft}
+              onChange={(event) => setTitleDraft(event.target.value)}
+              className="modal-input detail-title-modal__input"
+              placeholder="Enter title"
+            />
+          </label>
+        </div>
 
         <div className="modal-actions">
           <button
