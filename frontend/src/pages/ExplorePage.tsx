@@ -80,7 +80,7 @@ export class ExplorePage extends React.Component<
             <div className="explore-page__header">
               <h1 className="explore-page__title">Suggested for you</h1>
               <p className="explore-page__subtitle">
-                Based on your digital library
+                Just random picks, actually.
               </p>
             </div>
 

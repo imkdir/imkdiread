@@ -9,7 +9,8 @@
     "start": "npm run start --prefix backend",
     "build": "concurrently \"npm run build --prefix frontend\" \"npm run build --prefix backend --if-present\"",
     "test": "npm run test:smoke --prefix backend && npm run lint --prefix frontend",
-    "deploy": "bash scripts/deploy.sh"
+    "deploy": "bash scripts/deploy.sh",
+    "backup:db": "bash scripts/sync-vps-database.sh"
   },
   "keywords": [],
   "author": "",

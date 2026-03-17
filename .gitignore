@@ -42,3 +42,4 @@ Thumbs.db
 # --- Runtime Database / Media ---
 backend/public/*
 backend/db/database.sqlite
+backups/
