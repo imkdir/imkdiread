@@ -1108,11 +1108,6 @@
     letter-spacing: 0.05em;
 }
 
-.detail-label--explanation {
-    color: var(--color-text-panel-paper-primary);
-    margin-bottom: 8px;
-}
-
 .detail-secondary-label {
     font-size: 14px;
     font-family: inherit;
@@ -1193,20 +1188,14 @@
     padding: 16px;
     background-color: var(--color-bg-panel-paper);
     border-radius: 6px;
-    display: flex;
-    flex-direction: column;
-}
-
-.detail-explanation-scroll {
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
-    padding-right: 8px;
 }
 
 .detail-explanation-text {
     margin: 0;
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 14px;
+    line-height: 1.4;
     color: var(--color-text-panel-paper-primary);
     font-family: var(--font-primary-stack);
     white-space: pre-wrap;

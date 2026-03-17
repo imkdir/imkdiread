@@ -4,7 +4,7 @@
     width: 100%;
     min-width: 0;
     gap: 8px;
-    margin-bottom: 6px;
+    padding: 0 20px 6px 20px;
 }
 
 .progress-bar__track {

@@ -70,10 +70,14 @@ export function DetailQuoteModal({
               <div
                 className={`quote-face-front detail-modal-quote-face ${isSaving ? "detail-modal-quote-face--relative" : "detail-modal-quote-face--absolute"}`}
               >
-                <blockquote className="quote-text">{editingForm.quote}</blockquote>
+                <blockquote className="quote-text">
+                  {editingForm.quote}
+                </blockquote>
                 {editingForm.pageNumber && (
                   <div className="quote-meta">
-                    <span className="quote-number">P{editingForm.pageNumber}</span>
+                    <span className="quote-number">
+                      P{editingForm.pageNumber}
+                    </span>
                   </div>
                 )}
               </div>
@@ -137,7 +141,12 @@ export function DetailQuoteModal({
                         disabled={isExplaining || !editingForm.quote}
                         className="detail-explain-btn"
                       >
-                        <AppIcon name="gemini" title="Gemini" width={14} height={14} />
+                        <AppIcon
+                          name="gemini"
+                          title="Gemini"
+                          width={14}
+                          height={14}
+                        />
                         {isExplaining
                           ? "Thinking..."
                           : editingForm.explanation
@@ -149,15 +158,9 @@ export function DetailQuoteModal({
 
                   {editingForm.explanation && (
                     <div className="detail-explanation-panel">
-                      <label className="detail-label detail-label--explanation">
-                        Gemini says:
-                      </label>
-
-                      <div className="detail-explanation-scroll">
-                        <p className="detail-explanation-text">
-                          {editingForm.explanation}
-                        </p>
-                      </div>
+                      <p className="detail-explanation-text">
+                        {editingForm.explanation}
+                      </p>
                     </div>
                   )}
 
@@ -188,7 +191,11 @@ export function DetailQuoteModal({
                       disabled={isSaving}
                       className="detail-btn detail-btn--save"
                     >
-                      {isSaving ? "Saving..." : isEditProgress ? "Update" : "Add"}
+                      {isSaving
+                        ? "Saving..."
+                        : isEditProgress
+                          ? "Update"
+                          : "Add"}
                     </button>
                   </div>
                 </form>

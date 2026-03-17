@@ -102,11 +102,8 @@ export class ExplorePage extends React.Component<
                         <span className="explore-page__username">
                           {author.name}
                         </span>
-                        <span className="explore-page__bio-text">
-                          {author.goodreads_id
-                            ? `@${author.goodreads_id}`
-                            : "Author"}
-                        </span>
+                        {/*<span className="explore-page__bio-text">
+                        </span>*/}
                         <span className="explore-page__context-text">
                           Featured in {author.works_count} works
                         </span>

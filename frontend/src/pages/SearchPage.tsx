@@ -119,7 +119,6 @@ class SearchPageClass extends React.Component<Props, State> {
   handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newQuery = event.target.value;
 
-    // Instantly update the input field and set loading state, but debounce the actual fetch
     this.setState({ query: newQuery, loading: true });
     if (this.props.syncQueryToUrl) {
       window.history.replaceState(null, "", `?q=${newQuery}`);
@@ -267,7 +266,7 @@ class SearchPageClass extends React.Component<Props, State> {
               <input
                 id="global-search-input"
                 type="text"
-                placeholder="Search by title, author, or keyword"
+                placeholder="Search by title, author, or tag"
                 value={query}
                 onChange={this.handleSearch}
                 style={styles.input}
@@ -389,7 +388,7 @@ class SearchPageClass extends React.Component<Props, State> {
                 </div>
               ) : (
                 <div style={styles.emptyPrompt}>
-                  Search by title, author, existing tags
+                  Press ⌘ + K to open Search, and press Esc to close.
                 </div>
               )}
             </div>
