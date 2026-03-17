@@ -1,5 +1,5 @@
 .author-page {
-    --author-page-avatar-border: var(--theme-border);
+    --author-page-avatar-border: var(--border);
     --author-page-goodreads-button-bg: var(--color-text-page-inverse);
     --author-page-bio-bg: var(--color-bg-card-soft-strong);
     --author-page-bio-border: rgba(255, 255, 255, 0.08);

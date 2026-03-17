@@ -204,11 +204,11 @@
     top: 80px;
     width: 48px;
     height: 80px;
-    background-color: var(--theme-detail-handle-bg);
-    border: 1px solid var(--theme-border);
+    background-color: var(--detail-handle-bg);
+    border: 1px solid var(--border);
     border-right: none;
     border-radius: 12px 0 0 12px;
-    color: var(--theme-detail-handle-text);
+    color: var(--detail-handle-text);
     cursor: pointer;
     flex-direction: column;
     align-items: center;
@@ -221,8 +221,8 @@
 
 .detail-content-wrapper.pdf-open-wrap .drawer-handle:hover,
 .detail-right-col--drawer-mode .drawer-handle:hover {
-    background-color: var(--theme-detail-handle-bg-hover);
-    color: var(--theme-detail-handle-text-hover);
+    background-color: var(--detail-handle-bg-hover);
+    color: var(--detail-handle-text-hover);
 }
 
 /* --- Responsive PDF Modal/Drawer States --- */
@@ -847,7 +847,7 @@
 .detail-action-icon {
     width: 26px;
     height: 26px;
-    color: var(--theme-detail-action-color);
+    color: var(--detail-action-color);
     flex-shrink: 0;
 }
 
@@ -892,7 +892,7 @@
 .detail-action-label {
     font-size: 13px;
     font-family: -apple-system, system-ui;
-    color: var(--theme-detail-action-color);
+    color: var(--detail-action-color);
     font-weight: 500;
     transition: color 0.2s ease;
 }
@@ -909,7 +909,7 @@
 .detail-divider {
     margin: 0;
     border: none;
-    border-bottom: 1px solid var(--theme-detail-divider);
+    border-bottom: 1px solid var(--detail-divider);
 }
 
 .detail-stars-row {
@@ -934,7 +934,7 @@
 }
 
 .detail-star-icon--inactive {
-    color: var(--theme-detail-action-color);
+    color: var(--detail-action-color);
     opacity: 1;
 }
 
@@ -1064,7 +1064,11 @@
     transform: translateZ(0);
     border-radius: 18px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.08),
+            rgba(255, 255, 255, 0.03)
+        ),
         rgba(14, 14, 14, 0.22);
     box-shadow:
         0 18px 42px rgba(0, 0, 0, 0.24),
@@ -1095,14 +1099,6 @@
 .detail-quote-form {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-}
-
-.detail-quote-form--quote {
-    gap: 14px;
-}
-
-.detail-quote-form--progress {
     gap: 14px;
 }
 
@@ -1128,7 +1124,7 @@
 }
 
 .detail-label {
-    color: var(--color-text-panel-paper-secondary);
+    color: rgba(255, 255, 255, 0.6);
     font-size: 12px;
     font-weight: bold;
     text-transform: uppercase;
@@ -1157,15 +1153,8 @@
 }
 
 .detail-modal-title {
-    margin: 0 0 8px;
-    color: var(--color-text-panel-paper-primary);
-    font-size: 16px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.detail-quote-form--quote .detail-modal-title {
     margin-bottom: 2px;
+    margin-top: 0;
     color: rgba(255, 255, 255, 0.92);
     font-family: "Fredoka";
     font-size: 14px;
@@ -1177,29 +1166,24 @@
     width: 100%;
     padding: 10px;
     border-radius: 2px;
-    border: 1px solid var(--color-border-paper-medium);
-    background-color: var(--color-bg-input-soft);
-    color: var(--color-text-panel-paper-primary);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.08),
+            rgba(255, 255, 255, 0.03)
+        ),
+        rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.92);
     font-family: inherit;
     font-size: 14px;
     outline: none;
-    box-shadow: inset 0 1px 4px var(--overlay-black-05);
-}
-
-.detail-quote-form--progress .detail-input,
-.detail-quote-form--quote .detail-input {
-    border-color: rgba(255, 255, 255, 0.14);
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
-        rgba(255, 255, 255, 0.04);
-    color: rgba(255, 255, 255, 0.92);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.08),
         inset 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
-.detail-quote-form--progress .detail-input::placeholder,
-.detail-quote-form--quote .detail-input::placeholder {
+.detail-input::placeholder {
     color: rgba(255, 255, 255, 0.42);
 }
 
@@ -1225,20 +1209,10 @@
     padding: 6px;
 }
 
-.detail-explain-row {
-    margin-top: 12px;
-    margin-bottom: 16px;
-}
-
-.detail-quote-form--quote .detail-explain-row {
-    margin-top: 4px;
-    margin-bottom: 6px;
-}
-
 .detail-explain-btn {
-    background: transparent;
-    border: 1px solid var(--theme-border);
-    color: var(--color-text-panel-paper-primary);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.88);
     padding: 6px 12px;
     border-radius: 4px;
     cursor: pointer;
@@ -1248,35 +1222,32 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-}
-
-.detail-quote-form--quote .detail-explain-btn {
-    border-color: rgba(255, 255, 255, 0.14);
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.88);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .detail-explain-btn:disabled {
-    cursor: wait;
+    cursor: not-allowed;
     opacity: 0.5;
 }
 
+.detail-explain-btn--loading:disabled {
+    cursor: wait;
+}
+
 .detail-explanation-panel {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     padding: 16px;
-    background-color: var(--color-bg-panel-paper);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.07),
+            rgba(255, 255, 255, 0.03)
+        ),
+        rgba(255, 255, 255, 0.03);
     border-radius: 6px;
     max-height: 300px;
     overflow-y: auto;
-}
-
-.detail-quote-form--quote .detail-explanation-panel {
-    margin-bottom: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03)),
-        rgba(255, 255, 255, 0.03);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -1284,33 +1255,24 @@
     margin: 0;
     font-size: 14px;
     line-height: 1.4;
-    color: var(--color-text-panel-paper-primary);
+    color: rgba(255, 255, 255, 0.88);
     font-family: var(--font-primary-stack);
     white-space: pre-wrap;
-}
-
-.detail-quote-form--quote .detail-explanation-text {
-    color: rgba(255, 255, 255, 0.88);
 }
 
 .detail-quote-meta-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex: 1;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .detail-page-field {
     display: flex;
     align-items: center;
-    gap: 8px;
-}
-
-.detail-quote-form--quote .detail-page-field {
     gap: 10px;
-}
-
-.detail-quote-form--quote .detail-label {
-    color: rgba(255, 255, 255, 0.6);
 }
 
 .detail-form-actions {
@@ -1325,10 +1287,6 @@
     border-radius: 4px;
     cursor: pointer;
     font-weight: 600;
-}
-
-.detail-quote-form--progress .detail-btn,
-.detail-quote-form--quote .detail-btn {
     transition:
         border-color 0.22s ease,
         background-color 0.22s ease,
@@ -1338,25 +1296,15 @@
 
 .detail-btn--cancel {
     background-color: transparent;
-    border: 1px solid var(--color-border-paper-strong);
-    color: var(--color-text-panel-paper-primary);
-}
-
-.detail-quote-form--progress .detail-btn--cancel,
-.detail-quote-form--quote .detail-btn--cancel {
     border-color: rgba(255, 255, 255, 0.14);
+    border-style: solid;
+    border-width: 1px;
     color: rgba(255, 255, 255, 0.84);
 }
 
 .detail-btn--save {
-    background-color: var(--color-text-panel-paper-primary);
     border: none;
-    color: var(--color-bg-panel-paper);
     font-weight: bold;
-}
-
-.detail-quote-form--progress .detail-btn--save,
-.detail-quote-form--quote .detail-btn--save {
     background: rgba(255, 255, 255, 0.14);
     color: rgba(255, 255, 255, 0.94);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);

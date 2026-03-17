@@ -13,7 +13,7 @@
     border: 0;
     padding: 0;
     border-radius: 999px;
-    color: var(--theme-pill-text);
+    color: var(--pill-text);
     text-decoration: none;
     overflow: hidden;
     background: transparent;
@@ -146,5 +146,5 @@
     box-shadow:
         0 12px 24px rgba(0, 0, 0, 0.18),
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    color: var(--theme-pill-text-hover, var(--color-text-page-primary));
+    color: var(--pill-text-hover, var(--color-text-page-primary));
 }

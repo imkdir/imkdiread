@@ -1,15 +1,5 @@
 .quote-card-container {
     position: relative;
-    --quote-card-text: rgba(255, 255, 255, 0.92);
-    --quote-card-muted: rgba(255, 255, 255, 0.68);
-    --quote-card-accent: rgba(255, 255, 255, 0.86);
-    --quote-card-input-bg: rgba(255, 255, 255, 0.1);
-    --quote-card-input-border: rgba(255, 255, 255, 0.16);
-    --quote-card-input-text: rgba(255, 255, 255, 0.92);
-    --quote-card-danger: rgba(255, 120, 120, 0.92);
-    --quote-card-save-bg: rgba(255, 255, 255, 0.14);
-    --quote-card-save-text: rgba(255, 255, 255, 0.94);
-    --quote-card-explanation-text: rgba(255, 255, 255, 0.9);
 }
 
 .quote-card-drawer-backdrop {
@@ -233,23 +223,12 @@
     flex: 1;
     min-height: 0;
     position: relative;
-    border-radius: 14px;
-    background:
-        linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.06),
-            rgba(255, 255, 255, 0.02)
-        ),
-        rgba(255, 255, 255, 0.02);
-    box-shadow:
-        0 16px 36px rgba(0, 0, 0, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    overflow: hidden;
+    overflow: visible;
 }
 
 .quote-card-form--drawer {
-    gap: 16px;
-    padding: 18px 20px 20px;
+    gap: 14px;
+    padding: 6px 8px 8px;
 }
 
 .quote-card-form--drawer > * {
@@ -259,7 +238,7 @@
 
 .quote-card-form--drawer textarea {
     flex: 1;
-    min-height: 180px;
+    min-height: 140px;
     overflow: auto;
 }
 
@@ -271,54 +250,10 @@
     margin-left: auto;
 }
 
-.quote-card-form--drawer::before,
-.quote-card-explanation--drawer::before,
-.quote-card-form--drawer::after,
-.quote-card-explanation--drawer::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-}
-
-.quote-card-form--drawer::before,
-.quote-card-explanation--drawer::before {
-    background:
-        linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.1) 0,
-            rgba(255, 255, 255, 0.04) 1px,
-            transparent 14px
-        ),
-        linear-gradient(
-            270deg,
-            rgba(255, 255, 255, 0.14) 0,
-            rgba(255, 255, 255, 0.05) 1px,
-            transparent 18px
-        );
-    background-position: top, right;
-    background-repeat: no-repeat;
-    background-size:
-        100% 16px,
-        20px 100%;
-    opacity: 0.55;
-}
-
-.quote-card-form--drawer::after,
-.quote-card-explanation--drawer::after {
-    background: radial-gradient(
-        circle at top right,
-        rgba(255, 255, 255, 0.12) 0,
-        rgba(255, 255, 255, 0.04) 10%,
-        transparent 34%
-    );
-    opacity: 0.26;
-}
-
 .quote-card-row {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    align-items: flex-end;
+    justify-content: flex-end;
     gap: 12px;
     flex-wrap: wrap;
 }
@@ -326,18 +261,12 @@
 .quote-card-page-group {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    box-shadow:
-        0 10px 24px rgba(0, 0, 0, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    gap: 10px;
 }
 
 .quote-card-label {
     margin: 0;
-    color: var(--quote-card-muted);
+    color: rgba(255, 255, 255, 0.6);
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.05em;
@@ -348,11 +277,19 @@
 .quote-card-input {
     width: 100%;
     padding: 10px;
-    border: 1px solid var(--quote-card-input-border);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 2px;
-    background-color: var(--quote-card-input-bg);
-    box-shadow: inset 0 1px 4px var(--overlay-black-05);
-    color: var(--quote-card-input-text);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.08),
+            rgba(255, 255, 255, 0.03)
+        ),
+        rgba(255, 255, 255, 0.04);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 1px 4px rgba(0, 0, 0, 0.18);
+    color: rgba(255, 255, 255, 0.92);
     font-family: inherit;
     font-size: 14px;
     outline: none;
@@ -364,8 +301,14 @@
 }
 
 .quote-card-input:focus {
-    border-color: rgba(255, 255, 255, 0.28);
-    background-color: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.24);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.1),
+            rgba(255, 255, 255, 0.04)
+        ),
+        rgba(255, 255, 255, 0.06);
 }
 
 .quote-card-input--quote {
@@ -375,13 +318,7 @@
 .quote-card-input--page {
     width: 60px;
     padding: 6px;
-    border-color: rgba(255, 255, 255, 0.24);
-    background: rgba(255, 255, 255, 0.14);
-    box-shadow:
-        0 6px 16px rgba(0, 0, 0, 0.16),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
     font-weight: 600;
-    text-align: center;
 }
 
 .quote-card-delete-button,
@@ -393,19 +330,10 @@
 
 .quote-card-delete-button {
     padding: 6px 12px;
-    border: 1px solid var(--quote-card-danger);
+    border: none;
     border-radius: 4px;
-    background:
-        linear-gradient(
-            180deg,
-            rgba(255, 108, 108, 0.18),
-            rgba(255, 82, 82, 0.1)
-        ),
-        rgba(255, 255, 255, 0.03);
-    box-shadow:
-        0 8px 20px rgba(0, 0, 0, 0.12),
-        inset 0 1px 0 rgba(255, 214, 214, 0.08);
-    color: var(--quote-card-danger);
+    background: var(--quote-card-danger);
+    color: var(--neutral-white);
     font-size: 12px;
     font-weight: 700;
     transition:
@@ -424,10 +352,7 @@
 
 .quote-card-action-button {
     flex: 1;
-    padding: 10px 12px;
-    box-shadow:
-        0 6px 14px rgba(0, 0, 0, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    padding: 8px 12px;
     border-radius: 4px;
     font-weight: 600;
     transition:
@@ -439,19 +364,16 @@
 }
 
 .quote-card-action-button--cancel {
-    border: 1px solid var(--quote-card-input-border);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     background-color: transparent;
-    color: rgba(255, 255, 255, 0.62);
+    color: rgba(255, 255, 255, 0.84);
 }
 
 .quote-card-action-button--save {
     border: none;
-    background-color: var(--quote-card-save-bg);
-    box-shadow:
-        0 0 18px rgba(255, 255, 255, 0.06),
-        0 8px 18px rgba(0, 0, 0, 0.14),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    color: var(--quote-card-save-text);
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.94);
     font-weight: 700;
 }
 
@@ -460,32 +382,13 @@
     transform: translateY(-2px);
 }
 
-.quote-card-delete-button:hover {
-    border-color: rgba(255, 126, 126, 0.8);
-    background:
-        linear-gradient(
-            180deg,
-            rgba(255, 126, 126, 0.24),
-            rgba(255, 82, 82, 0.14)
-        ),
-        rgba(255, 255, 255, 0.05);
-    color: rgba(255, 214, 214, 0.98);
-    box-shadow:
-        0 12px 24px rgba(0, 0, 0, 0.16),
-        inset 0 1px 0 rgba(255, 214, 214, 0.1);
-}
-
 .quote-card-action-button--cancel:hover {
-    box-shadow:
-        0 10px 20px rgba(0, 0, 0, 0.14),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .quote-card-action-button--save:hover {
-    box-shadow:
-        0 0 20px rgba(255, 255, 255, 0.08),
-        0 12px 24px rgba(0, 0, 0, 0.16),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .quote-card-explanation-scroll {

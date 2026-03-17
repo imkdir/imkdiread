@@ -24,7 +24,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "var(--theme-page-background)",
+    backgroundColor: "var(--page-background)",
     color: "var(--text-main)",
     fontFamily: "-apple-system, system-ui, sans-serif",
     textAlign: "center",

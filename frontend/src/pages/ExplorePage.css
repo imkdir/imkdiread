@@ -1,8 +1,8 @@
 .explore-page {
-    --explore-page-avatar-bg: var(--theme-explore-sidebar-avatar-bg);
-    --explore-page-avatar-border: var(--theme-explore-sidebar-avatar-border);
+    --explore-page-avatar-bg: var(--explore-sidebar-avatar-bg);
+    --explore-page-avatar-border: var(--explore-sidebar-avatar-border);
     --explore-page-avatar-placeholder-bg: var(
-        --theme-explore-sidebar-avatar-placeholder
+        --explore-sidebar-avatar-placeholder
     );
 
     min-height: 100vh;
@@ -44,14 +44,14 @@
 
 .explore-page__title {
     margin: 0 0 4px;
-    color: var(--theme-explore-sidebar-title);
+    color: var(--explore-sidebar-title);
     font-size: 18px;
     font-weight: 700;
 }
 
 .explore-page__subtitle {
     margin: 0;
-    color: var(--theme-explore-sidebar-muted);
+    color: var(--explore-sidebar-muted);
     font-size: 13px;
 }
 
@@ -92,7 +92,7 @@
 }
 
 .explore-page__username {
-    color: var(--theme-explore-sidebar-title);
+    color: var(--explore-sidebar-title);
     font-size: 14px;
     font-weight: 600;
     white-space: nowrap;
@@ -102,7 +102,7 @@
 
 .explore-page__bio-text {
     margin-top: 2px;
-    color: var(--theme-explore-sidebar-muted);
+    color: var(--explore-sidebar-muted);
     font-size: 13px;
     white-space: nowrap;
     overflow: hidden;
@@ -111,7 +111,7 @@
 
 .explore-page__context-text {
     margin-top: 4px;
-    color: var(--theme-explore-sidebar-muted);
+    color: var(--explore-sidebar-muted);
     font-size: 12px;
     white-space: nowrap;
     overflow: hidden;
@@ -121,7 +121,7 @@
 .explore-page__footer-links {
     margin-top: 30px;
     padding-left: 16px;
-    color: var(--theme-explore-sidebar-footer);
+    color: var(--explore-sidebar-footer);
     font-size: 12px;
     line-height: 1.6;
 }

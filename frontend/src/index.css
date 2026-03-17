@@ -21,47 +21,59 @@
     --z-overlay-user-profile-card: 7050;
     --z-overlay-popover: 7100;
 
-    /* --- Shared Theme Tokens --- */
-    --theme-page-background: #1e1914;
-    --theme-page-text: #faf8f6;
-    --theme-border: #262626;
-    --theme-detail-secondary-label: rgba(241, 231, 214, 0.74);
+    /* --- Shared Surface Tokens --- */
+    --page-background: #1e1914;
+    --page-text: #faf8f6;
+    --border: #262626;
+    --detail-secondary-label: rgba(241, 231, 214, 0.74);
 
-    --theme-pill-background: transparent;
-    --theme-pill-text: var(--theme-page-text);
-    --theme-pill-border: var(--theme-page-text);
+    --pill-background: transparent;
+    --pill-text: var(--page-text);
+    --pill-border: var(--page-text);
 
-    --theme-detail-handle-bg: var(--neutral-charcoal-900);
-    --theme-detail-handle-text: var(--theme-page-text);
-    --theme-detail-handle-bg-hover: var(--neutral-gray-700);
-    --theme-detail-handle-text-hover: var(--neutral-white);
-    --theme-detail-action-color: var(--theme-detail-secondary-label);
-    --theme-detail-divider: var(--theme-border);
-    --theme-detail-progress-track: rgba(235, 226, 215, 0.4);
-    --theme-detail-progress-track-hover: rgba(235, 226, 215, 0.6);
-    --theme-detail-progress-fill: var(--theme-detail-secondary-label);
-    --theme-detail-progress-fill-hover: var(--theme-detail-secondary-label);
-    --theme-detail-progress-text: var(--theme-detail-secondary-label);
-    --theme-detail-progress-text-hover: var(--theme-detail-secondary-label);
+    --detail-handle-bg: var(--neutral-charcoal-900);
+    --detail-handle-text: var(--page-text);
+    --detail-handle-bg-hover: var(--neutral-gray-700);
+    --detail-handle-text-hover: var(--neutral-white);
+    --detail-action-color: var(--detail-secondary-label);
+    --detail-divider: var(--border);
+    --detail-progress-track: rgba(235, 226, 215, 0.4);
+    --detail-progress-track-hover: rgba(235, 226, 215, 0.6);
+    --detail-progress-fill: var(--detail-secondary-label);
+    --detail-progress-fill-hover: var(--detail-secondary-label);
+    --detail-progress-text: var(--detail-secondary-label);
+    --detail-progress-text-hover: var(--detail-secondary-label);
 
-    --theme-dictionary-input-bg: var(--color-bg-input-dark);
-    --theme-dictionary-input-border: var(--theme-border);
-    --theme-dictionary-input-text: var(--theme-page-text);
-    --theme-dictionary-panel-bg: rgba(255, 255, 255, 0.05);
-    --theme-dictionary-panel-border: rgba(255, 255, 255, 0.14);
-    --theme-dictionary-title: var(--theme-page-text);
-    --theme-dictionary-accent: #fbbc05;
-    --theme-dictionary-body: rgba(255, 250, 240, 0.94);
-    --theme-dictionary-card-bg: rgba(255, 255, 255, 0.05);
-    --theme-dictionary-card-text: rgba(255, 255, 255, 0.82);
+    --dictionary-input-bg: var(--color-bg-input-dark);
+    --dictionary-input-border: var(--border);
+    --dictionary-input-text: var(--page-text);
+    --dictionary-panel-bg: rgba(255, 255, 255, 0.05);
+    --dictionary-panel-border: rgba(255, 255, 255, 0.14);
+    --dictionary-title: var(--page-text);
+    --dictionary-accent: #fbbc05;
+    --dictionary-body: rgba(255, 250, 240, 0.94);
+    --dictionary-card-bg: rgba(255, 255, 255, 0.05);
+    --dictionary-card-text: rgba(255, 255, 255, 0.82);
 
-    --theme-explore-sidebar-title: var(--color-text-page-inverse);
-    --theme-explore-sidebar-muted: var(--color-text-muted-soft);
-    --theme-explore-sidebar-footer: var(--color-text-muted-strong);
-    --theme-explore-sidebar-avatar-bg: var(--color-bg-card-base);
-    --theme-explore-sidebar-avatar-border: var(--theme-border);
+    --explore-sidebar-title: var(--color-text-page-inverse);
+    --explore-sidebar-muted: var(--color-text-muted-soft);
+    --explore-sidebar-footer: var(--color-text-muted-strong);
+    --explore-sidebar-avatar-bg: var(--color-bg-card-base);
+    --explore-sidebar-avatar-border: var(--border);
+    --explore-sidebar-avatar-placeholder: rgba(255, 255, 255, 0.08);
 
-    --text-main: var(--theme-page-text); /* Primary page text */
+    --quote-card-text: rgba(255, 255, 255, 0.92);
+    --quote-card-muted: rgba(255, 255, 255, 0.68);
+    --quote-card-accent: rgba(255, 255, 255, 0.86);
+    --quote-card-input-bg: rgba(255, 255, 255, 0.1);
+    --quote-card-input-border: rgba(255, 255, 255, 0.16);
+    --quote-card-input-text: rgba(255, 255, 255, 0.92);
+    --quote-card-danger: rgba(251, 68, 66, 0.92);
+    --quote-card-save-bg: rgba(255, 255, 255, 0.14);
+    --quote-card-save-text: rgba(255, 255, 255, 0.94);
+    --quote-card-explanation-text: rgba(255, 255, 255, 0.9);
+
+    --text-main: var(--page-text); /* Primary page text */
     --text-muted: #9aa0a6; /* Gray icons and secondary text */
     --text-dim: #bdc1c6; /* Subtitles and tiny text */
 
@@ -111,7 +123,7 @@
     --accent-teal-deep: #01635d;
 
     /* --- Semantic Background Colors (element-level) --- */
-    --color-bg-page-reader: var(--theme-page-background);
+    --color-bg-page-reader: var(--page-background);
     --color-bg-page-admin: #121212;
     --color-bg-card-base: #382110;
     --color-bg-card-overlay: var(--overlay-black-20);
@@ -140,7 +152,7 @@
     --color-border-danger: #d32f2f;
 
     /* --- Semantic Text Colors (element-level) --- */
-    --color-text-page-primary: var(--theme-page-text);
+    --color-text-page-primary: var(--page-text);
     --color-text-page-secondary: var(--text-muted);
     --color-text-page-tertiary: var(--text-dim);
     --color-text-page-inverse: var(--neutral-white);
@@ -184,7 +196,7 @@ body,
     padding: 0;
     width: 100%;
     min-height: 100vh;
-    background-color: var(--theme-page-background);
+    background-color: var(--page-background);
     color: var(--text-main);
     font-family: var(--font-primary-stack);
     box-sizing: border-box;
@@ -207,12 +219,12 @@ html {
 .pill-button {
     display: inline-flex;
     align-items: center;
-    border: 1px solid var(--theme-pill-border);
+    border: 1px solid var(--pill-border);
     text-decoration: none;
     padding: 6px 12px;
     border-radius: 8px;
-    background-color: var(--theme-pill-background);
-    color: var(--theme-pill-text);
+    background-color: var(--pill-background);
+    color: var(--pill-text);
     font-size: 13px;
     font-weight: 500;
     box-shadow: 0 1px 3px var(--overlay-black-30);

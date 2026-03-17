@@ -772,7 +772,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: "50%",
     border: "1px solid rgba(255, 255, 255, 0.14)",
     background: "rgba(255, 255, 255, 0.06)",
-    color: "var(--theme-dictionary-title)",
+    color: "var(--dictionary-title)",
     fontFamily: "Fredoka",
     fontSize: "18px",
     fontWeight: 700,
@@ -784,13 +784,13 @@ const styles: { [key: string]: React.CSSProperties } = {
   userPreviewName: {
     display: "block",
     marginBottom: "4px",
-    color: "var(--theme-dictionary-title)",
+    color: "var(--dictionary-title)",
     fontFamily: "Fredoka",
     fontSize: "16px",
   },
   userPreviewMeta: {
     margin: 0,
-    color: "var(--theme-dictionary-card-text)",
+    color: "var(--dictionary-card-text)",
     fontSize: "13px",
     lineHeight: "1.5",
   },
@@ -802,7 +802,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: "1px solid rgba(255, 255, 255, 0.1)",
     background:
       "linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)), rgba(255, 255, 255, 0.02)",
-    color: "var(--theme-dictionary-title)",
+    color: "var(--dictionary-title)",
     cursor: "pointer",
     fontFamily: "Fredoka",
     fontSize: "13px",

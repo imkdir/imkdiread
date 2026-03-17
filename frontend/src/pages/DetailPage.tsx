@@ -72,6 +72,12 @@ const DEFAULT_READING_FOCUS_SETTINGS: ReadingFocusSettings = {
   focusHeight: 180,
 };
 
+const coverTransition = {
+  type: "tween" as const,
+  duration: 0.42,
+  ease: [0.16, 1, 0.3, 1] as const,
+};
+
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -697,7 +703,7 @@ function DetailPage({ workId, initialWork }: Props) {
                   src={work.cover_img_url as string}
                   alt={work.id}
                   className="goodreads-cover"
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  transition={coverTransition}
                 />
               ) : (
                 <div className="detail-cover-upload">
@@ -709,10 +715,12 @@ function DetailPage({ workId, initialWork }: Props) {
                         onClick={() => coverInputRef.current?.click()}
                         disabled={isUploadingCover}
                       >
-                        <img
+                        <motion.img
+                          layoutId={`work-cover-${work.id}`}
                           src={noCover}
                           alt={work.id}
                           className="goodreads-cover"
+                          transition={coverTransition}
                         />
                       </button>
                       <input
@@ -724,10 +732,12 @@ function DetailPage({ workId, initialWork }: Props) {
                       />
                     </>
                   ) : (
-                    <img
+                    <motion.img
+                      layoutId={`work-cover-${work.id}`}
                       src={noCover}
                       alt={work.id}
                       className="goodreads-cover"
+                      transition={coverTransition}
                     />
                   )}
                   {coverUploadError && (

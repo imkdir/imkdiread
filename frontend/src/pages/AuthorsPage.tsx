@@ -160,39 +160,50 @@ export class AuthorsPage extends React.Component<
   };
 
   handleDelete = async (author: Author) => {
-    if (!window.confirm(`Delete ${author.name}?`)) {
-      return;
-    }
+    showToast(`Delete ${author.name}?`, {
+      tone: "error",
+      variant: "destructive-confirm",
+      persistent: true,
+      actionLabel: "Delete",
+      onAction: () => {
+        this.setState({ deletingAuthorId: author.id });
 
-    this.setState({ deletingAuthorId: author.id });
+        request(`/api/authors/${author.id}`, {
+          method: "DELETE",
+        })
+          .then(async (res) => {
+            const data = await readJsonSafe<{ success?: boolean; error?: string }>(
+              res,
+            );
 
-    try {
-      const res = await request(`/api/authors/${author.id}`, {
-        method: "DELETE",
-      });
-      const data = await readJsonSafe<{ success?: boolean; error?: string }>(res);
-
-      if (!res.ok || !data?.success) {
-        throw new Error(getApiErrorMessage(data, "Failed to delete author."));
-      }
-
-      await this.loadAuthors();
-      if (this.state.editingAuthor?.id === author.id) {
-        this.setState({
-          editingAuthor: null,
-          goodreadsIdDraft: "",
-          selectedAvatarFile: null,
-        });
-      }
-      showToast("Author deleted.", { tone: "success" });
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : "Failed to delete author.",
-        { tone: "error" },
-      );
-    } finally {
-      this.setState({ deletingAuthorId: null });
-    }
+            if (!res.ok || !data?.success) {
+              throw new Error(
+                getApiErrorMessage(data, "Failed to delete author."),
+              );
+            }
+          })
+          .then(async () => {
+            await this.loadAuthors();
+            if (this.state.editingAuthor?.id === author.id) {
+              this.setState({
+                editingAuthor: null,
+                goodreadsIdDraft: "",
+                selectedAvatarFile: null,
+              });
+            }
+            showToast("Author deleted.", { tone: "success" });
+          })
+          .catch((error) => {
+            showToast(
+              error instanceof Error ? error.message : "Failed to delete author.",
+              { tone: "error" },
+            );
+          })
+          .finally(() => {
+            this.setState({ deletingAuthorId: null });
+          });
+      },
+    });
   };
 
   render() {

@@ -70,20 +70,8 @@ export function ToastViewport() {
           className={`toast toast--${toast.tone} toast--${toast.variant} ${toast.isLeaving ? "toast--leaving" : ""}`}
         >
           <div className="toast__content">
-            <span className="toast__message">{toast.message}</span>
-            <div className="toast__actions">
-              {toast.actionLabel && toast.onAction && (
-                <button
-                  type="button"
-                  className="toast__action"
-                  onClick={() => {
-                    toast.onAction?.();
-                    dismissToast(toast.id);
-                  }}
-                >
-                  {toast.actionLabel}
-                </button>
-              )}
+            <div className="toast__header">
+              <span className="toast__message">{toast.message}</span>
               <button
                 type="button"
                 className="toast__close"
@@ -93,6 +81,20 @@ export function ToastViewport() {
                 <AppIcon name="close" width={14} height={14} />
               </button>
             </div>
+            {toast.actionLabel && toast.onAction && (
+              <div className="toast__actions toast__actions--stacked">
+                <button
+                  type="button"
+                  className={`toast__action ${toast.variant === "destructive-confirm" ? "toast__action--destructive" : ""}`}
+                  onClick={() => {
+                    toast.onAction?.();
+                    dismissToast(toast.id);
+                  }}
+                >
+                  {toast.actionLabel}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}

@@ -20,8 +20,13 @@ interface CoverProps {
   linkClassName?: string;
   imageClassName?: string;
   imageStyle?: React.CSSProperties;
-  in_transition?: boolean;
 }
+
+const coverTransition = {
+  type: "tween" as const,
+  duration: 0.42,
+  ease: [0.16, 1, 0.3, 1] as const,
+};
 
 function joinClasses(...values: Array<string | undefined>): string {
   return values.filter(Boolean).join(" ");
@@ -35,7 +40,6 @@ export function GoodreadsCover({
   linkClassName,
   imageClassName,
   imageStyle,
-  in_transition,
 }: CoverProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -117,18 +121,21 @@ export function GoodreadsCover({
         className={joinClasses("goodreads-cover__link", linkClassName)}
       >
         {showFallback ? (
-          <img
+          <motion.img
+            layoutId={`work-cover-${work.id}`}
             src={noCover}
             alt={title}
             title={title}
             className={joinClasses("goodreads-cover__image", imageClassName)}
+            transition={coverTransition}
           />
         ) : (
           <motion.img
-            layoutId={in_transition ? `work-cover-${work.id}` : undefined}
+            layoutId={`work-cover-${work.id}`}
             src={src}
             alt={title}
             className={joinClasses("goodreads-cover__image", imageClassName)}
+            transition={coverTransition}
             style={{
               opacity: isLoaded ? 1 : 0,
               ...imageStyle,

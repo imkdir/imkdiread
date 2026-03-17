@@ -68,7 +68,7 @@ export function DetailQuoteModal({
               <div className="detail-modal-quote-face detail-modal-quote-face--relative">
                 <form
                   onSubmit={onSubmit}
-                  className={`detail-quote-form ${isEditProgress ? "detail-quote-form--progress" : "detail-quote-form--quote"}`}
+                  className={`detail-quote-form${isEditProgress ? " detail-quote-form--progress" : ""}`}
                 >
                   {isEditProgress ? (
                     <div className="detail-progress-header">
@@ -117,29 +117,6 @@ export function DetailQuoteModal({
                     required={!isEditProgress}
                   />
 
-                  {!isEditProgress && (
-                    <div className="detail-explain-row">
-                      <button
-                        type="button"
-                        onClick={onExplainPassage}
-                        disabled={isExplaining || !editingForm.quote}
-                        className="detail-explain-btn"
-                      >
-                        <AppIcon
-                          name="gemini"
-                          title="Gemini"
-                          width={14}
-                          height={14}
-                        />
-                        {isExplaining
-                          ? "Thinking..."
-                          : editingForm.explanation
-                            ? "Regenerate Explanation"
-                            : "Explain Passage"}
-                      </button>
-                    </div>
-                  )}
-
                   {editingForm.explanation && (
                     <div className="detail-explanation-panel">
                       <p className="detail-explanation-text">
@@ -150,15 +127,35 @@ export function DetailQuoteModal({
 
                   <div className="detail-quote-meta-row">
                     {!isEditProgress && (
-                      <div className="detail-page-field">
-                        <label className="detail-label">Pg.</label>
-                        <input
-                          name="pageNumber"
-                          value={editingForm.pageNumber}
-                          onChange={onInputChange}
-                          className="detail-input detail-input--page"
-                        />
-                      </div>
+                      <>
+                        <div className="detail-page-field">
+                          <label className="detail-label">Pg.</label>
+                          <input
+                            name="pageNumber"
+                            value={editingForm.pageNumber}
+                            onChange={onInputChange}
+                            className="detail-input detail-input--page"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={onExplainPassage}
+                          disabled={isExplaining || !editingForm.quote}
+                          className={`detail-explain-btn ${isExplaining ? "detail-explain-btn--loading" : ""}`}
+                        >
+                          <AppIcon
+                            name="gemini"
+                            title="Gemini"
+                            width={14}
+                            height={14}
+                          />
+                          {isExplaining
+                            ? "Thinking..."
+                            : editingForm.explanation
+                              ? "Regenerate Explanation"
+                              : "Explain Passage"}
+                        </button>
+                      </>
                     )}
                   </div>
 

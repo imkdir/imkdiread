@@ -42,7 +42,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   routeFallback: {
     minHeight: "100vh",
     width: "100%",
-    background: "var(--theme-page-background)",
+    background: "var(--page-background)",
   },
 };
 
