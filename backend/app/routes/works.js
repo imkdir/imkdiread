@@ -128,13 +128,27 @@ function createWorksRouter({ db, workService, inboxService }) {
         .all()
         .map((row) => workService.getWorkWithRelations(row, req.user?.id))
         .map(workService.processWork);
+      const isAdmin = req.user?.role === "admin";
+      const publishedWorks = [];
+      const draftWorks = [];
+
+      works.forEach((work) => {
+        if (work.cover_img_url) {
+          publishedWorks.push(work);
+        } else {
+          draftWorks.push(work);
+        }
+      });
       const authors = db
         .prepare("SELECT authors.* FROM authors ORDER BY RANDOM() LIMIT 6")
         .all()
         .map((row) => workService.getAuthorWithRelations(row, req.user?.id))
         .map(workService.processAuthor);
 
-      res.json({ works, authors });
+      res.json({
+        works: isAdmin ? [...draftWorks, ...publishedWorks] : publishedWorks,
+        authors,
+      });
     } catch (error) {
       res.status(500).json({ error: "Failed to generate explore feed" });
     }
@@ -299,7 +313,9 @@ function createWorksRouter({ db, workService, inboxService }) {
       const parsed = parseWorkPayload(req.body);
       if (parsed.error) return jsonError(res, 400, parsed.error);
       const work = parsed.work;
-      const existingWork = db.prepare("SELECT * FROM works WHERE id = ?").get(id);
+      const existingWork = db
+        .prepare("SELECT * FROM works WHERE id = ?")
+        .get(id);
       if (!existingWork) {
         return jsonError(res, 404, "Work not found");
       }

@@ -873,6 +873,8 @@ test("profile routes support current user settings and avatar upload", async () 
 test("utility discovery routes return screensavers, explore, works, and collection data", async () => {
   const adminToken = await login("admin", "admin-pass");
   const token = await login("guest", "guest-pass");
+  const coveredWorkId = `COVERED-${Date.now()}`;
+  const draftWorkId = `DRAFT-${Date.now()}`;
 
   const health = await requestJson("GET", "/api/health");
   assert.equal(health.status, 200);
@@ -925,10 +927,53 @@ test("utility discovery routes return screensavers, explore, works, and collecti
     uploadScreensaver.json.filename,
   );
 
+  appDb
+    .prepare(
+      "INSERT INTO works (id, title, page_count, goodreads_id, dropbox_link, amazon_asin) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .run(coveredWorkId, "Covered Explore Work", 123, null, null, null);
+  appDb
+    .prepare(
+      "INSERT INTO works (id, title, page_count, goodreads_id, dropbox_link, amazon_asin) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .run(draftWorkId, "Draft Explore Work", 234, null, null, null);
+  const coveredWorkCoverPath = trackPublicArtifact(
+    "imgs",
+    "covers",
+    `${coveredWorkId}.png`,
+  );
+  fs.mkdirSync(path.dirname(coveredWorkCoverPath), { recursive: true });
+  fs.writeFileSync(coveredWorkCoverPath, "cover");
+
   const explore = await requestJson("GET", "/api/explore", undefined, token);
   assert.equal(explore.status, 200);
   assert.ok(Array.isArray(explore.json?.works));
   assert.ok(Array.isArray(explore.json?.authors));
+  assert.ok(explore.json.works.every((work) => typeof work.cover_img_url === "string"));
+  assert.ok(explore.json.works.some((work) => work.id === coveredWorkId));
+  assert.ok(explore.json.works.every((work) => work.id !== draftWorkId));
+
+  const adminExplore = await requestJson(
+    "GET",
+    "/api/explore",
+    undefined,
+    adminToken,
+  );
+  assert.equal(adminExplore.status, 200);
+  assert.ok(Array.isArray(adminExplore.json?.works));
+  assert.ok(adminExplore.json.works.some((work) => work.id === draftWorkId));
+  assert.ok(adminExplore.json.works.some((work) => work.id === coveredWorkId));
+  const firstCoveredIndex = adminExplore.json.works.findIndex(
+    (work) => typeof work.cover_img_url === "string",
+  );
+  const lastDraftIndex = adminExplore.json.works.reduce(
+    (latestIndex, work, index) =>
+      work.cover_img_url === null ? index : latestIndex,
+    -1,
+  );
+  assert.ok(firstCoveredIndex > -1);
+  assert.ok(lastDraftIndex > -1);
+  assert.ok(lastDraftIndex < firstCoveredIndex);
 
   const works = await requestJson("GET", "/api/works", undefined, token);
   assert.equal(works.status, 200);

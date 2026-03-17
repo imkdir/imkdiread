@@ -320,72 +320,73 @@ export const SidebarLayout: React.FC = () => {
     }
   };
 
-  const handleImportWorksCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportWorksCSV = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     if (!isAdmin) return;
 
     const file = event.target.files?.[0];
     if (!file) return;
 
-    Papa.parse<CSVWorkRow>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const importedWorks = results.data.map((row) => ({
-          id: (row.id || "").trim(),
-          goodreads_id: row.goodreads_id?.trim() || "",
-          page_count: row.page_count ? parseInt(row.page_count.trim(), 10) : 42,
-          title: row.title?.trim() || "",
-          authors: row.authors
-            ? row.authors
-                .split("|")
-                .map((author) => author.trim())
-                .filter(Boolean)
-            : [],
-          tags: row.tags
-            ? row.tags
-                .split("|")
-                .map((tag) => tag.trim())
-                .filter(Boolean)
-            : [],
-        }));
+    try {
+      const rawCsv = await file.text();
+      const normalizedCsv = rawCsv.replace(/\r\n?/g, "\n");
+      const results = Papa.parse<CSVWorkRow>(normalizedCsv, {
+        header: true,
+        skipEmptyLines: true,
+        newline: "\n",
+      });
 
-        request("/api/works/bulk-import", {
-          method: "POST",
-          body: JSON.stringify(importedWorks),
-        })
-          .then(async (res) => {
-            const data = await readJsonSafe<{
-              success?: boolean;
-              error?: string;
-              message?: string;
-            }>(res);
-            if (!res.ok || !data?.success) {
-              throw new Error(getApiErrorMessage(data, "Import failed."));
-            }
-            return data;
-          })
-          .then((data) => {
-            showToast(data.message || "Imported works successfully.", {
-              tone: "success",
-            });
-          })
-          .catch((error) => {
-            console.error("Failed to import works", error);
-            showToast(
-              error instanceof Error
-                ? error.message
-                : "Failed to import works.",
-              { tone: "error" },
-            );
-          });
-      },
-      error: (error) => {
-        console.error("CSV Parse Error:", error);
-        showToast("Failed to read the CSV file.", { tone: "error" });
-      },
-    });
+      if (results.errors.length) {
+        console.error("CSV Parse Error:", results.errors);
+        throw new Error("Failed to parse the CSV file.");
+      }
 
-    event.target.value = "";
+      const importedWorks = results.data.map((row) => ({
+        id: (row.id || "").trim(),
+        goodreads_id: row.goodreads_id?.trim() || "",
+        page_count: row.page_count ? parseInt(row.page_count.trim(), 10) : 42,
+        title: row.title?.trim() || "",
+        authors: row.authors
+          ? row.authors
+              .split("|")
+              .map((author) => author.trim())
+              .filter(Boolean)
+          : [],
+        tags: row.tags
+          ? row.tags
+              .split("|")
+              .map((tag) => tag.trim())
+              .filter(Boolean)
+          : [],
+      }));
+
+      const res = await request("/api/works/bulk-import", {
+        method: "POST",
+        body: JSON.stringify(importedWorks),
+      });
+      const data = await readJsonSafe<{
+        success?: boolean;
+        error?: string;
+        message?: string;
+      }>(res);
+
+      if (!res.ok || !data?.success) {
+        throw new Error(getApiErrorMessage(data, "Import failed."));
+      }
+
+      showToast(data.message || "Imported works successfully.", {
+        tone: "success",
+      });
+    } catch (error) {
+      console.error("Failed to import works", error);
+      showToast(
+        error instanceof Error ? error.message : "Failed to import works.",
+        { tone: "error" },
+      );
+    } finally {
+      event.target.value = "";
+    }
   };
 
   useEffect(() => {

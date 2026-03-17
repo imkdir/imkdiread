@@ -13,6 +13,7 @@ interface PageState {
   authors: Author[];
   loading: boolean;
   editingAuthor: Author | null;
+  authorNameDraft: string;
   goodreadsIdDraft: string;
   selectedAvatarFile: File | null;
   isSaving: boolean;
@@ -29,6 +30,7 @@ export class AuthorsPage extends React.Component<
     authors: [],
     loading: true,
     editingAuthor: null,
+    authorNameDraft: "",
     goodreadsIdDraft: "",
     selectedAvatarFile: null,
     isSaving: false,
@@ -64,6 +66,7 @@ export class AuthorsPage extends React.Component<
   openEditor = (author: Author) => {
     this.setState({
       editingAuthor: author,
+      authorNameDraft: author.name || "",
       goodreadsIdDraft: author.goodreads_id || "",
       selectedAvatarFile: null,
     });
@@ -73,9 +76,14 @@ export class AuthorsPage extends React.Component<
     if (this.state.isSaving) return;
     this.setState({
       editingAuthor: null,
+      authorNameDraft: "",
       goodreadsIdDraft: "",
       selectedAvatarFile: null,
     });
+  };
+
+  handleAuthorNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    this.setState({ authorNameDraft: event.target.value });
   };
 
   handleGoodreadsIdChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,10 +95,21 @@ export class AuthorsPage extends React.Component<
   };
 
   handleSave = async () => {
-    const { editingAuthor, goodreadsIdDraft, selectedAvatarFile } = this.state;
+    const {
+      editingAuthor,
+      authorNameDraft,
+      goodreadsIdDraft,
+      selectedAvatarFile,
+    } = this.state;
     if (!editingAuthor) return;
 
+    const nextName = authorNameDraft.trim();
     const nextGoodreadsId = goodreadsIdDraft.trim();
+
+    if (!nextName) {
+      showToast("Author name is required.", { tone: "error" });
+      return;
+    }
 
     if (selectedAvatarFile && !nextGoodreadsId) {
       showToast("Goodreads ID is required before uploading an avatar.", {
@@ -105,7 +124,7 @@ export class AuthorsPage extends React.Component<
       const updateRes = await request(`/api/authors/${editingAuthor.id}`, {
         method: "PUT",
         body: JSON.stringify({
-          name: editingAuthor.name,
+          name: nextName,
           bio: editingAuthor.bio || "",
           goodreads_id: nextGoodreadsId,
         }),
@@ -145,6 +164,7 @@ export class AuthorsPage extends React.Component<
       await this.loadAuthors();
       this.setState({
         editingAuthor: null,
+        authorNameDraft: "",
         goodreadsIdDraft: "",
         selectedAvatarFile: null,
       });
@@ -187,6 +207,7 @@ export class AuthorsPage extends React.Component<
             if (this.state.editingAuthor?.id === author.id) {
               this.setState({
                 editingAuthor: null,
+                authorNameDraft: "",
                 goodreadsIdDraft: "",
                 selectedAvatarFile: null,
               });
@@ -210,6 +231,7 @@ export class AuthorsPage extends React.Component<
     const {
       authors,
       editingAuthor,
+      authorNameDraft,
       goodreadsIdDraft,
       selectedAvatarFile,
       isSaving,
@@ -266,12 +288,24 @@ export class AuthorsPage extends React.Component<
           <div className="modal-header">
             <p className="modal-subtitle">
               {editingAuthor
-                ? `Update Goodreads metadata for ${editingAuthor.name}.`
+                ? `Update metadata for ${editingAuthor.name}.`
                 : "Update author metadata."}
             </p>
           </div>
 
           <div className="authors-page__editor-fields">
+            <label className="authors-page__editor-label" htmlFor="author-name">
+              Name
+            </label>
+            <input
+              id="author-name"
+              className="modal-input"
+              value={authorNameDraft}
+              onChange={this.handleAuthorNameChange}
+              placeholder="Author name"
+              disabled={isSaving}
+            />
+
             <label className="authors-page__editor-label" htmlFor="author-goodreads-id">
               Goodreads ID
             </label>
