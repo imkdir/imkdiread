@@ -667,6 +667,58 @@ function createWorksRouter({ db, workService, inboxService }) {
     }
   });
 
+  router.post("/api/works/:id/report-file-issue", authenticateToken, (req, res) => {
+    try {
+      const workId = req.params.id;
+      const workRow = db
+        .prepare("SELECT id FROM works WHERE id = ?")
+        .get(workId);
+      if (!workRow) {
+        return jsonError(res, 404, "Work not found.");
+      }
+
+      const issueType = asOptionalString(req.body?.issue_type);
+      const normalizedIssueType =
+        issueType === "other_issue" ? "other_issue" : "blank_or_missing_pages";
+      const details = asOptionalString(req.body?.details);
+      const pageNumber =
+        normalizedIssueType === "blank_or_missing_pages"
+          ? Number(req.body?.page_number)
+          : null;
+
+      if (
+        normalizedIssueType === "blank_or_missing_pages" &&
+        (!Number.isInteger(pageNumber) || pageNumber <= 0)
+      ) {
+        return jsonError(res, 400, "A valid PDF page number is required.");
+      }
+
+      if (normalizedIssueType === "other_issue" && !details) {
+        return jsonError(res, 400, "Please describe the issue.");
+      }
+
+      const result = inboxService.notifyAdminsOfWorkFileIssue({
+        workId,
+        reporterUserId: req.user.id,
+        reporterUsername: req.user.username,
+        issueType: normalizedIssueType,
+        pageNumber,
+        details,
+      });
+
+      res.json({
+        success: true,
+        notified_admins: result.created,
+      });
+    } catch (error) {
+      if (error?.statusCode) {
+        return jsonError(res, error.statusCode, error.message);
+      }
+      console.error("Failed to report work file issue:", error);
+      return jsonError(res, 500, "Failed to report PDF issue.");
+    }
+  });
+
   router.delete(
     "/api/works/:id",
     authenticateToken,

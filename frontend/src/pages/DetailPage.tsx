@@ -177,9 +177,19 @@ function DetailPage({ workId, initialWork }: Props) {
   const [isTitleModalOpen, setIsTitleModalOpen] = useState(false);
   const [isPageCountModalOpen, setIsPageCountModalOpen] = useState(false);
   const [isReadingFocusModalOpen, setIsReadingFocusModalOpen] = useState(false);
+  const [isReportPdfIssueModalOpen, setIsReportPdfIssueModalOpen] =
+    useState(false);
+  const [reportIssueType, setReportIssueType] = useState<
+    "blank_or_missing_pages" | "other_issue"
+  >("blank_or_missing_pages");
   const [workIdDraft, setWorkIdDraft] = useState("");
   const [titleDraft, setTitleDraft] = useState("");
   const [pageCountDraft, setPageCountDraft] = useState("");
+  const [reportPdfPageDraft, setReportPdfPageDraft] = useState("");
+  const [reportIssueDetailsDraft, setReportIssueDetailsDraft] = useState("");
+  const [reportPdfPageError, setReportPdfPageError] = useState<string | null>(
+    null,
+  );
   const [authorDrafts, setAuthorDrafts] = useState<AuthorDraft[]>([]);
   const [tagDrafts, setTagDrafts] = useState<TagDraft[]>([]);
   const [editingAuthorId, setEditingAuthorId] = useState<string | null>(null);
@@ -267,8 +277,10 @@ function DetailPage({ workId, initialWork }: Props) {
     uploadModalVersion,
     uploadError,
     isUploadingFile,
+    isReportingFileIssue,
     closeUploadModal,
     handleWorkFileUpload,
+    handleReportWorkIssue,
   } = detail;
   const isActionPanelDrawerMode = isPDFViewerOpen || isNarrowActionDrawerMode;
   const readingFocusOverlayColor = hexToRgba(
@@ -324,6 +336,13 @@ function DetailPage({ workId, initialWork }: Props) {
   }, [isPDFViewerOpen]);
 
   useEffect(() => {
+    if (!isPDFViewerOpen) {
+      setIsReportPdfIssueModalOpen(false);
+      setReportPdfPageError(null);
+    }
+  }, [isPDFViewerOpen]);
+
+  useEffect(() => {
     if (!work) return;
     setAuthorDrafts(buildAuthorDrafts(work.authors || []));
     setEditingAuthorId(null);
@@ -335,6 +354,51 @@ function DetailPage({ workId, initialWork }: Props) {
     setTitleDraft(work.title || "");
     setPageCountDraft(String(work.page_count || 0));
   }, [work]);
+
+  const openReportPdfIssueModal = () => {
+    setReportIssueType("blank_or_missing_pages");
+    setReportPdfPageDraft(work?.current_page ? String(work.current_page) : "");
+    setReportIssueDetailsDraft("");
+    setReportPdfPageError(null);
+    setIsReportPdfIssueModalOpen(true);
+  };
+
+  const closeReportPdfIssueModal = () => {
+    if (isReportingFileIssue) return;
+    setReportPdfPageError(null);
+    setIsReportPdfIssueModalOpen(false);
+  };
+
+  const submitReportPdfIssue = async () => {
+    let success = false;
+    if (reportIssueType === "blank_or_missing_pages") {
+      const pageNumber = Number.parseInt(reportPdfPageDraft.trim(), 10);
+      if (!Number.isInteger(pageNumber) || pageNumber <= 0) {
+        setReportPdfPageError("Please enter a valid PDF page number.");
+        return;
+      }
+
+      success = await handleReportWorkIssue({
+        issueType: "blank_or_missing_pages",
+        pageNumber,
+      });
+    } else {
+      const details = reportIssueDetailsDraft.trim();
+      if (!details) {
+        setReportPdfPageError("Please describe the issue.");
+        return;
+      }
+
+      success = await handleReportWorkIssue({
+        issueType: "other_issue",
+        details,
+      });
+    }
+
+    if (success) {
+      closeReportPdfIssueModal();
+    }
+  };
 
   useEffect(() => {
     if (!isAuthorDropdownOpen) return;
@@ -1075,6 +1139,8 @@ function DetailPage({ workId, initialWork }: Props) {
               onOpenProgressModal={() => openEditFormModal("progress")}
               onOpenReadingFocusModal={openReadingFocusModal}
               onClosePDFViewer={closePDFViewer}
+              onReportIssue={openReportPdfIssueModal}
+              isReportingPdfIssue={isReportingFileIssue}
             />
           </div>
 
@@ -1320,6 +1386,103 @@ function DetailPage({ workId, initialWork }: Props) {
       </Modal>
 
       <Modal
+        isOpen={isPDFViewerOpen && isReportPdfIssueModalOpen}
+        onClose={closeReportPdfIssueModal}
+        cardClassName="detail-page-count-modal"
+      >
+        <div className="modal-header">
+          <AppIcon name="inbox" title="Report issues" size={16} />
+          <p className="modal-subtitle">
+            Report a PDF problem or another issue with this work.
+          </p>
+        </div>
+
+        <div className="detail-report-issue-type-toggle" role="tablist">
+          <button
+            type="button"
+            className={`detail-report-issue-type-toggle__button ${reportIssueType === "blank_or_missing_pages" ? "detail-report-issue-type-toggle__button--active" : ""}`}
+            onClick={() => {
+              setReportIssueType("blank_or_missing_pages");
+              setReportPdfPageError(null);
+            }}
+          >
+            PDF
+          </button>
+          <button
+            type="button"
+            className={`detail-report-issue-type-toggle__button ${reportIssueType === "other_issue" ? "detail-report-issue-type-toggle__button--active" : ""}`}
+            onClick={() => {
+              setReportIssueType("other_issue");
+              setReportPdfPageError(null);
+            }}
+          >
+            Other
+          </button>
+        </div>
+
+        {reportIssueType === "blank_or_missing_pages" ? (
+          <label className="detail-page-count-modal__field">
+            <span className="detail-title-modal__label">PDF page number</span>
+            <input
+              type="number"
+              min="1"
+              max={work.page_count || undefined}
+              step="1"
+              inputMode="numeric"
+              value={reportPdfPageDraft}
+              onChange={(event) => {
+                setReportPdfPageDraft(event.target.value);
+                setReportPdfPageError(null);
+              }}
+              className="modal-input detail-title-modal__input"
+              placeholder="Enter the affected PDF page"
+              autoFocus
+            />
+          </label>
+        ) : (
+          <label className="detail-title-modal__field">
+            <span className="detail-title-modal__label">Issue details</span>
+            <textarea
+              value={reportIssueDetailsDraft}
+              onChange={(event) => {
+                setReportIssueDetailsDraft(event.target.value);
+                setReportPdfPageError(null);
+              }}
+              className="modal-input detail-title-modal__input detail-report-issue-modal__textarea"
+              placeholder="Describe the problem you noticed"
+              rows={4}
+              autoFocus
+            />
+          </label>
+        )}
+
+        {reportPdfPageError && (
+          <p className="modal-error">{reportPdfPageError}</p>
+        )}
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            onClick={closeReportPdfIssueModal}
+            className="modal-btn modal-btn--cancel"
+            disabled={isReportingFileIssue}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void submitReportPdfIssue();
+            }}
+            className="modal-btn modal-btn--primary"
+            disabled={isReportingFileIssue}
+          >
+            {isReportingFileIssue ? "Sending..." : "Send report"}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
         isOpen={isAdmin && isAuthorsModalOpen}
         onClose={closeAuthorsModal}
         cardClassName="modal-card--wide detail-authors-modal"
@@ -1518,7 +1681,9 @@ function DetailPage({ workId, initialWork }: Props) {
       >
         <div className="modal-header">
           <AppIcon name="edit" title="Title" size={16} />
-          <p className="modal-subtitle">Update the title or correct the canonical work ID.</p>
+          <p className="modal-subtitle">
+            Update the title or correct the canonical work ID.
+          </p>
         </div>
 
         <div className="detail-title-modal__fields">

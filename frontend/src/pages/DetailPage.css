@@ -422,6 +422,72 @@
     gap: 8px;
 }
 
+.detail-report-issue-type-toggle {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 8px;
+    border: 1px solid rgba(123, 92, 58, 0.18);
+    border-radius: 16px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.5),
+            rgba(240, 229, 211, 0.94)
+        ),
+        rgba(248, 242, 232, 0.92);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.46),
+        0 10px 24px rgba(63, 38, 17, 0.08);
+}
+
+.detail-report-issue-type-toggle__button {
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 1px solid rgba(122, 91, 57, 0.14);
+    border-radius: 12px;
+    background: transparent;
+    color: #5a4632;
+    font-family: inherit;
+    font-size: 0.94rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        transform 0.18s ease,
+        border-color 0.18s ease,
+        background-color 0.18s ease,
+        box-shadow 0.18s ease,
+        color 0.18s ease;
+}
+
+.detail-report-issue-type-toggle__button:hover {
+    transform: translateY(-1px);
+    border-color: rgba(126, 88, 52, 0.24);
+}
+
+.detail-report-issue-type-toggle__button--active {
+    background:
+        linear-gradient(
+            180deg,
+            rgba(142, 93, 48, 0.96),
+            rgba(98, 63, 32, 0.96)
+        ),
+        rgba(94, 60, 31, 0.94);
+    border-color: rgba(92, 59, 31, 0.45);
+    color: #fbf4ea;
+    box-shadow:
+        0 14px 28px rgba(63, 38, 17, 0.18),
+        inset 0 1px 0 rgba(255, 238, 219, 0.24);
+}
+
+.detail-report-issue-modal__textarea {
+    min-height: 124px;
+    resize: vertical;
+    font-family: var(--font-primary-stack);
+    line-height: 1.5;
+}
+
 .detail-page-count-modal__label {
     font-size: 0.85rem;
     font-weight: 600;
@@ -514,6 +580,7 @@
 }
 
 .detail-page-count-stepper__input[type="number"] {
+    appearance: textfield;
     -moz-appearance: textfield;
 }
 

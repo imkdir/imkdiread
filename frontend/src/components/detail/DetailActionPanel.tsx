@@ -22,6 +22,8 @@ interface DetailActionPanelProps {
   onOpenProgressModal: () => void;
   onOpenReadingFocusModal: () => void;
   onClosePDFViewer: () => void;
+  onReportIssue: () => void;
+  isReportingPdfIssue: boolean;
 }
 
 export function DetailActionPanel({
@@ -43,6 +45,8 @@ export function DetailActionPanel({
   onOpenProgressModal,
   onOpenReadingFocusModal,
   onClosePDFViewer,
+  onReportIssue,
+  isReportingPdfIssue,
 }: DetailActionPanelProps) {
   return (
     <aside
@@ -164,6 +168,20 @@ export function DetailActionPanel({
                   <span className="detail-action-label">
                     {`Reading Focus ${isReadingFocusEnabled ? "On" : "Off"} `}
                   </span>
+                </span>
+              </button>
+            </div>
+            <hr className="detail-divider" />
+            <div className="detail-action-row">
+              <button
+                onClick={onReportIssue}
+                className="detail-action-button"
+                disabled={isReportingPdfIssue}
+              >
+                <span className="detail-action-label">
+                  {isReportingPdfIssue
+                    ? "Reporting issue..."
+                    : "Report issues..."}
                 </span>
               </button>
             </div>

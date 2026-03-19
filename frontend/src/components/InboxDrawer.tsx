@@ -25,6 +25,7 @@ interface Props {
   onClose: () => void;
   anchorRect?: DOMRect | null;
   onUnreadCountChange?: (count: number) => void;
+  refreshKey?: number;
 }
 
 function formatNotificationTime(timestamp: string) {
@@ -45,6 +46,7 @@ export function InboxDrawer({
   onClose,
   anchorRect,
   onUnreadCountChange,
+  refreshKey = 0,
 }: Props) {
   const navigate = useNavigate();
   const [items, setItems] = useState<InboxNotification[]>([]);
@@ -88,7 +90,7 @@ export function InboxDrawer({
     if (isOpen) {
       void fetchInbox();
     }
-  }, [fetchInbox, isOpen]);
+  }, [fetchInbox, isOpen, refreshKey]);
 
   const handleOpenNotification = async (item: InboxNotification) => {
     try {

@@ -1420,6 +1420,73 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(inboxAfterDropbox.status, 200);
   assert.equal(inboxAfterDropbox.json?.unread_count, 2);
 
+  const reportFileIssue = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(notifyWorkId)}/report-file-issue`,
+    {
+      issue_type: "blank_or_missing_pages",
+      page_number: 321,
+    },
+    guestToken,
+  );
+  assert.equal(reportFileIssue.status, 200);
+  assert.equal(reportFileIssue.json?.success, true);
+  assert.equal(reportFileIssue.json?.notified_admins, 1);
+
+  const adminInboxAfterIssueReport = await requestJson(
+    "GET",
+    "/api/inbox",
+    undefined,
+    adminToken,
+  );
+  assert.equal(adminInboxAfterIssueReport.status, 200);
+  assert.ok(Array.isArray(adminInboxAfterIssueReport.json?.items));
+  const workIssueNotification = adminInboxAfterIssueReport.json.items.find(
+    (item) =>
+      item.type === "work_file_issue_report" && item.work_id === notifyWorkId,
+  );
+  assert.equal(workIssueNotification?.title, "Issue reported");
+  assert.match(workIssueNotification?.body || "", /blank or missing pdf pages/i);
+  assert.match(workIssueNotification?.body || "", /page 321/i);
+  assert.equal(
+    workIssueNotification?.payload?.issue_type,
+    "blank_or_missing_pages",
+  );
+  assert.equal(workIssueNotification?.payload?.page_number, 321);
+  assert.equal(workIssueNotification?.payload?.details, null);
+  assert.equal(workIssueNotification?.payload?.reporter_user_id, "guest-1");
+
+  const adminSelfReport = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(notifyWorkId)}/report-file-issue`,
+    {
+      issue_type: "other_issue",
+      details: "The cover image and metadata look wrong.",
+    },
+    adminToken,
+  );
+  assert.equal(adminSelfReport.status, 200);
+  assert.equal(adminSelfReport.json?.success, true);
+  assert.equal(adminSelfReport.json?.notified_admins, 1);
+
+  const adminInboxAfterSelfReport = await requestJson(
+    "GET",
+    "/api/inbox",
+    undefined,
+    adminToken,
+  );
+  assert.equal(adminInboxAfterSelfReport.status, 200);
+  const adminSelfReportNotification = adminInboxAfterSelfReport.json.items.find(
+    (item) =>
+      item.type === "work_file_issue_report" &&
+      item.work_id === notifyWorkId &&
+      item.payload?.details === "The cover image and metadata look wrong.",
+  );
+  assert.equal(adminSelfReportNotification?.title, "Issue reported");
+  assert.equal(adminSelfReportNotification?.payload?.issue_type, "other_issue");
+  assert.equal(adminSelfReportNotification?.payload?.page_number, null);
+  assert.equal(adminSelfReportNotification?.payload?.reporter_user_id, "admin-1");
+
   const markImportedRead = await requestJson(
     "POST",
     `/api/inbox/${importedNotification.id}/read`,

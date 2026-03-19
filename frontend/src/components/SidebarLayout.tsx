@@ -175,6 +175,7 @@ export const SidebarLayout: React.FC = () => {
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [isRescanningWorks, setIsRescanningWorks] = useState(false);
   const [unreadInboxCount, setUnreadInboxCount] = useState(0);
+  const [inboxRefreshKey, setInboxRefreshKey] = useState(0);
   const [inboxAnchorRect, setInboxAnchorRect] = useState<DOMRect | null>(null);
   const [dictionaryAnchorRect, setDictionaryAnchorRect] =
     useState<DOMRect | null>(null);
@@ -570,7 +571,9 @@ export const SidebarLayout: React.FC = () => {
               title="Inbox"
               onClick={(event) => {
                 setInboxAnchorRect(event.currentTarget.getBoundingClientRect());
-                setIsInboxOpen((current) => !current);
+                void refreshInboxUnreadCount();
+                setInboxRefreshKey((current) => current + 1);
+                setIsInboxOpen(true);
                 setOpenDictionaryForWorkId(null);
                 setIsSearchOpen(false);
               }}
@@ -640,6 +643,7 @@ export const SidebarLayout: React.FC = () => {
         onClose={() => setIsInboxOpen(false)}
         anchorRect={inboxAnchorRect}
         onUnreadCountChange={setUnreadInboxCount}
+        refreshKey={inboxRefreshKey}
       />
 
       <Modal isOpen={isAdminMenuOpen} onClose={() => setIsAdminMenuOpen(false)}>

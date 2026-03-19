@@ -170,6 +170,12 @@ interface WorkFileUploadResponse extends ApiSuccessResponse {
   url?: string;
 }
 
+interface ReportWorkFileIssueResponse extends ApiSuccessResponse {
+  notified_admins?: number;
+}
+
+export type WorkFileIssueType = "blank_or_missing_pages" | "other_issue";
+
 export async function saveDropboxLink(
   workId: string,
   link: string,
@@ -226,6 +232,32 @@ export async function uploadWorkCover(
   const data = await readJsonSafe<WorkFileUploadResponse>(res);
   if (!res.ok || !data) {
     throw new Error(getApiErrorMessage(data, "Failed to upload cover."));
+  }
+  return data;
+}
+
+export async function reportWorkFileIssue(
+  workId: string,
+  payload: {
+    issueType: WorkFileIssueType;
+    pageNumber?: number;
+    details?: string;
+  },
+): Promise<ReportWorkFileIssueResponse> {
+  const res = await request(
+    `/api/works/${encodeURIComponent(workId)}/report-file-issue`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        issue_type: payload.issueType,
+        page_number: payload.pageNumber,
+        details: payload.details,
+      }),
+    },
+  );
+  const data = await readJsonSafe<ReportWorkFileIssueResponse>(res);
+  if (!res.ok || !data) {
+    throw new Error(getApiErrorMessage(data, "Failed to report PDF issue."));
   }
   return data;
 }

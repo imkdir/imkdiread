@@ -13,7 +13,9 @@ import {
   uploadWorkFile,
   updateWorkAction,
   updateWorkRating,
+  reportWorkFileIssue,
   type DetailToggleAction,
+  type WorkFileIssueType,
 } from "../services/detailPageService";
 import type { DetailEditingForm } from "../components/detail/DetailQuoteModal";
 import { showToast } from "../utils/toast";
@@ -81,6 +83,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const [uploadModalVersion, setUploadModalVersion] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [isReportingFileIssue, setIsReportingFileIssue] = useState(false);
 
   const workRef = useRef(work);
   const editingFormRef = useRef(editingForm);
@@ -556,6 +559,47 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     [openLocalPdfViewer],
   );
 
+  const handleReportWorkIssue = useCallback(async ({
+    issueType,
+    pageNumber,
+    details,
+  }: {
+    issueType: WorkFileIssueType;
+    pageNumber?: number;
+    details?: string;
+  }) => {
+    setIsReportingFileIssue(true);
+    try {
+      const response = await reportWorkFileIssue(workId, {
+        issueType,
+        pageNumber,
+        details,
+      });
+      if (!response.success) {
+        throw new Error(response.error || "Failed to report the issue.");
+      }
+
+      showToast(
+        issueType === "other_issue"
+          ? "Reported the issue to admin."
+          : `Reported the PDF issue on page ${pageNumber} to admin.`,
+        {
+          tone: "success",
+        },
+      );
+      return true;
+    } catch (error) {
+      console.error("Failed to report work issue:", error);
+      showToast(
+        error instanceof Error ? error.message : "Failed to report the issue.",
+        { tone: "error" },
+      );
+      return false;
+    } finally {
+      setIsReportingFileIssue(false);
+    }
+  }, [workId]);
+
   const finderFiles = useMemo(
     () =>
       Object.entries(work?.files || {}).map(([label, url]) => ({
@@ -618,7 +662,9 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     uploadModalVersion,
     uploadError,
     isUploadingFile,
+    isReportingFileIssue,
     closeUploadModal,
     handleWorkFileUpload,
+    handleReportWorkIssue,
   };
 }
