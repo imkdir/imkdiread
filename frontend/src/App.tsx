@@ -1,7 +1,6 @@
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import { ScrollToTop } from "./components/ScrollToTop";
 import { NotFound } from "./components/NotFound";
 import { ToastViewport } from "./components/ToastViewport";
 import { AuthProvider } from "./components/AuthContext";
@@ -53,7 +52,6 @@ export default class App extends React.Component<Record<string, never>> {
     return (
       <AuthProvider>
         <BrowserRouter>
-          <ScrollToTop />
           <ToastViewport />
           <Suspense fallback={routeFallback}>
             <Routes>
