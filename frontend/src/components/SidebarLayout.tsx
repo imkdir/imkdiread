@@ -556,6 +556,9 @@ export const SidebarLayout: React.FC = () => {
                 setDictionaryAnchorRect(
                   event.currentTarget.getBoundingClientRect(),
                 );
+                setDictionaryInitialQuery("");
+                setDictionaryInitialLookupMode("context");
+                setDictionaryRequestKey(0);
                 setOpenDictionaryForWorkId((current) =>
                   current === workId ? null : workId,
                 );

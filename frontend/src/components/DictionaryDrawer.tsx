@@ -4,7 +4,15 @@ import { useNavigate } from "react-router-dom";
 import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
+import { AppIcon } from "./AppIcon";
 import { FloatingDrawer } from "./FloatingDrawer";
+
+const DICTIONARY_DRAWER_SETTINGS_KEY = "dictionary-drawer-settings";
+
+interface DictionaryDrawerSettings {
+  autoClearOnOpen: boolean;
+  autoPasteOnOpen: boolean;
+}
 
 interface DictResult {
   word: string;
@@ -47,6 +55,50 @@ interface UserPreviewPosition {
   left: number;
 }
 
+function loadDictionaryDrawerSettings(): DictionaryDrawerSettings {
+  if (typeof window === "undefined") {
+    return {
+      autoClearOnOpen: false,
+      autoPasteOnOpen: false,
+    };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(DICTIONARY_DRAWER_SETTINGS_KEY);
+    if (!raw) {
+      return {
+        autoClearOnOpen: false,
+        autoPasteOnOpen: false,
+      };
+    }
+
+    const parsed = JSON.parse(raw);
+    return {
+      autoClearOnOpen: Boolean(parsed?.autoClearOnOpen),
+      autoPasteOnOpen: Boolean(parsed?.autoPasteOnOpen),
+    };
+  } catch {
+    return {
+      autoClearOnOpen: false,
+      autoPasteOnOpen: false,
+    };
+  }
+}
+
+function normalizeClipboardText(rawText: string) {
+  let cleanedText = rawText.trim().replace(/-\r?\n/g, "");
+  cleanedText = cleanedText
+    .split(/\r?\n\s*\r?\n/)
+    .map((paragraph) => paragraph.replace(/\r?\n/g, " "))
+    .join("\n\n");
+  cleanedText = cleanedText.replace(/ {2,}/g, " ");
+  return cleanedText.replace(/\s+/g, " ").trim();
+}
+
+function inferLookupMode(query: string): LookupMode {
+  return query.includes(" ") ? "context" : "word";
+}
+
 export type LookupMode = "word" | "context";
 
 interface Props {
@@ -78,9 +130,15 @@ export const DictionaryDrawer: React.FC<Props> = ({
   const [hoveredUserPreview, setHoveredUserPreview] =
     useState<UserPreviewData | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<DictionaryDrawerSettings>(
+    loadDictionaryDrawerSettings,
+  );
   const [userPreviewPosition, setUserPreviewPosition] =
     useState<UserPreviewPosition | null>(null);
   const previewCacheRef = useRef<Record<string, UserPreviewData>>({});
+  const settingsRef = useRef(settings);
+  const wasOpenRef = useRef(false);
   const showPreviewTimerRef = useRef<number | null>(null);
   const hidePreviewTimerRef = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -98,6 +156,83 @@ export const DictionaryDrawer: React.FC<Props> = ({
 
     return () => window.cancelAnimationFrame(frameId);
   }, [initialLookupMode, initialQuery, initialRequestKey, isOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      DICTIONARY_DRAWER_SETTINGS_KEY,
+      JSON.stringify(settings),
+    );
+  }, [settings]);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      setIsSettingsOpen(false);
+      return;
+    }
+
+    if (wasOpenRef.current) {
+      return;
+    }
+    wasOpenRef.current = true;
+
+    if (initialQuery.trim()) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncOpenState = async () => {
+      if (settingsRef.current.autoClearOnOpen) {
+        setSearchQuery("");
+        setDictResult(null);
+      }
+
+      if (
+        settingsRef.current.autoPasteOnOpen &&
+        typeof navigator !== "undefined" &&
+        navigator.clipboard?.readText
+      ) {
+        try {
+          const clipboardText = await navigator.clipboard.readText();
+          if (cancelled) return;
+          const normalizedText = normalizeClipboardText(clipboardText);
+          if (normalizedText) {
+            setSearchQuery(normalizedText);
+            setLookupMode(inferLookupMode(normalizedText));
+            setDictResult(null);
+          }
+        } catch {
+          // Ignore clipboard permission failures and keep the drawer usable.
+        }
+      }
+
+      if (!cancelled) {
+        const frameId = window.requestAnimationFrame(() => {
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
+        });
+
+        if (cancelled) {
+          window.cancelAnimationFrame(frameId);
+        }
+      }
+    };
+
+    void syncOpenState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    initialQuery,
+    isOpen,
+  ]);
 
   const fetchVocabularies = useCallback(async () => {
     try {
@@ -475,6 +610,94 @@ export const DictionaryDrawer: React.FC<Props> = ({
         )}
       </div>
 
+      {isSettingsOpen && (
+        <div style={styles.settingsPanel}>
+          <button
+            type="button"
+            style={styles.settingsToggleRow}
+            onClick={() =>
+              setSettings((current) => ({
+                ...current,
+                autoClearOnOpen: !current.autoClearOnOpen,
+              }))
+            }
+          >
+            <span style={styles.settingsCopy}>
+              <span style={styles.settingsLabel}>Auto clear on open</span>
+              <span style={styles.settingsHint}>
+                Start with an empty input whenever the drawer opens.
+              </span>
+            </span>
+            <span
+              style={{
+                ...styles.settingsSwitch,
+                ...(settings.autoClearOnOpen
+                  ? styles.settingsSwitchActive
+                  : undefined),
+              }}
+            >
+              <span
+                style={{
+                  ...styles.settingsSwitchThumb,
+                  ...(settings.autoClearOnOpen
+                    ? styles.settingsSwitchThumbActive
+                    : undefined),
+                }}
+              />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            style={styles.settingsToggleRow}
+            onClick={() =>
+              setSettings((current) => ({
+                ...current,
+                autoPasteOnOpen: !current.autoPasteOnOpen,
+              }))
+            }
+          >
+            <span style={styles.settingsCopy}>
+              <span style={styles.settingsLabel}>Auto paste on open</span>
+              <span style={styles.settingsHint}>
+                Read clipboard text into the input when the drawer opens.
+              </span>
+            </span>
+            <span
+              style={{
+                ...styles.settingsSwitch,
+                ...(settings.autoPasteOnOpen
+                  ? styles.settingsSwitchActive
+                  : undefined),
+              }}
+            >
+              <span
+                style={{
+                  ...styles.settingsSwitchThumb,
+                  ...(settings.autoPasteOnOpen
+                    ? styles.settingsSwitchThumbActive
+                    : undefined),
+                }}
+              />
+            </span>
+          </button>
+        </div>
+      )}
+
+      <div style={styles.footerRow}>
+        <button
+          type="button"
+          style={{
+            ...styles.settingsButton,
+            ...(isSettingsOpen ? styles.settingsButtonActive : undefined),
+          }}
+          onClick={() => setIsSettingsOpen((current) => !current)}
+        >
+          <AppIcon name="settings" size={16} />
+          <span>{isSettingsOpen ? "Close settings" : "Settings"}</span>
+        </button>
+      </div>
+
       {!hoveredUsername ||
         !userPreviewPosition ||
         typeof document === "undefined" ||
@@ -707,6 +930,111 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     flexDirection: "column",
     gap: "12px",
+  },
+  settingsPanel: {
+    marginTop: "14px",
+    marginBottom: "10px",
+    padding: "12px",
+    borderRadius: "16px",
+    border: "1px solid rgba(122, 91, 57, 0.16)",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(240, 229, 211, 0.9)), rgba(248, 242, 232, 0.9)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    boxShadow:
+      "inset 0 1px 0 rgba(255, 255, 255, 0.46), 0 8px 20px rgba(89, 62, 34, 0.06)",
+  },
+  settingsToggleRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "14px",
+    width: "100%",
+    padding: "10px 12px",
+    border: "1px solid rgba(122, 91, 57, 0.12)",
+    borderRadius: "14px",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(241, 231, 214, 0.94)), rgba(255, 250, 243, 0.9)",
+    color: "#312419",
+    cursor: "pointer",
+    textAlign: "left",
+  },
+  settingsCopy: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    minWidth: 0,
+  },
+  settingsLabel: {
+    color: "#4b3827",
+    fontFamily: "Fredoka",
+    fontSize: "13px",
+    fontWeight: 600,
+  },
+  settingsHint: {
+    color: "#765b41",
+    fontSize: "12px",
+    lineHeight: 1.45,
+  },
+  settingsSwitch: {
+    position: "relative",
+    width: "44px",
+    height: "24px",
+    borderRadius: "999px",
+    border: "1px solid rgba(122, 91, 57, 0.16)",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(231, 220, 200, 0.92)), rgba(237, 229, 216, 0.95)",
+    flexShrink: 0,
+    transition: "background-color 0.18s ease, border-color 0.18s ease",
+  },
+  settingsSwitchActive: {
+    border: "1px solid rgba(92, 59, 31, 0.45)",
+    background:
+      "linear-gradient(180deg, rgba(142, 93, 48, 0.96), rgba(98, 63, 32, 0.96)), rgba(94, 60, 31, 0.94)",
+  },
+  settingsSwitchThumb: {
+    position: "absolute",
+    top: "2px",
+    left: "2px",
+    width: "18px",
+    height: "18px",
+    borderRadius: "50%",
+    background: "#fffaf2",
+    boxShadow: "0 4px 10px rgba(63, 38, 17, 0.18)",
+    transition: "transform 0.18s ease",
+  },
+  settingsSwitchThumbActive: {
+    transform: "translateX(20px)",
+  },
+  footerRow: {
+    marginTop: "auto",
+    display: "flex",
+    justifyContent: "flex-start",
+    paddingTop: "12px",
+  },
+  settingsButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 12px",
+    borderRadius: "12px",
+    border: "1px solid rgba(122, 91, 57, 0.16)",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(240, 229, 211, 0.94)), rgba(248, 242, 232, 0.92)",
+    color: "#5a4632",
+    cursor: "pointer",
+    fontFamily: "Fredoka",
+    fontSize: "13px",
+    fontWeight: 600,
+    boxShadow:
+      "inset 0 1px 0 rgba(255, 255, 255, 0.46), 0 8px 18px rgba(89, 62, 34, 0.06)",
+  },
+  settingsButtonActive: {
+    border: "1px solid rgba(92, 59, 31, 0.3)",
+    color: "#4a3524",
+    background:
+      "linear-gradient(180deg, rgba(255, 248, 236, 0.96), rgba(235, 221, 198, 0.96)), rgba(247, 241, 230, 0.94)",
   },
   saveBtn: {
     padding: "11px 14px",
