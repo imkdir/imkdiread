@@ -5,6 +5,7 @@ import { NotFound } from "./components/NotFound";
 import { ToastViewport } from "./components/ToastViewport";
 import { AuthProvider } from "./components/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { WorkDetailScrollReset } from "./components/WorkDetailScrollReset";
 
 const AuthorPageWrapper = lazy(async () => ({
   default: (await import("./pages/AuthorPage")).AuthorPageWrapper,
@@ -52,6 +53,7 @@ export default class App extends React.Component<Record<string, never>> {
     return (
       <AuthProvider>
         <BrowserRouter>
+          <WorkDetailScrollReset />
           <ToastViewport />
           <Suspense fallback={routeFallback}>
             <Routes>
