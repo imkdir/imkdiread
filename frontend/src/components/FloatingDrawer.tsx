@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, type MotionProps } from "framer-motion";
 import { AppIcon } from "./AppIcon";
 import "./FloatingDrawer.css";
@@ -160,6 +160,12 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
     [minSize.height, minSize.width],
   );
   const [rect, setRect] = useState<DrawerRect>(defaultRect);
+  const activeInteractionCleanupRef = useRef<(() => void) | null>(null);
+
+  const stopActiveInteraction = useCallback(() => {
+    activeInteractionCleanupRef.current?.();
+    activeInteractionCleanupRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!rect) return;
@@ -174,6 +180,59 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
     return () => window.removeEventListener("resize", handleResize);
   }, [rect, resolvedMinSize]);
 
+  useEffect(() => () => stopActiveInteraction(), [stopActiveInteraction]);
+
+  const bindPointerInteraction = useCallback(
+    (
+      event: React.PointerEvent<HTMLDivElement>,
+      onMove: (moveEvent: PointerEvent) => void,
+    ) => {
+      if (event.button !== 0 || !event.isPrimary) {
+        return;
+      }
+
+      event.preventDefault();
+      stopActiveInteraction();
+
+      const captureTarget = event.currentTarget;
+      const pointerId = event.pointerId;
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        if (!moveEvent.isPrimary) {
+          return;
+        }
+
+        onMove(moveEvent);
+      };
+
+      const finish = () => {
+        captureTarget.removeEventListener("pointermove", handlePointerMove);
+        captureTarget.removeEventListener("pointerup", finish);
+        captureTarget.removeEventListener("pointercancel", finish);
+        captureTarget.removeEventListener("lostpointercapture", finish);
+        window.removeEventListener("blur", finish);
+
+        if (captureTarget.hasPointerCapture(pointerId)) {
+          captureTarget.releasePointerCapture(pointerId);
+        }
+
+        if (activeInteractionCleanupRef.current === finish) {
+          activeInteractionCleanupRef.current = null;
+        }
+      };
+
+      captureTarget.setPointerCapture(pointerId);
+      captureTarget.addEventListener("pointermove", handlePointerMove);
+      captureTarget.addEventListener("pointerup", finish);
+      captureTarget.addEventListener("pointercancel", finish);
+      captureTarget.addEventListener("lostpointercapture", finish);
+      window.addEventListener("blur", finish);
+
+      activeInteractionCleanupRef.current = finish;
+    },
+    [stopActiveInteraction],
+  );
+
   const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     if (
       event.target instanceof HTMLElement &&
@@ -182,13 +241,11 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
       return;
     }
 
-    event.preventDefault();
-
     const startX = event.clientX;
     const startY = event.clientY;
     const startRect = rect;
 
-    const handlePointerMove = (moveEvent: PointerEvent) => {
+    bindPointerInteraction(event, (moveEvent) => {
       setRect(
         clampRect(
           {
@@ -199,26 +256,17 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
           resolvedMinSize,
         ),
       );
-    };
-
-    const handlePointerUp = () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp, { once: true });
+    });
   };
 
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
     event.stopPropagation();
 
     const startX = event.clientX;
     const startY = event.clientY;
     const startRect = rect;
 
-    const handlePointerMove = (moveEvent: PointerEvent) => {
+    bindPointerInteraction(event, (moveEvent) => {
       setRect(
         clampRect(
           {
@@ -229,15 +277,7 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
           resolvedMinSize,
         ),
       );
-    };
-
-    const handlePointerUp = () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp, { once: true });
+    });
   };
 
   return (

@@ -8,6 +8,7 @@
     "start": "node server.js",
     "test:smoke": "node --test tests/smoke.test.js",
     "db:ensure": "node scripts/ensure-database-schema.js",
+    "covers:optimize": "node scripts/optimize-cover-images.js",
     "genres:assign": "node scripts/assign-work-genre-tags.js",
     "series:drop": "node scripts/drop-series-table.js",
     "migrate:legacy-schema": "node scripts/migrate-legacy-pdf-schema.js",
