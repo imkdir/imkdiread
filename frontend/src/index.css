@@ -55,13 +55,6 @@
     --dictionary-card-bg: rgba(255, 255, 255, 0.05);
     --dictionary-card-text: rgba(255, 255, 255, 0.82);
 
-    --explore-sidebar-title: var(--color-text-page-inverse);
-    --explore-sidebar-muted: var(--color-text-muted-soft);
-    --explore-sidebar-footer: var(--color-text-muted-strong);
-    --explore-sidebar-avatar-bg: var(--color-bg-card-base);
-    --explore-sidebar-avatar-border: var(--border);
-    --explore-sidebar-avatar-placeholder: rgba(255, 255, 255, 0.08);
-
     --quote-card-text: rgba(255, 255, 255, 0.92);
     --quote-card-muted: rgba(255, 255, 255, 0.68);
     --quote-card-accent: rgba(255, 255, 255, 0.86);
