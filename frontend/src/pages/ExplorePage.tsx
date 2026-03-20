@@ -71,7 +71,7 @@ export function ExplorePage() {
           </div>
         </section>
 
-        {showcaseCount && (
+        {!showcaseCount || (
           <section className="explore-page__section explore-page__section--grid">
             <div className="explore-page__grid">
               {data.showcase.map((work) => (
