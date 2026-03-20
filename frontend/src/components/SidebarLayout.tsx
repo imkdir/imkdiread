@@ -574,9 +574,9 @@ export const SidebarLayout: React.FC = () => {
               title="Inbox"
               onClick={(event) => {
                 setInboxAnchorRect(event.currentTarget.getBoundingClientRect());
-                void refreshInboxUnreadCount();
                 setInboxRefreshKey((current) => current + 1);
-                setIsInboxOpen(true);
+                setIsInboxOpen((current) => !current);
+
                 setOpenDictionaryForWorkId(null);
                 setIsSearchOpen(false);
               }}

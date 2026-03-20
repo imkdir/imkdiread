@@ -31,6 +31,7 @@ interface Props {
   inDrawer?: boolean;
   initialQuery?: string;
   syncQueryToUrl?: boolean;
+  onResultOpen?: () => void;
 }
 
 interface State {
@@ -145,6 +146,17 @@ class SearchPageClass extends React.Component<Props, State> {
     });
   };
 
+  handleWorkCardClick = (workId: string) => {
+    const isAdmin = this.props.user?.role === "admin";
+
+    if (this.state.isEditMode && isAdmin) {
+      this.toggleSelection(workId);
+      return;
+    }
+
+    this.props.onResultOpen?.();
+  };
+
   handleBulkTagSubmit = () => {
     const { selectedIds, bulkTagInput } = this.state;
     if (selectedIds.length === 0 || !bulkTagInput.trim()) return;
@@ -210,6 +222,9 @@ class SearchPageClass extends React.Component<Props, State> {
         style={{
           ...styles.page,
           ...(this.props.inDrawer ? styles.pageInDrawer : {}),
+          ...(this.props.inDrawer && !isEditMode
+            ? styles.pageInDrawerBackdrop
+            : {}),
         }}
       >
         <div
@@ -347,11 +362,7 @@ class SearchPageClass extends React.Component<Props, State> {
                         }}
                       >
                         <div
-                          onClick={() =>
-                            isEditMode &&
-                            isAdmin &&
-                            this.toggleSelection(work.id)
-                          }
+                          onClick={() => this.handleWorkCardClick(work.id)}
                         >
                           <GoodreadsCover
                             work={work}
@@ -457,7 +468,12 @@ export const SearchDrawer: React.FC<SearchDrawerProps> = ({
       minSize={{ width: 640, height: 420 }}
       bodyStyle={styles.drawerBody}
     >
-      <SearchPageClass user={user} inDrawer initialQuery={initialQuery} />
+      <SearchPageClass
+        user={user}
+        inDrawer
+        initialQuery={initialQuery}
+        onResultOpen={onClose}
+      />
     </FloatingDrawer>
   );
 };
@@ -476,6 +492,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
+  },
+  pageInDrawerBackdrop: {
+    backgroundColor: "rgba(18, 18, 18, 0.18)",
+    backdropFilter: "blur(22px)",
+    WebkitBackdropFilter: "blur(22px)",
   },
   header: {
     display: "flex",

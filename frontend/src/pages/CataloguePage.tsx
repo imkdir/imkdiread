@@ -38,7 +38,13 @@ function groupWorksBySection(works: Work[]) {
   });
 }
 
-function CatalogueListItem({ work }: { work: Work }) {
+function CatalogueListItem({
+  work,
+  isDraft,
+}: {
+  work: Work;
+  isDraft?: boolean;
+}) {
   const authors = work.authors.length ? work.authors.join(", ") : "";
 
   return (
@@ -48,7 +54,7 @@ function CatalogueListItem({ work }: { work: Work }) {
           {work.title}
         </Link>
       </h3>
-      <p className="catalogue-page__item-meta">{authors}</p>
+      {!isDraft && <p className="catalogue-page__item-meta">{authors}</p>}
     </article>
   );
 }
@@ -146,7 +152,7 @@ export function CataloguePage() {
             <div className="catalogue-page__column catalogue-page__column--drafts">
               <div className="catalogue-page__list">
                 {data.catalogue.without_cover.map((work) => (
-                  <CatalogueListItem key={work.id} work={work} />
+                  <CatalogueListItem key={work.id} work={work} isDraft={true} />
                 ))}
               </div>
             </div>
