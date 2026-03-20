@@ -59,3 +59,11 @@ export interface InboxNotification {
   read_at?: string | null;
   created_at: string;
 }
+
+export interface ExploreResponse {
+  showcase: Work[];
+  catalogue: {
+    with_cover: Work[];
+    without_cover: Work[];
+  };
+}

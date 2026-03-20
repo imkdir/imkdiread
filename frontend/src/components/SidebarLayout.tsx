@@ -163,7 +163,7 @@ export const SidebarLayout: React.FC = () => {
   const workId = workMatch ? workMatch[1] : null;
   const isOwnProfileRoute = /^\/profile(?:\/|$)/.test(location.pathname);
   const isAdmin = auth.user?.role === "admin";
-  const isExplore = location.pathname === "/explore";
+  const isExplore = /^\/explore(?:\/|$)/.test(location.pathname);
 
   // 2. Drawer States
   const [openDictionaryForWorkId, setOpenDictionaryForWorkId] = useState<

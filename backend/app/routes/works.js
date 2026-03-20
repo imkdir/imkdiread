@@ -69,6 +69,28 @@ const workCoverUpload = multer({
 function createWorksRouter({ db, workService, inboxService }) {
   const router = express.Router();
 
+  function sortWorksById(works) {
+    return [...works].sort((left, right) =>
+      String(left?.id || "").localeCompare(String(right?.id || ""), undefined, {
+        sensitivity: "base",
+      }),
+    );
+  }
+
+  function pickRandomWorks(works, limit) {
+    const shuffled = [...works];
+
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [
+        shuffled[swapIndex],
+        shuffled[index],
+      ];
+    }
+
+    return shuffled.slice(0, limit);
+  }
+
   function parseWorkPayload(rawWork) {
     if (!rawWork || typeof rawWork !== "object") {
       return { error: "Invalid work payload." };
@@ -123,31 +145,33 @@ function createWorksRouter({ db, workService, inboxService }) {
   router.get("/api/explore", authenticateToken, (req, res) => {
     try {
       const works = db
-        // .prepare("SELECT * FROM works ORDER BY RANDOM() LIMIT 12")
         .prepare("SELECT * FROM works")
         .all()
         .map((row) => workService.getWorkWithRelations(row, req.user?.id))
         .map(workService.processWork);
       const isAdmin = req.user?.role === "admin";
-      const publishedWorks = [];
-      const draftWorks = [];
+      const worksWithCover = [];
+      const worksWithoutCover = [];
 
       works.forEach((work) => {
         if (work.cover_img_url) {
-          publishedWorks.push(work);
-        } else {
-          draftWorks.push(work);
+          worksWithCover.push(work);
+          return;
         }
+
+        worksWithoutCover.push(work);
       });
-      const authors = db
-        .prepare("SELECT authors.* FROM authors ORDER BY RANDOM() LIMIT 6")
-        .all()
-        .map((row) => workService.getAuthorWithRelations(row, req.user?.id))
-        .map(workService.processAuthor);
+
+      const showcaseCandidates = worksWithCover.filter(
+        (work) => Object.keys(work.files || {}).length > 0,
+      );
 
       res.json({
-        works: isAdmin ? [...draftWorks, ...publishedWorks] : publishedWorks,
-        authors,
+        showcase: pickRandomWorks(showcaseCandidates, 8),
+        catalogue: {
+          with_cover: sortWorksById(worksWithCover),
+          without_cover: isAdmin ? sortWorksById(worksWithoutCover) : [],
+        },
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to generate explore feed" });

@@ -19,6 +19,9 @@ const SearchPage = lazy(async () => ({
 const ExplorePage = lazy(async () => ({
   default: (await import("./pages/ExplorePage")).ExplorePage,
 }));
+const CataloguePage = lazy(async () => ({
+  default: (await import("./pages/CataloguePage")).CataloguePage,
+}));
 const ProfilePage = lazy(async () => ({
   default: (await import("./pages/ProfilePage")).ProfilePage,
 }));
@@ -67,6 +70,7 @@ export default class App extends React.Component<Record<string, never>> {
               >
                 <Route path="/" element={<SplashPage />} />
                 <Route path="/search" element={<SearchPage />} />
+                <Route path="/explore/catalogue" element={<CataloguePage />} />
                 <Route path="/explore" element={<ExplorePage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route

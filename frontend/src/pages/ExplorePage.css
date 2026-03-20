@@ -1,142 +1,131 @@
 .explore-page {
-    --explore-page-avatar-bg: var(--explore-sidebar-avatar-bg);
-    --explore-page-avatar-border: var(--explore-sidebar-avatar-border);
-    --explore-page-avatar-placeholder-bg: var(
-        --explore-sidebar-avatar-placeholder
-    );
-
     min-height: 100vh;
-    padding: 40px 20px;
-    background-color: var(--color-bg-page-reader);
-    color: var(--color-text-page-inverse);
-    font-family: var(--font-primary-stack);
+    padding: 0 20px 56px;
+    color: var(--color-text-page-primary);
 }
 
 .explore-page__container {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
+    width: min(1180px, calc(100vw - 48px));
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
     gap: 28px;
-    align-items: start;
-    width: 90%;
-    max-width: 1580px;
-    margin: 50px auto;
 }
 
-.explore-page__feeds {
-    min-width: 0;
+.explore-page__section {
+    position: relative;
+    overflow: hidden;
 }
 
-.explore-page__sidebar {
-    background-color: var(--overlay-white-05);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 20px;
-    padding: 24px 16px;
-    position: sticky;
-    top: 90px;
-    align-self: flex-start;
+.explore-page__section--hero {
+    padding: 32px;
 }
 
-.explore-page__header {
-    margin-bottom: 24px;
-    padding-left: 16px;
+.explore-page__eyebrow {
+    margin: 0 0 16px;
+    color: rgba(241, 212, 176, 0.7);
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+}
+
+.explore-page__heading-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 20px;
 }
 
 .explore-page__title {
-    margin: 0 0 4px;
-    color: var(--explore-sidebar-title);
-    font-size: 18px;
-    font-weight: 700;
-}
-
-.explore-page__subtitle {
     margin: 0;
-    color: var(--explore-sidebar-muted);
-    font-size: 13px;
+    font-family: "Blackout", "Space Grotesk", sans-serif;
+    font-size: clamp(44px, 7vw, 72px);
+    line-height: 0.94;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
 }
 
-.explore-page__sidebar-content {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.explore-page__sidebar-item {
-    display: flex;
-    align-items: center;
-}
-
-.explore-page__avatar {
-    width: 48px;
-    height: 48px;
-    margin-right: 14px;
-    border: 1px solid var(--explore-page-avatar-border);
-    border-radius: 50%;
-    background-color: var(--explore-page-avatar-bg);
-}
-
-.explore-page__avatar-placeholder {
-    background-color: var(--explore-page-avatar-placeholder-bg);
-}
-
-.explore-page__link-wrapper {
-    flex-grow: 1;
-    text-decoration: none;
-}
-
-.explore-page__info-stack {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.explore-page__username {
-    color: var(--explore-sidebar-title);
+.explore-page__catalogue-link {
+    flex-shrink: 0;
+    color: rgba(241, 212, 176, 0.92);
     font-size: 14px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    text-transform: lowercase;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(241, 212, 176, 0.4);
+    padding-bottom: 4px;
+    transition:
+        color 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease;
 }
 
-.explore-page__bio-text {
-    margin-top: 2px;
-    color: var(--explore-sidebar-muted);
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.explore-page__catalogue-link:hover {
+    color: #fff6ea;
+    border-color: rgba(255, 246, 234, 0.82);
+    transform: translateY(-1px);
 }
 
-.explore-page__context-text {
-    margin-top: 4px;
-    color: var(--explore-sidebar-muted);
-    font-size: 12px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.explore-page__section--grid {
+    padding: 24px;
 }
 
-.explore-page__footer-links {
-    margin-top: 30px;
-    padding-left: 16px;
-    color: var(--explore-sidebar-footer);
-    font-size: 12px;
-    line-height: 1.6;
+.explore-page__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
 }
 
-.explore-page__footer-links p {
-    margin: 0;
+.explore-page__cover {
+    width: 100%;
+}
+
+.explore-page__cover-link {
+    width: 100%;
+}
+
+.explore-page__cover-image {
+    width: 100%;
+    aspect-ratio: var(--goodreads-cover-aspect-ratio);
+    border-radius: 20px;
 }
 
 @media (max-width: 1024px) {
+    .explore-page__grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .explore-page {
+        padding-inline: 14px;
+    }
+
     .explore-page__container {
+        width: min(100%, calc(100vw - 28px));
+        margin-block: 20px 36px;
+    }
+
+    .explore-page__section--hero,
+    .explore-page__section--grid {
+        padding: 20px;
+    }
+
+    .explore-page__heading-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .explore-page__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    .explore-page__grid {
         grid-template-columns: 1fr;
     }
-    .explore-page__sidebar {
-        position: static;
-        top: auto;
-        align-self: stretch;
+
+    .explore-page__title {
+        font-size: 42px;
     }
 }

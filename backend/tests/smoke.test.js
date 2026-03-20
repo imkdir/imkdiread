@@ -947,11 +947,22 @@ test("utility discovery routes return screensavers, explore, works, and collecti
 
   const explore = await requestJson("GET", "/api/explore", undefined, token);
   assert.equal(explore.status, 200);
-  assert.ok(Array.isArray(explore.json?.works));
-  assert.ok(Array.isArray(explore.json?.authors));
-  assert.ok(explore.json.works.every((work) => typeof work.cover_img_url === "string"));
-  assert.ok(explore.json.works.some((work) => work.id === coveredWorkId));
-  assert.ok(explore.json.works.every((work) => work.id !== draftWorkId));
+  assert.ok(Array.isArray(explore.json?.showcase));
+  assert.ok(Array.isArray(explore.json?.catalogue?.with_cover));
+  assert.ok(Array.isArray(explore.json?.catalogue?.without_cover));
+  assert.ok(
+    explore.json.showcase.every(
+      (work) =>
+        typeof work.cover_img_url === "string" &&
+        Object.keys(work.files || {}).length > 0,
+    ),
+  );
+  assert.ok(
+    explore.json.catalogue.with_cover.some((work) => work.id === coveredWorkId),
+  );
+  assert.ok(
+    explore.json.catalogue.without_cover.every((work) => work.id !== draftWorkId),
+  );
 
   const adminExplore = await requestJson(
     "GET",
@@ -960,20 +971,17 @@ test("utility discovery routes return screensavers, explore, works, and collecti
     adminToken,
   );
   assert.equal(adminExplore.status, 200);
-  assert.ok(Array.isArray(adminExplore.json?.works));
-  assert.ok(adminExplore.json.works.some((work) => work.id === draftWorkId));
-  assert.ok(adminExplore.json.works.some((work) => work.id === coveredWorkId));
-  const firstCoveredIndex = adminExplore.json.works.findIndex(
-    (work) => typeof work.cover_img_url === "string",
+  assert.ok(Array.isArray(adminExplore.json?.showcase));
+  assert.ok(Array.isArray(adminExplore.json?.catalogue?.with_cover));
+  assert.ok(Array.isArray(adminExplore.json?.catalogue?.without_cover));
+  assert.ok(
+    adminExplore.json.catalogue.without_cover.some(
+      (work) => work.id === draftWorkId,
+    ),
   );
-  const lastDraftIndex = adminExplore.json.works.reduce(
-    (latestIndex, work, index) =>
-      work.cover_img_url === null ? index : latestIndex,
-    -1,
+  assert.ok(
+    adminExplore.json.catalogue.with_cover.some((work) => work.id === coveredWorkId),
   );
-  assert.ok(firstCoveredIndex > -1);
-  assert.ok(lastDraftIndex > -1);
-  assert.ok(lastDraftIndex < firstCoveredIndex);
 
   const works = await requestJson("GET", "/api/works", undefined, token);
   assert.equal(works.status, 200);

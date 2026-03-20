@@ -1,129 +1,92 @@
-import React from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import Masonry from "react-masonry-css";
+import { GoodreadsCover } from "../components/GoodreadsCover";
+import type { ExploreResponse } from "../types";
 import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
 
-import { type Author, type Work } from "../types";
-import { GoodreadsAuthorAvatar } from "../components/GoodreadsAuthorAvatar";
-import { GoodreadsCover } from "../components/GoodreadsCover";
-
 import "./ExplorePage.css";
 
-interface PageState {
-  authors: Author[];
-  works: Work[];
-  loading: boolean;
-}
+const emptyExploreData: ExploreResponse = {
+  showcase: [],
+  catalogue: {
+    with_cover: [],
+    without_cover: [],
+  },
+};
 
-export class ExplorePage extends React.Component<
-  Record<string, never>,
-  PageState
-> {
-  state: PageState = {
-    authors: [],
-    works: [],
-    loading: true,
-  };
+export function ExplorePage() {
+  const [data, setData] = useState<ExploreResponse>(emptyExploreData);
 
-  componentDidMount() {
+  useEffect(() => {
+    let isMounted = true;
+
     request("/api/explore")
       .then(async (res) => {
-        const data = await readJsonSafe<{
-          works?: Work[];
-          authors?: Author[];
-          error?: string;
-        }>(res);
+        const payload = await readJsonSafe<
+          ExploreResponse & { error?: string }
+        >(res);
+
         if (!res.ok) {
           throw new Error(
-            getApiErrorMessage(data, "Failed to fetch explore data."),
+            getApiErrorMessage(payload, "Failed to fetch explore data."),
           );
         }
-        return data;
+
+        return payload;
       })
-      .then((data) => {
-        this.setState({
-          works: data?.works || [],
-          authors: data?.authors || [],
-          loading: false,
-        });
+      .then((payload) => {
+        if (!isMounted) return;
+
+        setData(payload || emptyExploreData);
       })
-      .catch((err) => {
-        console.error("Failed to fetch explore data", err);
-        this.setState({ loading: false });
+      .catch((error) => {
+        console.error("Failed to fetch explore data", error);
+        if (!isMounted) return;
+
         showToast("Failed to load explore data.", { tone: "error" });
       });
-  }
 
-  render() {
-    const { authors, works, loading } = this.state;
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-    return (
-      <div className="explore-page">
-        <div className="explore-page__container">
-          {/* --- LEFT: MAIN FEED --- */}
-          <div className="explore-page__feeds">
-            <Masonry
-              breakpointCols={{ default: 4, 1100: 4, 800: 3, 500: 2 }}
-              className="my-masonry-grid"
-              columnClassName="my-masonry-grid_column"
+  const showcaseCount = data.showcase.length;
+
+  return (
+    <div className="explore-page">
+      <div className="explore-page__container">
+        <section className="explore-page__section explore-page__section--hero">
+          <p className="explore-page__eyebrow">Library spotlight</p>
+          <div className="explore-page__heading-row">
+            <h1 className="explore-page__title">Showcase</h1>
+            <Link
+              to="/explore/catalogue"
+              className="explore-page__catalogue-link"
             >
-              {works.map((work) => (
-                <GoodreadsCover key={work.id} work={work} />
+              browse the catalogue
+            </Link>
+          </div>
+        </section>
+
+        {showcaseCount && (
+          <section className="explore-page__section explore-page__section--grid">
+            <div className="explore-page__grid">
+              {data.showcase.map((work) => (
+                <GoodreadsCover
+                  key={work.id}
+                  work={work}
+                  className="explore-page__cover"
+                  linkClassName="explore-page__cover-link"
+                  imageClassName="explore-page__cover-image"
+                />
               ))}
-            </Masonry>
-          </div>
-
-          {/* --- RIGHT: SIDEBAR (Authors) --- */}
-          <div className="explore-page__sidebar">
-            <div className="explore-page__header">
-              <h1 className="explore-page__title">Suggested for you</h1>
-              <p className="explore-page__subtitle">
-                Just random picks, actually.
-              </p>
             </div>
-
-            {loading || (
-              <div className="explore-page__sidebar-content">
-                {authors.map((author) => (
-                  <div key={author.id} className="explore-page__sidebar-item">
-                    {/* Left: Avatar */}
-                    <GoodreadsAuthorAvatar
-                      author={author}
-                      className="explore-page__avatar"
-                    />
-                    {/* Middle: Text Stack */}
-                    <Link
-                      to={`/collection/${encodeURIComponent(author.name)}`}
-                      className="explore-page__link-wrapper"
-                    >
-                      <div className="explore-page__info-stack">
-                        <span className="explore-page__username">
-                          {author.name}
-                        </span>
-                        {/*<span className="explore-page__bio-text">
-                        </span>*/}
-                        <span className="explore-page__context-text">
-                          Featured in {author.works_count} works
-                        </span>
-                      </div>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Standard Instagram-style subtle footer links */}
-            {!loading && (
-              <div className="explore-page__footer-links">
-                <p>About • Help • Jobs • Privacy • Terms</p>
-                <p>© 2026 D CHENG</p>
-              </div>
-            )}
-          </div>
-        </div>
+          </section>
+        )}
       </div>
-    );
-  }
+    </div>
+  );
 }
