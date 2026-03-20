@@ -1228,6 +1228,40 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(fileUpload.json?.success, true);
   trackPublicArtifact("files", `${workId}.pdf`);
 
+  const extraEditionFiles = [
+    `${workId}_8.pdf`,
+    `${workId}_10.pdf`,
+    `${workId}_10a.pdf`,
+  ];
+  extraEditionFiles.forEach((filename) => {
+    const filepath = trackPublicArtifact("files", filename);
+    fs.mkdirSync(path.dirname(filepath), { recursive: true });
+    fs.writeFileSync(filepath, "%PDF-1.4 smoke variant pdf");
+  });
+
+  const rescanWorks = await requestJson(
+    "POST",
+    "/api/works/rescan",
+    undefined,
+    adminToken,
+  );
+  assert.equal(rescanWorks.status, 200);
+  assert.equal(rescanWorks.json?.success, true);
+
+  const workDetailAfterRescan = await requestJson(
+    "GET",
+    `/api/works/${encodeURIComponent(workId)}`,
+    undefined,
+    guestToken,
+  );
+  assert.equal(workDetailAfterRescan.status, 200);
+  assert.deepEqual(Object.keys(workDetailAfterRescan.json?.files || {}), [
+    workId,
+    "VIII",
+    "X",
+    "X-A",
+  ]);
+
   const bulkImport = await requestJson(
     "POST",
     "/api/works/bulk-import",

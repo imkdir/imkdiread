@@ -85,7 +85,7 @@ function createWorkService({ db, BACKEND_URL }) {
     return workFileNamesById.get(workId) || [];
   }
 
-  function buildWorkFileLabel(filename, workId) {
+  function stripWorkIdFromFilename(filename, workId) {
     let label = filename.replace(/\.[^/.]+$/, "");
     const lowerLabel = label.toLowerCase();
     const lowerPrefix = workId.toLowerCase();
@@ -96,22 +96,138 @@ function createWorkService({ db, BACKEND_URL }) {
       label = label.slice(workId.length);
     }
 
-    label = label.replace(/^_+/, "");
+    return label.replace(/^_+/, "");
+  }
+
+  function toRomanNumeral(value) {
+    const number = Number.parseInt(value, 10);
+    if (!Number.isInteger(number) || number <= 0) return value;
+
+    const romanPairs = [
+      ["M", 1000],
+      ["CM", 900],
+      ["D", 500],
+      ["CD", 400],
+      ["C", 100],
+      ["XC", 90],
+      ["L", 50],
+      ["XL", 40],
+      ["X", 10],
+      ["IX", 9],
+      ["V", 5],
+      ["IV", 4],
+      ["I", 1],
+    ];
+
+    let remainder = number;
+    let result = "";
+
+    romanPairs.forEach(([symbol, amount]) => {
+      while (remainder >= amount) {
+        result += symbol;
+        remainder -= amount;
+      }
+    });
+
+    return result || value;
+  }
+
+  function getWorkFileSortKey(filename, workId) {
+    const label = stripWorkIdFromFilename(filename, workId);
+    if (!label) {
+      return {
+        isBaseFile: true,
+        hasVersion: false,
+        number: Number.NEGATIVE_INFINITY,
+        suffix: "",
+        label: workId,
+      };
+    }
+
+    const segments = label.split(/[_\s-]+/).filter(Boolean);
+    const versionSegment = segments.find((segment) =>
+      /^(\d+)([a-z]+)?$/i.test(segment),
+    );
+
+    if (!versionSegment) {
+      return {
+        isBaseFile: false,
+        hasVersion: false,
+        number: Number.POSITIVE_INFINITY,
+        suffix: "",
+        label,
+      };
+    }
+
+    const match = versionSegment.match(/^(\d+)([a-z]+)?$/i);
+    const number = Number.parseInt(match?.[1] || "", 10);
+
+    return {
+      isBaseFile: false,
+      hasVersion: Number.isInteger(number),
+      number: Number.isInteger(number) ? number : Number.POSITIVE_INFINITY,
+      suffix: (match?.[2] || "").toUpperCase(),
+      label,
+    };
+  }
+
+  function compareWorkFilenames(leftFilename, rightFilename, workId) {
+    const left = getWorkFileSortKey(leftFilename, workId);
+    const right = getWorkFileSortKey(rightFilename, workId);
+
+    if (left.isBaseFile !== right.isBaseFile) {
+      return left.isBaseFile ? -1 : 1;
+    }
+
+    if (left.hasVersion && right.hasVersion) {
+      if (left.number !== right.number) {
+        return left.number - right.number;
+      }
+
+      if (left.suffix !== right.suffix) {
+        if (!left.suffix) return -1;
+        if (!right.suffix) return 1;
+        return left.suffix.localeCompare(right.suffix, undefined, {
+          sensitivity: "base",
+        });
+      }
+    } else if (left.hasVersion !== right.hasVersion) {
+      return left.hasVersion ? -1 : 1;
+    }
+
+    return left.label.localeCompare(right.label, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  }
+
+  function buildWorkFileLabel(filename, workId) {
+    const label = stripWorkIdFromFilename(filename, workId);
     const segments = label.split(/[_\s-]+/).filter(Boolean);
     const mapped = segments.map((segment) => {
       const lower = segment.toLowerCase();
       if (Object.prototype.hasOwnProperty.call(PUBLISHER_LABELS, lower)) {
         return PUBLISHER_LABELS[lower];
       }
-      if (/^\d+[ab]$/.test(lower)) return `Vol.${Number(segment)}`;
+
+      const numberedSuffixMatch = lower.match(/^(\d+)([a-z]+)$/);
+      if (numberedSuffixMatch) {
+        const [, numericPart, suffix] = numberedSuffixMatch;
+        return `${toRomanNumeral(numericPart)}-${suffix.toUpperCase()}`;
+      }
+
+      if (/^\d+$/.test(lower)) return toRomanNumeral(segment);
+
       return segment;
     });
 
-    return mapped.join(" ") || "Edition";
+    return mapped.join(" ") || workId || "Edition";
   }
 
   function getWorkFiles(workId) {
-    const filenames = getWorkFileNames(workId);
+    const filenames = [...getWorkFileNames(workId)].sort((left, right) =>
+      compareWorkFilenames(left, right, workId),
+    );
     const files = {};
 
     filenames.forEach((filename) => {
