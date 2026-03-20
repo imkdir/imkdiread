@@ -4,8 +4,8 @@ import type { Quote, ReadingActivity, User, Work } from "../types";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
 import {
+  ProfileAvatar,
   ProfileLayout,
-  renderProfileAvatar,
 } from "./profilePageShared";
 
 import "./ProfilePage.css";
@@ -216,11 +216,12 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
           activities={activities}
           header={
             <header className="profile-page__hero">
-              {renderProfileAvatar(user, {
-                clickable: true,
-                onClick: () => this.fileInputRef.current?.click(),
-                title: "Click to change avatar",
-              })}
+              <ProfileAvatar
+                user={user}
+                clickable
+                onClick={() => this.fileInputRef.current?.click()}
+                title="Click to change avatar"
+              />
 
               <div className="profile-page__hero-copy">
                 <h1 className="profile-page__headline">{user.username}</h1>

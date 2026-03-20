@@ -205,21 +205,24 @@ function renderTimelineItem(item: TimelineItem) {
   );
 }
 
-export function renderProfileAvatar(
-  user: User | null,
-  options?: {
-    clickable?: boolean;
-    onClick?: () => void;
-    title?: string;
-  },
-) {
-  const clickable = options?.clickable !== false;
+interface ProfileAvatarProps {
+  user: User | null;
+  clickable?: boolean;
+  onClick?: () => void;
+  title?: string;
+}
 
+export function ProfileAvatar({
+  user,
+  clickable = true,
+  onClick,
+  title,
+}: ProfileAvatarProps) {
   return (
     <div
       className={`profile-page__avatar-wrapper ${clickable ? "profile-page__avatar-wrapper--clickable" : ""}`}
-      onClick={clickable ? options?.onClick : undefined}
-      title={options?.title}
+      onClick={clickable ? onClick : undefined}
+      title={title}
     >
       {user?.avatar_url ? (
         <img

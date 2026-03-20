@@ -32,6 +32,8 @@ export function ToastViewport() {
   }, []);
 
   useEffect(() => {
+    const timeoutIds = timeoutIdsRef.current;
+
     const handleToast = (event: Event) => {
       const customEvent = event as CustomEvent<ToastPayload>;
       const payload = customEvent.detail;
@@ -50,14 +52,14 @@ export function ToastViewport() {
           dismissToast(payload.id);
         }, payload.durationMs);
 
-        timeoutIdsRef.current.set(payload.id, timeoutId);
+        timeoutIds.set(payload.id, timeoutId);
       }
     };
 
     window.addEventListener(TOAST_EVENT, handleToast as EventListener);
     return () => {
-      timeoutIdsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
-      timeoutIdsRef.current.clear();
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      timeoutIds.clear();
       window.removeEventListener(TOAST_EVENT, handleToast as EventListener);
     };
   }, [dismissToast]);

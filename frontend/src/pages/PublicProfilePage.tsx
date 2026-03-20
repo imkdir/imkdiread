@@ -5,8 +5,8 @@ import type { Quote, ReadingActivity, User, Work } from "../types";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
 import {
+  ProfileAvatar,
   ProfileLayout,
-  renderProfileAvatar,
 } from "./profilePageShared";
 
 import "./ProfilePage.css";
@@ -157,9 +157,7 @@ export class PublicProfilePage extends Component<
         activities={activities}
         header={
           <header className="profile-page__hero">
-            {renderProfileAvatar(user, {
-              clickable: false,
-            })}
+            <ProfileAvatar user={user} clickable={false} />
 
             <div className="profile-page__hero-copy">
               <h1 className="profile-page__headline">{user.username}</h1>
