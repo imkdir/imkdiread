@@ -63,12 +63,18 @@ function createWorkService({ db, BACKEND_URL }) {
   function getGenreBackgroundUrl(tags = []) {
     const genreTags = Array.isArray(tags)
       ? tags
-          .filter((tag) => typeof tag === "string" && tag.startsWith(GENRE_TAG_PREFIX))
+          .filter(
+            (tag) =>
+              typeof tag === "string" && tag.startsWith(GENRE_TAG_PREFIX),
+          )
           .map((tag) => tag.slice(GENRE_TAG_PREFIX.length))
       : [];
 
     for (const genreTag of genreTags) {
-      const match = getStaticUrlIfItExists(["imgs", "genres"], `${genreTag}.png`);
+      const match = getStaticUrlIfItExists(
+        ["imgs", "genres"],
+        `${genreTag}.png`,
+      );
       if (match) return match;
     }
 
@@ -97,7 +103,7 @@ function createWorkService({ db, BACKEND_URL }) {
       if (Object.prototype.hasOwnProperty.call(PUBLISHER_LABELS, lower)) {
         return PUBLISHER_LABELS[lower];
       }
-      if (/^\d+$/.test(lower)) return `Vol.${Number(segment)}`;
+      if (/^\d+[ab]$/.test(lower)) return `Vol.${Number(segment)}`;
       return segment;
     });
 
@@ -110,9 +116,7 @@ function createWorkService({ db, BACKEND_URL }) {
 
     filenames.forEach((filename) => {
       const baseLabel =
-        filenames.length === 1
-          ? workId
-          : buildWorkFileLabel(filename, workId);
+        filenames.length === 1 ? workId : buildWorkFileLabel(filename, workId);
       let label = baseLabel;
       let duplicateIndex = 2;
 
@@ -178,7 +182,9 @@ function createWorkService({ db, BACKEND_URL }) {
     if (!authors || !Array.isArray(authors)) return;
     db.prepare("DELETE FROM work_authors WHERE work_id = ?").run(workId);
     for (const authorName of authors) {
-      db.prepare("INSERT OR IGNORE INTO authors (name) VALUES (?)").run(authorName);
+      db.prepare("INSERT OR IGNORE INTO authors (name) VALUES (?)").run(
+        authorName,
+      );
       const author = db
         .prepare("SELECT id FROM authors WHERE name = ?")
         .get(authorName);
@@ -260,9 +266,7 @@ function createWorkService({ db, BACKEND_URL }) {
     if (!authorRow) return null;
 
     const count = db
-      .prepare(
-        "SELECT COUNT(*) as count FROM work_authors WHERE author_id = ?",
-      )
+      .prepare("SELECT COUNT(*) as count FROM work_authors WHERE author_id = ?")
       .get(authorRow.id).count;
 
     let followed = false;
