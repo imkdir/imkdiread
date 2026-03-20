@@ -31,7 +31,8 @@ interface Props {
   inDrawer?: boolean;
   initialQuery?: string;
   syncQueryToUrl?: boolean;
-  onResultOpen?: () => void;
+  enableSharedLayout?: boolean;
+  onResultOpen?: (work: Work) => void;
 }
 
 interface State {
@@ -41,6 +42,7 @@ interface State {
   isEditMode: boolean;
   selectedIds: string[];
   bulkTagInput: string;
+  openingWorkId: string | null;
 }
 
 // 2. Rename to SearchPageClass
@@ -52,7 +54,9 @@ class SearchPageClass extends React.Component<Props, State> {
     isEditMode: false,
     selectedIds: [],
     bulkTagInput: "",
+    openingWorkId: null,
   };
+  private openWorkTimeout: ReturnType<typeof setTimeout> | null = null;
 
   componentDidMount() {
     const initialQuery = this.props.initialQuery || "";
@@ -81,6 +85,13 @@ class SearchPageClass extends React.Component<Props, State> {
       searchResults: [],
       loading: false,
     });
+  }
+
+  componentWillUnmount() {
+    if (this.openWorkTimeout) {
+      clearTimeout(this.openWorkTimeout);
+      this.openWorkTimeout = null;
+    }
   }
 
   // Set the debounce delay to 1000ms (as it was in your code)
@@ -146,15 +157,30 @@ class SearchPageClass extends React.Component<Props, State> {
     });
   };
 
-  handleWorkCardClick = (workId: string) => {
+  handleWorkCardClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    work: Work,
+  ) => {
     const isAdmin = this.props.user?.role === "admin";
 
     if (this.state.isEditMode && isAdmin) {
-      this.toggleSelection(workId);
+      event.preventDefault();
+      this.toggleSelection(work.id);
       return;
     }
 
-    this.props.onResultOpen?.();
+    if (this.state.openingWorkId) {
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+    this.setState({ openingWorkId: work.id });
+
+    this.openWorkTimeout = setTimeout(() => {
+      this.openWorkTimeout = null;
+      this.props.onResultOpen?.(work);
+    }, 180);
   };
 
   handleBulkTagSubmit = () => {
@@ -208,6 +234,7 @@ class SearchPageClass extends React.Component<Props, State> {
       isEditMode,
       selectedIds,
       bulkTagInput,
+      openingWorkId,
     } = this.state;
 
     // 3. Determine if the user is an admin
@@ -218,24 +245,17 @@ class SearchPageClass extends React.Component<Props, State> {
 
     return (
       <div
-        className={`search-page ${this.props.inDrawer ? "search-page--drawer" : ""}`}
-        style={{
-          ...styles.page,
-          ...(this.props.inDrawer ? styles.pageInDrawer : {}),
-          ...(this.props.inDrawer && !isEditMode
-            ? styles.pageInDrawerBackdrop
-            : {}),
-        }}
+        className={[
+          "search-page",
+          this.props.inDrawer ? "search-page--drawer" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
       >
-        <div
-          style={{
-            ...styles.header,
-            top: this.props.inDrawer ? 0 : window.innerWidth <= 768 ? 60 : 0,
-          }}
-        >
+        <div className="search-page__header">
           {/* Only render Edit Mode UI if they are an Admin and edit mode is active */}
           {isEditMode && isAdmin ? (
-            <div style={styles.searchBarWrapper}>
+            <div className="search-page__search-bar">
               <input
                 id="global-search-input"
                 type="text"
@@ -244,24 +264,21 @@ class SearchPageClass extends React.Component<Props, State> {
                 onChange={(e) =>
                   this.setState({ bulkTagInput: e.target.value })
                 }
-                style={styles.input}
+                className="search-page__input"
                 onKeyDown={(e) =>
                   e.key === "Enter" && this.handleBulkTagSubmit()
                 }
               />
-              <div style={styles.iconGroup}>
+              <div className="search-page__icon-group">
                 {!selectedIds.length || (
-                  <span>
+                  <span className="search-page__selection-count">
                     <b>{selectedIds.length}</b> works selected
                   </span>
                 )}
-                <span style={styles.divider}>|</span>
+                <span className="search-page__divider">|</span>
                 <button
                   onClick={this.handleBulkTagSubmit}
-                  style={{
-                    ...styles.primaryBtn,
-                    opacity: isTagBtnDisabled ? 0.6 : 1.0,
-                  }}
+                  className="search-page__button"
                   disabled={isTagBtnDisabled}
                 >
                   Apply
@@ -269,7 +286,7 @@ class SearchPageClass extends React.Component<Props, State> {
                 {!searchResults.length || (
                   <button
                     onClick={this.toggleEditMode}
-                    style={{ ...styles.primaryBtn, ...styles.secondaryBtn }}
+                    className="search-page__button search-page__button--secondary"
                   >
                     Cancel
                   </button>
@@ -277,20 +294,21 @@ class SearchPageClass extends React.Component<Props, State> {
               </div>
             </div>
           ) : (
-            <div style={styles.searchBarWrapper}>
+            <div className="search-page__search-bar">
               <input
                 id="global-search-input"
                 type="text"
                 placeholder="Search by title, author, or tag"
                 value={query}
                 onChange={this.handleSearch}
-                style={styles.input}
+                className="search-page__input"
                 autoFocus
               />
-              <div style={styles.iconGroup}>
+              <div className="search-page__icon-group">
                 {query && (
-                  <span
-                    style={styles.clearIcon}
+                  <button
+                    type="button"
+                    className="search-page__clear-button"
                     onClick={() => {
                       this.setState({
                         query: "",
@@ -303,15 +321,15 @@ class SearchPageClass extends React.Component<Props, State> {
                     }}
                   >
                     ✕
-                  </span>
+                  </button>
                 )}
-                <span style={styles.divider}>|</span>
+                <span className="search-page__divider">|</span>
 
                 {/* Only show the "Select" button if they are an Admin AND have results */}
                 {isAdmin && searchResults.length ? (
                   <button
                     onClick={this.toggleEditMode}
-                    style={styles.primaryBtn}
+                    className="search-page__button"
                   >
                     Select
                   </button>
@@ -319,7 +337,7 @@ class SearchPageClass extends React.Component<Props, State> {
                   <AppIcon
                     name="search"
                     title="Search"
-                    style={styles.searchIcon}
+                    className="search-page__search-icon"
                   />
                 )}
               </div>
@@ -328,17 +346,19 @@ class SearchPageClass extends React.Component<Props, State> {
         </div>
 
         <div
-          style={{
-            ...styles.mainContent,
-            ...(this.props.inDrawer ? styles.mainContentInDrawer : {}),
-          }}
+          className={[
+            "search-page__main-content",
+            this.props.inDrawer ? "search-page__main-content--drawer" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
         >
           {showLoadingOnly ? (
-            <div style={styles.loading}>Searching...</div>
+            <div className="search-page__loading">Searching...</div>
           ) : (
-            <div style={styles.resultsContainer}>
+            <div className="search-page__results">
               {query !== "" && searchResults.length > 0 && (
-                <p style={styles.resultStats}>
+                <p className="search-page__stats">
                   About {searchResults.length} results (0.04 seconds)
                 </p>
               )}
@@ -354,28 +374,44 @@ class SearchPageClass extends React.Component<Props, State> {
                     return (
                       <div
                         key={work.id}
-                        style={{
-                          ...styles.workCard,
-                          ...(isSelected && isEditMode
-                            ? styles.selectedCard
-                            : {}),
-                        }}
+                        className={[
+                          "search-page__work-card",
+                          openingWorkId === work.id
+                            ? "search-page__work-card--opening"
+                            : "",
+                          isSelected && isEditMode
+                            ? "search-page__work-card--selected"
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
                       >
                         <div
-                          onClick={() => this.handleWorkCardClick(work.id)}
+                          className="search-page__work-card-hitbox"
                         >
                           <GoodreadsCover
                             work={work}
                             disabled={isEditMode}
-                            className="search-page__cover"
+                            enableSharedLayout={this.props.enableSharedLayout}
+                            className={[
+                              "search-page__cover",
+                              openingWorkId === work.id
+                                ? "search-page__cover--opening"
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            onLinkClick={(event) =>
+                              this.handleWorkCardClick(event, work)
+                            }
                           />
                           {/* Only show checkboxes if Admin and Edit Mode is active */}
                           {isEditMode && isAdmin && (
                             <div
-                              style={
+                              className={
                                 isSelected
-                                  ? styles.checkboxActive
-                                  : styles.checkboxInactive
+                                  ? "search-page__checkbox search-page__checkbox--active"
+                                  : "search-page__checkbox"
                               }
                             >
                               {isSelected && "︎✔︎"}
@@ -387,18 +423,18 @@ class SearchPageClass extends React.Component<Props, State> {
                   })}
                 </Masonry>
               ) : query !== "" && !loading ? (
-                <div style={styles.noResults}>
-                  <p style={{ marginTop: "20px" }}>
+                <div className="search-page__no-results">
+                  <p className="search-page__no-results-copy">
                     Your search - <b>{query}</b> - did not match any works.
                   </p>
-                  <p style={{ marginTop: "10px" }}>Suggestions:</p>
-                  <ul style={{ marginTop: "10px", marginLeft: "30px" }}>
+                  <p className="search-page__no-results-copy">Suggestions:</p>
+                  <ul className="search-page__no-results-list">
                     <li>Make sure all words are spelled correctly.</li>
                     <li>Try more general searches.</li>
                   </ul>
                 </div>
               ) : (
-                <div style={styles.emptyPrompt}>
+                <div className="search-page__empty-prompt">
                   Press ⌘ + K to open Search, and press Esc to close.
                 </div>
               )}
@@ -425,21 +461,28 @@ export const SearchPage = () => {
     navigate("/");
   };
 
+  const handleResultOpen = (work: Work) => {
+    navigate(`/work/${work.id}`, { state: { work } });
+  };
+
   return (
     <FloatingDrawer
       isOpen
       title="Search"
       onClose={handleClose}
+      className="search-page__drawer-shell"
       defaultPlacement="center"
       defaultViewportRatio={{ width: 0.8, height: 0.8 }}
       minSize={{ width: 640, height: 420 }}
-      bodyStyle={styles.drawerBody}
+      bodyStyle={drawerBodyStyle}
     >
       <SearchPageClass
         user={user}
         inDrawer
         initialQuery={initialQuery}
         syncQueryToUrl
+        enableSharedLayout={false}
+        onResultOpen={handleResultOpen}
       />
     </FloatingDrawer>
   );
@@ -457,175 +500,38 @@ export const SearchDrawer: React.FC<SearchDrawerProps> = ({
   initialQuery,
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleResultOpen = (work: Work) => {
+    onClose();
+    navigate(`/work/${work.id}`, {
+      state: { work, from: "search-drawer" },
+    });
+  };
 
   return (
     <FloatingDrawer
       isOpen={isOpen}
       title="Search"
       onClose={onClose}
+      className="search-page__drawer-shell"
       defaultPlacement="center"
       defaultViewportRatio={{ width: 0.8, height: 0.8 }}
       minSize={{ width: 640, height: 420 }}
-      bodyStyle={styles.drawerBody}
+      bodyStyle={drawerBodyStyle}
     >
       <SearchPageClass
         user={user}
         inDrawer
         initialQuery={initialQuery}
-        onResultOpen={onClose}
+        enableSharedLayout
+        onResultOpen={handleResultOpen}
       />
     </FloatingDrawer>
   );
 };
 
-const styles: { [key: string]: React.CSSProperties } = {
-  page: {
-    minHeight: "100vh",
-    backgroundColor: "var(--search-page-bg)",
-    color: "var(--search-page-text)",
-    fontFamily: "-apple-system, system-ui, sans-serif",
-  },
-  pageInDrawer: {
-    minHeight: "100%",
-    height: "100%",
-    backgroundColor: "transparent",
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-  },
-  pageInDrawerBackdrop: {
-    backgroundColor: "rgba(18, 18, 18, 0.18)",
-    backdropFilter: "blur(22px)",
-    WebkitBackdropFilter: "blur(22px)",
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "20px 30px",
-    position: "sticky",
-    zIndex: 100,
-  },
-  searchBarWrapper: {
-    position: "relative",
-    width: "100%",
-    maxWidth: "600px",
-    display: "flex",
-    alignItems: "center",
-  },
-  input: {
-    width: "100%",
-    height: "48px",
-    padding: "0 10px 0 24px",
-    fontSize: "16px",
-    borderRadius: "34px",
-    border: "1px solid var(--search-page-input-border)",
-    outline: "none",
-    color: "var(--search-page-input-text)",
-    backgroundColor: "var(--search-page-input-bg)",
-    boxShadow: "none",
-  },
-  iconGroup: {
-    position: "absolute",
-    right: "15px",
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    color: "var(--search-page-icon)",
-  },
-  clearIcon: { cursor: "pointer", fontSize: "18px" },
-  divider: { color: "var(--search-page-divider)" },
-  searchIcon: { width: "16px", height: "16px" },
-  mainContent: { padding: "0 30px 40px 30px" },
-  mainContentInDrawer: {
-    flex: 1,
-    minHeight: 0,
-    overflowY: "auto",
-    overscrollBehavior: "contain",
-    WebkitOverflowScrolling: "touch",
-  },
-  drawerBody: {
-    minHeight: 0,
-    padding: 0,
-  },
-  loading: { marginTop: "30px", color: "var(--search-page-icon)" },
-  resultsContainer: {
-    maxWidth: "1200px",
-    margin: "0 auto",
-  },
-  resultStats: {
-    color: "var(--search-page-icon)",
-    fontSize: "14px",
-    margin: "20px 0",
-  },
-  workCard: {
-    borderRadius: "8px",
-    border: "2px solid transparent",
-    transition: "border-color 0.1s, transform 0.1s",
-    position: "relative",
-  },
-  noResults: { color: "var(--search-page-input-text)", fontSize: "16px" },
-  primaryBtn: {
-    padding: "6px 16px",
-    borderRadius: "20px",
-    border: "none",
-    backgroundColor: "var(--search-page-primary-btn-bg)",
-    color: "var(--search-page-primary-btn-text)",
-    cursor: "pointer",
-    fontWeight: "bold" as const,
-    transition: "all 0.2s",
-  },
-  secondaryBtn: {
-    border: "1px solid var(--search-page-secondary-btn-border)",
-    backgroundColor: "transparent",
-  },
-  selectedCard: {
-    border: "2px solid var(--search-page-selected-border)",
-    transform: "scale(0.98)",
-  },
-  checkboxInactive: {
-    position: "absolute",
-    top: "8px",
-    left: "8px",
-    width: "24px",
-    height: "24px",
-    borderRadius: "4px",
-    border: "2px solid var(--search-page-checkbox-border)",
-    backgroundColor: "var(--search-page-checkbox-bg)",
-    zIndex: 10,
-  },
-  checkboxActive: {
-    position: "absolute",
-    top: "8px",
-    left: "8px",
-    width: "24px",
-    height: "24px",
-    borderRadius: "4px",
-    backgroundColor: "var(--search-page-primary-btn-bg)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "var(--search-page-primary-btn-text)",
-    fontWeight: "bold" as const,
-    zIndex: 10,
-    border: "2px solid var(--search-page-selected-border)",
-  },
-
-  emptyPrompt: {
-    padding: "64px 20px",
-    textAlign: "center",
-    color: "var(--search-page-input-text)",
-    fontSize: "16px",
-    lineHeight: 1.8,
-  },
-  inlineCode: {
-    marginLeft: "6px",
-    marginRight: "6px",
-    padding: "2px 8px",
-    borderRadius: "999px",
-    backgroundColor: "var(--search-page-input-bg)",
-    border: "1px solid var(--search-page-input-border)",
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-    fontSize: "14px",
-  },
+const drawerBodyStyle: React.CSSProperties = {
+  minHeight: 0,
+  padding: 0,
 };

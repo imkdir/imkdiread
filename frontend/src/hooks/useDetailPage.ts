@@ -95,6 +95,18 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     editingFormRef.current = editingForm;
   }, [editingForm]);
 
+  useEffect(() => {
+    if (!initialWork || initialWork.id !== workId) return;
+
+    setWork(initialWork);
+    setLoading(false);
+    setRead(!!initialWork.read);
+    setLiked(!!initialWork.liked);
+    setShelved(!!initialWork.shelved);
+    setRating(initialWork.rating || 0);
+    setHoverRating(0);
+  }, [initialWork, workId]);
+
   const getEditEmptyForm = useCallback(
     (target: EditTarget): DetailEditingForm => {
       return createEmptyForm(target, workRef.current?.current_page);

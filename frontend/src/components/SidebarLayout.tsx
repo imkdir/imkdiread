@@ -163,7 +163,6 @@ export const SidebarLayout: React.FC = () => {
   const workId = workMatch ? workMatch[1] : null;
   const isOwnProfileRoute = /^\/profile(?:\/|$)/.test(location.pathname);
   const isAdmin = auth.user?.role === "admin";
-  const isExplore = /^\/explore(?:\/|$)/.test(location.pathname);
 
   // 2. Drawer States
   const [openDictionaryForWorkId, setOpenDictionaryForWorkId] = useState<
@@ -541,12 +540,6 @@ export const SidebarLayout: React.FC = () => {
           >
             <AppIcon name="search" title="Search" />
           </SidebarInteractiveItem>
-
-          {isExplore || (
-            <SidebarInteractiveItem to="/explore" title="Explore">
-              <AppIcon name="compass" title="Explore" />
-            </SidebarInteractiveItem>
-          )}
 
           {/* THE CONTEXTUAL DICTIONARY TRIGGER */}
           {workId && (

@@ -15,11 +15,13 @@ import "./GoodreadsImages.css";
 interface CoverProps {
   work: Work;
   disabled?: boolean;
+  enableSharedLayout?: boolean;
   className?: string;
   style?: React.CSSProperties;
   linkClassName?: string;
   imageClassName?: string;
   imageStyle?: React.CSSProperties;
+  onLinkClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 
 const coverTransition = {
@@ -35,11 +37,13 @@ function joinClasses(...values: Array<string | undefined>): string {
 export function GoodreadsCover({
   work,
   disabled,
+  enableSharedLayout = true,
   className,
   style,
   linkClassName,
   imageClassName,
   imageStyle,
+  onLinkClick,
 }: CoverProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -51,6 +55,7 @@ export function GoodreadsCover({
   const src = work.cover_img_url || "";
   const title = work.title || work.id || "Untitled Work";
   const showFallback = !src || hasError;
+  const sharedLayoutId = enableSharedLayout ? `work-cover-${work.id}` : undefined;
 
   const mouseXSpring = useSpring(x, { stiffness: 240, damping: 22 });
   const mouseYSpring = useSpring(y, { stiffness: 240, damping: 22 });
@@ -119,10 +124,11 @@ export function GoodreadsCover({
         to={disabled ? "#" : `/work/${work.id}`}
         state={{ work }}
         className={joinClasses("goodreads-cover__link", linkClassName)}
+        onClick={onLinkClick}
       >
         {showFallback ? (
           <motion.img
-            layoutId={`work-cover-${work.id}`}
+            layoutId={sharedLayoutId}
             src={noCover}
             alt={title}
             title={title}
@@ -131,7 +137,7 @@ export function GoodreadsCover({
           />
         ) : (
           <motion.img
-            layoutId={`work-cover-${work.id}`}
+            layoutId={sharedLayoutId}
             src={src}
             alt={title}
             className={joinClasses("goodreads-cover__image", imageClassName)}

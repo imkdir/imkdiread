@@ -7,6 +7,7 @@ interface FloatingDrawerProps {
   isOpen: boolean;
   title: string;
   onClose: () => void;
+  className?: string;
   variant?: "classic" | "paper";
   anchorRect?: DOMRect | null;
   defaultPlacement?: "anchor" | "center";
@@ -125,6 +126,7 @@ export const FloatingDrawer: React.FC<FloatingDrawerProps> = ({
 const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
   title,
   onClose,
+  className,
   variant = "classic",
   anchorRect,
   defaultPlacement = "anchor",
@@ -240,7 +242,7 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
 
   return (
     <motion.div
-      className={`floating-drawer floating-drawer--${variant}`}
+      className={`floating-drawer floating-drawer--${variant}${className ? ` ${className}` : ""}`}
       style={{
         left: rect.left,
         top: rect.top,
