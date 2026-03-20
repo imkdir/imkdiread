@@ -655,7 +655,7 @@ test("reading progress is stored separately from quotes", async () => {
   assert.equal(work.json?.quotes?.length, quoteCountBefore);
 });
 
-test("public profile endpoint exposes shelves and only public email", async () => {
+test("public profile endpoint exposes shelves, quotes, activities, and only public email", async () => {
   const login = await requestJson("POST", "/api/auth/login", {
     username: "guest",
     password: "guest-pass",
@@ -686,7 +686,8 @@ test("public profile endpoint exposes shelves and only public email", async () =
   assert.ok(Array.isArray(guestProfile.json?.reading));
   assert.ok(Array.isArray(guestProfile.json?.favorites));
   assert.ok(Array.isArray(guestProfile.json?.shelved));
-  assert.equal("quotes" in guestProfile.json, false);
+  assert.ok(Array.isArray(guestProfile.json?.quotes));
+  assert.ok(Array.isArray(guestProfile.json?.activities));
 
   const adminProfile = await requestJson(
     "GET",
@@ -827,6 +828,7 @@ test("profile routes support current user settings and avatar upload", async () 
   assert.equal(me.status, 200);
   assert.equal(me.json?.userInfo?.username, "guest");
   assert.ok(Array.isArray(me.json?.quotes));
+  assert.ok(Array.isArray(me.json?.activities));
 
   const update = await requestJson(
     "PUT",

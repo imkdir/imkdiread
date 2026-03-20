@@ -113,7 +113,6 @@
     --paper-ink-line-soft: rgba(44, 40, 37, 0.15);
 
     --accent-link-bright: #0095f6;
-    --accent-teal-deep: #01635d;
 
     /* --- Semantic Background Colors (element-level) --- */
     --color-bg-page-reader: var(--page-background);
@@ -153,7 +152,6 @@
     --color-text-panel-paper-primary: var(--paper-ink-strong);
     --color-text-panel-paper-secondary: var(--paper-ink-soft);
     --color-text-link-primary: var(--link-blue);
-    --color-text-accent-teal: var(--accent-teal-deep);
     --color-text-muted-soft: #a8a8a8;
     --color-text-muted-mid: #c7c7c7;
     --color-text-muted-strong: #737373;

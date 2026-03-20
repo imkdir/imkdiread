@@ -31,6 +31,7 @@ function createProfileRouter({ db, workService }) {
 
   const loadProfileData = (userId, options = {}) => {
     const includeQuotes = options.includeQuotes !== false;
+    const includeActivities = options.includeActivities !== false;
     const publicView = !!options.publicView;
 
     const userInfo = db
@@ -91,6 +92,31 @@ function createProfileRouter({ db, workService }) {
         });
     }
 
+    let activities = [];
+    if (includeActivities) {
+      const rawActivities = db
+        .prepare(
+          `
+      SELECT *
+      FROM user_reading_activities
+      WHERE user_id = ?
+      ORDER BY datetime(created_at) DESC, rowid DESC
+    `,
+        )
+        .all(userId);
+
+      activities = rawActivities.map((activity) => {
+        const matchingBook = processedBooks.find(
+          (book) => book.id === activity.work_id,
+        );
+
+        return {
+          ...activity,
+          work: matchingBook || null,
+        };
+      });
+    }
+
     return {
       userInfo: publicView
         ? {
@@ -103,12 +129,16 @@ function createProfileRouter({ db, workService }) {
       shelved,
       favorites,
       quotes,
+      activities,
     };
   };
 
   router.get("/api/profile/me", authenticateToken, (req, res) => {
     try {
-      const data = loadProfileData(req.user.id, { includeQuotes: true });
+      const data = loadProfileData(req.user.id, {
+        includeQuotes: true,
+        includeActivities: true,
+      });
       res.json(data);
     } catch (error) {
       console.error("Profile Fetch Error:", error);
@@ -127,7 +157,8 @@ function createProfileRouter({ db, workService }) {
       }
 
       const data = loadProfileData(targetUser.id, {
-        includeQuotes: false,
+        includeQuotes: true,
+        includeActivities: true,
         publicView: true,
       });
 
@@ -136,6 +167,8 @@ function createProfileRouter({ db, workService }) {
         reading: data.reading,
         shelved: data.shelved,
         favorites: data.favorites,
+        quotes: data.quotes,
+        activities: data.activities,
       });
     } catch (error) {
       console.error("Public Profile Fetch Error:", error);

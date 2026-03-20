@@ -1,17 +1,17 @@
 import React, { Component } from "react";
-import { Link } from "react-router-dom";
-import Masonry from "react-masonry-css";
-import { AppIcon } from "../components/AppIcon";
 import { request } from "../utils/APIClient";
-import type { Work, Quote, User } from "../types";
-import { profilePageStyles as styles } from "./profilePageStyles";
+import type { Quote, ReadingActivity, User, Work } from "../types";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
+import {
+  ProfileLayout,
+  renderProfileAvatar,
+} from "./profilePageShared";
 
 import "./ProfilePage.css";
 
 interface RichQuote extends Quote {
-  work?: Work;
+  work?: Work | null;
 }
 
 interface PageState {
@@ -20,6 +20,7 @@ interface PageState {
   favorites: Work[];
   shelved: Work[];
   quotes: RichQuote[];
+  activities: ReadingActivity[];
   isLoading: boolean;
   email: string;
   isEmailPublic: boolean;
@@ -38,6 +39,7 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
       favorites: [],
       shelved: [],
       quotes: [],
+      activities: [],
       isLoading: true,
       email: "",
       isEmailPublic: false,
@@ -59,6 +61,7 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
         favorites?: Work[];
         shelved?: Work[];
         quotes?: RichQuote[];
+        activities?: ReadingActivity[];
       }>(res);
       if (!res.ok || !data?.userInfo) {
         throw new Error(getApiErrorMessage(data, "Failed to load profile."));
@@ -71,6 +74,7 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
           favorites: data.favorites || [],
           shelved: data.shelved || [],
           quotes: data.quotes || [],
+          activities: data.activities || [],
           email: data.userInfo?.email || "",
           isEmailPublic: Boolean(data.userInfo?.is_email_public),
           isLoading: false,
@@ -122,8 +126,8 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
   checkEditingState = () => {
     const { user, email, isEmailPublic } = this.state;
     const isEditing =
-      (user?.email || "") != email ||
-      Boolean(user?.is_email_public) != isEmailPublic;
+      (user?.email || "") !== email ||
+      Boolean(user?.is_email_public) !== isEmailPublic;
     this.setState({ isEditing });
   };
 
@@ -177,190 +181,97 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
       favorites,
       shelved,
       quotes,
+      activities,
       isLoading,
       email,
       isEmailPublic,
       isEditing,
     } = this.state;
 
-    if (isLoading) return <div className="profile-page" style={styles.loading} />;
+    if (isLoading || !user) {
+      return (
+        <div className="profile-page">
+          <div className="profile-page__container">
+            <div className="profile-page__loading" />
+          </div>
+        </div>
+      );
+    }
 
     return (
-      <div className="profile-page" style={styles.page}>
-        {/* --- HEADER & AVATAR --- */}
-        <div style={styles.headerContainer}>
-          <input
-            type="file"
-            accept="image/jpeg, image/png, image/webp"
-            style={{ display: "none" }}
-            ref={this.fileInputRef}
-            onChange={this.handleAvatarUpload}
-          />
+      <>
+        <input
+          type="file"
+          accept="image/jpeg, image/png, image/webp"
+          hidden
+          ref={this.fileInputRef}
+          onChange={this.handleAvatarUpload}
+        />
 
-          <div
-            onClick={() => this.fileInputRef.current?.click()}
-            style={styles.avatarWrapper}
-            title="Click to change avatar"
-          >
-            {user?.avatar_url ? (
-              <img src={user.avatar_url} alt="Avatar" style={styles.avatarImg} />
-            ) : (
-              <AppIcon
-                name="instagram"
-                title="Avatar"
-                size={60}
-                style={{ ...styles.avatarImg, padding: "20px" }}
-              />
-            )}
-          </div>
+        <ProfileLayout
+          reading={reading}
+          favorites={favorites}
+          shelved={shelved}
+          quotes={quotes}
+          activities={activities}
+          header={
+            <header className="profile-page__hero">
+              {renderProfileAvatar(user, {
+                clickable: true,
+                onClick: () => this.fileInputRef.current?.click(),
+                title: "Click to change avatar",
+              })}
 
-          <div>
-            <h1 style={styles.username}>{user?.username ?? ""}</h1>
-            <div style={styles.inputWrapper}>
-              <input
-                ref={this.emailInputRef}
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => {
-                  this.setState(
-                    { email: e.target.value },
-                    this.checkEditingState,
-                  );
-                  this.adjustTextInputWidth();
-                }}
-                style={styles.input}
-              />
-              <input
-                type="checkbox"
-                checked={isEmailPublic}
-                onChange={(e) =>
-                  this.setState(
-                    {
-                      isEmailPublic: e.target.checked,
-                    },
-                    this.checkEditingState,
-                  )
-                }
-                style={styles.checkbox}
-                title="Check for public email"
-              />
-            </div>
-            {isEditing && (
-              <button
-                type="button"
-                style={styles.saveBtn}
-                onClick={this.handleSaveSettings}
-              >
-                Save changes
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div style={styles.shelvesSection}>
-          {/* --- CURRENTLY READING --- */}
-          <section style={styles.shelf}>
-            <h2 style={styles.sectionHeader}>Reading ({reading.length})</h2>
-            {reading.length === 0 ? (
-              <p style={styles.emptyText}>Not reading anything right now.</p>
-            ) : (
-              <div>
-                {reading.map((work) => (
-                  <Link
-                    key={work.id}
-                    to={`/work/${work.id}`}
-                    style={styles.title}
-                  >
-                    <span>{work.title}</span>
-                    <div style={styles.progressTrack}>
-                      <div
-                        style={{
-                          ...styles.progressBar,
-                          width: `${((work.current_page || 0) / work.page_count) * 100}%`,
-                        }}
+              <div className="profile-page__hero-copy">
+                <h1 className="profile-page__headline">{user.username}</h1>
+                <div className="profile-page__settings-row">
+                  <div className="profile-page__email-field">
+                    <input
+                      ref={this.emailInputRef}
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => {
+                        this.setState(
+                          { email: e.target.value },
+                          this.checkEditingState,
+                        );
+                        this.adjustTextInputWidth();
+                      }}
+                      className="profile-page__email-input"
+                    />
+                    <label className="profile-page__public-toggle">
+                      <input
+                        type="checkbox"
+                        checked={isEmailPublic}
+                        onChange={(e) =>
+                          this.setState(
+                            {
+                              isEmailPublic: e.target.checked,
+                            },
+                            this.checkEditingState,
+                          )
+                        }
+                        title="Check for public email"
                       />
-                    </div>
-                    <p style={styles.progressText}>
-                      Pg. {work.current_page || 0} / {work.page_count}
-                    </p>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* --- FAVORITES --- */}
-          <section style={styles.shelf}>
-            <h2 style={styles.sectionHeader}>Favorites ({favorites.length})</h2>
-            {favorites.length === 0 ? (
-              <p style={styles.emptyText}>No favorites yet.</p>
-            ) : (
-              <ul>
-                {favorites.map((work) => (
-                  <li key={work.id}>
-                    <Link to={`/work/${work.id}`} style={styles.title}>
-                      {work.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {/* --- SHELVED --- */}
-          <section style={styles.shelf}>
-            <h2 style={styles.sectionHeader}>Shelved ({shelved.length})</h2>
-            {shelved.length === 0 ? (
-              <p style={styles.emptyText}>Nothing shelved yet.</p>
-            ) : (
-              <ul>
-                {shelved.map((work) => (
-                  <li key={work.id}>
-                    <Link to={`/work/${work.id}`} style={styles.title}>
-                      {work.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-        {/* --- MY QUOTES --- */}
-        <section>
-          <h2 style={styles.sectionHeader}>
-            My Highlights & Quotes ({quotes.length})
-          </h2>
-          {quotes.length === 0 ? (
-            <p style={styles.emptyText}>No quotes saved yet.</p>
-          ) : (
-            <Masonry
-              breakpointCols={{ default: 3, 900: 2, 600: 1 }}
-              className="my-masonry-grid"
-              columnClassName="my-masonry-grid_column"
-            >
-              {quotes.map((quote) => (
-                <div key={quote.id} style={styles.quoteCard}>
-                  <p style={styles.quoteText}>{quote.quote}</p>
-                  <div style={styles.quoteMeta}>
-                    <span style={styles.quoteDate}>
-                      {new Date(quote.created_at).toLocaleDateString()}
-                    </span>
-                    {quote.work && (
-                      <Link
-                        to={`/work/${quote.work.id}`}
-                        style={styles.quoteSource}
-                      >
-                        {quote.work.title}
-                      </Link>
-                    )}
+                    </label>
                   </div>
+
+                  {isEditing && (
+                    <button
+                      type="button"
+                      className="profile-page__save-button"
+                      onClick={this.handleSaveSettings}
+                    >
+                      Save changes
+                    </button>
+                  )}
                 </div>
-              ))}
-            </Masonry>
-          )}
-        </section>
-      </div>
+              </div>
+            </header>
+          }
+        />
+      </>
     );
   }
 }

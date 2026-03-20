@@ -9,6 +9,16 @@ export interface Quote {
   explanation?: string | null;
 }
 
+export interface ReadingActivity {
+  user_id?: string | null;
+  work_id: string;
+  notes?: string | null;
+  current_page?: number | null;
+  page_count?: number | null;
+  created_at: string;
+  work?: Work | null;
+}
+
 export interface Work {
   id: string;
   title: string;

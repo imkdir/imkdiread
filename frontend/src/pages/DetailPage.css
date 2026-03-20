@@ -1256,7 +1256,7 @@
     text-decoration-line: underline;
     font-size: 14px;
     font-family: Fredoka;
-    color: var(--color-text-accent-teal);
+    color: var(--paper-cream-warm);
 }
 
 .detail-quote-form--progress .detail-finished-btn {
