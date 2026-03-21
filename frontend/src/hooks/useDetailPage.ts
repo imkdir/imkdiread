@@ -59,6 +59,7 @@ function normalizeDropboxLink(rawLink: string): string {
 export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const [work, setWork] = useState<Work | null>(initialWork || null);
   const [loading, setLoading] = useState(!initialWork);
+  const [notFound, setNotFound] = useState(false);
   const [read, setRead] = useState(!!initialWork?.read);
   const [liked, setLiked] = useState(!!initialWork?.liked);
   const [shelved, setShelved] = useState(!!initialWork?.shelved);
@@ -100,6 +101,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
 
     setWork(initialWork);
     setLoading(false);
+    setNotFound(false);
     setRead(!!initialWork.read);
     setLiked(!!initialWork.liked);
     setShelved(!!initialWork.shelved);
@@ -126,11 +128,13 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
       if (!loadedWork) {
         setWork(null);
         setLoading(false);
+        setNotFound(true);
         return;
       }
 
       setWork(loadedWork);
       setLoading(false);
+      setNotFound(false);
       setRead(!!loadedWork.read);
       setLiked(!!loadedWork.liked);
       setShelved(!!loadedWork.shelved);
@@ -139,6 +143,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
       console.error("Failed to fetch work:", err);
       showToast("Failed to load this work.", { tone: "error" });
       setLoading(false);
+      setNotFound(false);
     }
   }, [workId]);
 
@@ -621,6 +626,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   return {
     work,
     loading,
+    notFound,
     read,
     liked,
     shelved,

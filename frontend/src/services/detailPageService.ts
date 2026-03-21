@@ -17,6 +17,14 @@ interface WorkMetadataUpdate {
   tags?: string[];
 }
 
+interface CreateWorkPayload {
+  id: string;
+  title: string;
+  page_count: number;
+  authors?: string[];
+  tags?: string[];
+}
+
 interface ProgressResponse extends ApiSuccessResponse {
   read?: boolean;
 }
@@ -35,10 +43,35 @@ type WorkResponse = Work & {
 export async function fetchWorkById(workId: string): Promise<Work | null> {
   const res = await request(`/api/works/${encodeURIComponent(workId)}`);
   const data = await readJsonSafe<WorkResponse>(res);
-  if (!res.ok || data?.error) {
+  if (res.status === 404) {
     return null;
   }
+
+  if (!res.ok || data?.error) {
+    throw new Error(getApiErrorMessage(data, "Failed to load work."));
+  }
+
   return data;
+}
+
+export async function createWork(payload: CreateWorkPayload): Promise<void> {
+  const res = await request("/api/works", {
+    method: "POST",
+    body: JSON.stringify({
+      id: payload.id,
+      title: payload.title,
+      goodreads_id: "",
+      page_count: payload.page_count,
+      dropbox_link: "",
+      amazon_asin: "",
+      authors: payload.authors || [],
+      tags: payload.tags || [],
+    }),
+  });
+  const data = await readJsonSafe<ApiSuccessResponse>(res);
+  if (!res.ok || !data?.success) {
+    throw new Error(getApiErrorMessage(data, "Failed to create work."));
+  }
 }
 
 export async function updateWorkAction(

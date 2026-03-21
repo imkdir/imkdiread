@@ -26,6 +26,7 @@ import { Modal } from "../components/Modal";
 import { useAuth } from "../components/AuthContext";
 import { useDetailPage } from "../hooks/useDetailPage";
 import {
+  createWork,
   updateWorkAuthors,
   updateWorkPageCount,
   updateWorkTags,
@@ -152,6 +153,13 @@ function buildAuthorDrafts(authors: string[]): AuthorDraft[] {
   }));
 }
 
+function parseDraftList(value: string): string[] {
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export function DetailPageWrapper() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
@@ -210,6 +218,12 @@ function DetailPage({
   const [isSavingTags, setIsSavingTags] = useState(false);
   const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [isSavingPageCount, setIsSavingPageCount] = useState(false);
+  const [missingWorkTitleDraft, setMissingWorkTitleDraft] = useState("");
+  const [missingWorkPageCountDraft, setMissingWorkPageCountDraft] =
+    useState("0");
+  const [missingWorkAuthorsDraft, setMissingWorkAuthorsDraft] = useState("");
+  const [missingWorkTagsDraft, setMissingWorkTagsDraft] = useState("");
+  const [isCreatingMissingWork, setIsCreatingMissingWork] = useState(false);
   const [readingFocusSettings, setReadingFocusSettings] = useState(
     loadReadingFocusSettings,
   );
@@ -262,6 +276,7 @@ function DetailPage({
   const {
     work,
     loading,
+    notFound,
     read,
     liked,
     shelved,
@@ -382,6 +397,15 @@ function DetailPage({
     setTitleDraft(work.title || "");
     setPageCountDraft(String(work.page_count || 0));
   }, [work]);
+
+  useEffect(() => {
+    if (!notFound) return;
+
+    setMissingWorkTitleDraft("");
+    setMissingWorkPageCountDraft("0");
+    setMissingWorkAuthorsDraft("");
+    setMissingWorkTagsDraft("");
+  }, [notFound, workId]);
 
   const openReportPdfIssueModal = () => {
     setReportIssueType("blank_or_missing_pages");
@@ -782,7 +806,157 @@ function DetailPage({
     showToast("Reading focus updated.", { tone: "success" });
   };
 
-  if (loading || !work) return null;
+  const handleCreateMissingWork = async () => {
+    const title = missingWorkTitleDraft.trim();
+    const pageCount = Number.parseInt(missingWorkPageCountDraft.trim(), 10);
+
+    if (!title) {
+      showToast("Title is required.", { tone: "error" });
+      return;
+    }
+
+    if (!Number.isInteger(pageCount) || pageCount < 0) {
+      showToast("Page count must be a non-negative whole number.", {
+        tone: "error",
+      });
+      return;
+    }
+
+    setIsCreatingMissingWork(true);
+
+    try {
+      await createWork({
+        id: workId,
+        title,
+        page_count: pageCount,
+        authors: parseDraftList(missingWorkAuthorsDraft),
+        tags: parseDraftList(missingWorkTagsDraft),
+      });
+      await fetchData();
+      showToast("Work created.", { tone: "success" });
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to create work.",
+        { tone: "error" },
+      );
+    } finally {
+      setIsCreatingMissingWork(false);
+    }
+  };
+
+  if (loading) return null;
+
+  if (!work) {
+    return (
+      <div className="detail-page">
+        <div className="detail-split-view-container detail-split-view-container--centered">
+          <div className="detail-main-content-pane">
+            <section className="detail-missing-work">
+              <p className="detail-label">Missing work</p>
+              <h1 className="detail-title detail-missing-work__title">
+                {isAdmin ? "Create this work" : "Work not found"}
+              </h1>
+              <p className="detail-missing-work__body">
+                {isAdmin && notFound
+                  ? `There is no work at /work/${workId} yet. You can insert it now with this id.`
+                  : "We couldn't find a work for this id."}
+              </p>
+
+              {isAdmin && notFound ? (
+                <div className="detail-missing-work__form detail-quote-form">
+                  <label className="detail-page-count-modal__field">
+                    <span className="detail-label">Work ID</span>
+                    <input
+                      className="detail-input"
+                      value={workId}
+                      readOnly
+                    />
+                  </label>
+
+                  <label className="detail-page-count-modal__field">
+                    <span className="detail-label">Title</span>
+                    <input
+                      className="detail-input"
+                      value={missingWorkTitleDraft}
+                      onChange={(event) =>
+                        setMissingWorkTitleDraft(event.target.value)
+                      }
+                      placeholder="Untitled work"
+                    />
+                  </label>
+
+                  <label className="detail-page-count-modal__field">
+                    <span className="detail-label">Page count</span>
+                    <input
+                      className="detail-input"
+                      inputMode="numeric"
+                      value={missingWorkPageCountDraft}
+                      onChange={(event) =>
+                        setMissingWorkPageCountDraft(event.target.value)
+                      }
+                      placeholder="0"
+                    />
+                  </label>
+
+                  <label className="detail-page-count-modal__field">
+                    <span className="detail-label">Authors</span>
+                    <textarea
+                      className="detail-input detail-missing-work__textarea"
+                      value={missingWorkAuthorsDraft}
+                      onChange={(event) =>
+                        setMissingWorkAuthorsDraft(event.target.value)
+                      }
+                      placeholder="Comma or line separated"
+                    />
+                  </label>
+
+                  <label className="detail-page-count-modal__field">
+                    <span className="detail-label">Tags</span>
+                    <textarea
+                      className="detail-input detail-missing-work__textarea"
+                      value={missingWorkTagsDraft}
+                      onChange={(event) =>
+                        setMissingWorkTagsDraft(event.target.value)
+                      }
+                      placeholder="Comma or line separated"
+                    />
+                  </label>
+
+                  <div className="detail-form-actions detail-missing-work__actions">
+                    <button
+                      type="button"
+                      className="detail-btn detail-btn--cancel"
+                      onClick={() => navigate(-1)}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      className="detail-btn detail-btn--save"
+                      onClick={() => void handleCreateMissingWork()}
+                      disabled={isCreatingMissingWork}
+                    >
+                      {isCreatingMissingWork ? "Creating..." : "Create work"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="detail-form-actions detail-missing-work__actions">
+                  <button
+                    type="button"
+                    className="detail-btn detail-btn--cancel"
+                    onClick={() => navigate(-1)}
+                  >
+                    Back
+                  </button>
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const canUseDropbox = Boolean(work.dropbox_link) || isAdmin;
   const canUseFinder = finderFiles.length > 0 || isAdmin;
