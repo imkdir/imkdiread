@@ -691,57 +691,63 @@ function createWorksRouter({ db, workService, inboxService }) {
     }
   });
 
-  router.post("/api/works/:id/report-file-issue", authenticateToken, (req, res) => {
-    try {
-      const workId = req.params.id;
-      const workRow = db
-        .prepare("SELECT id FROM works WHERE id = ?")
-        .get(workId);
-      if (!workRow) {
-        return jsonError(res, 404, "Work not found.");
+  router.post(
+    "/api/works/:id/report-file-issue",
+    authenticateToken,
+    (req, res) => {
+      try {
+        const workId = req.params.id;
+        const workRow = db
+          .prepare("SELECT id FROM works WHERE id = ?")
+          .get(workId);
+        if (!workRow) {
+          return jsonError(res, 404, "Work not found.");
+        }
+
+        const issueType = asOptionalString(req.body?.issue_type);
+        const normalizedIssueType =
+          issueType === "other_issue"
+            ? "other_issue"
+            : "blank_or_missing_pages";
+        const details = asOptionalString(req.body?.details);
+        const pageNumber =
+          normalizedIssueType === "blank_or_missing_pages"
+            ? Number(req.body?.page_number)
+            : null;
+
+        if (
+          normalizedIssueType === "blank_or_missing_pages" &&
+          (!Number.isInteger(pageNumber) || pageNumber <= 0)
+        ) {
+          return jsonError(res, 400, "A valid PDF page number is required.");
+        }
+
+        if (normalizedIssueType === "other_issue" && !details) {
+          return jsonError(res, 400, "Please describe the issue.");
+        }
+
+        const result = inboxService.notifyAdminsOfWorkFileIssue({
+          workId,
+          reporterUserId: req.user.id,
+          reporterUsername: req.user.username,
+          issueType: normalizedIssueType,
+          pageNumber,
+          details,
+        });
+
+        res.json({
+          success: true,
+          notified_admins: result.created,
+        });
+      } catch (error) {
+        if (error?.statusCode) {
+          return jsonError(res, error.statusCode, error.message);
+        }
+        console.error("Failed to report work file issue:", error);
+        return jsonError(res, 500, "Failed to report PDF issue.");
       }
-
-      const issueType = asOptionalString(req.body?.issue_type);
-      const normalizedIssueType =
-        issueType === "other_issue" ? "other_issue" : "blank_or_missing_pages";
-      const details = asOptionalString(req.body?.details);
-      const pageNumber =
-        normalizedIssueType === "blank_or_missing_pages"
-          ? Number(req.body?.page_number)
-          : null;
-
-      if (
-        normalizedIssueType === "blank_or_missing_pages" &&
-        (!Number.isInteger(pageNumber) || pageNumber <= 0)
-      ) {
-        return jsonError(res, 400, "A valid PDF page number is required.");
-      }
-
-      if (normalizedIssueType === "other_issue" && !details) {
-        return jsonError(res, 400, "Please describe the issue.");
-      }
-
-      const result = inboxService.notifyAdminsOfWorkFileIssue({
-        workId,
-        reporterUserId: req.user.id,
-        reporterUsername: req.user.username,
-        issueType: normalizedIssueType,
-        pageNumber,
-        details,
-      });
-
-      res.json({
-        success: true,
-        notified_admins: result.created,
-      });
-    } catch (error) {
-      if (error?.statusCode) {
-        return jsonError(res, error.statusCode, error.message);
-      }
-      console.error("Failed to report work file issue:", error);
-      return jsonError(res, 500, "Failed to report PDF issue.");
-    }
-  });
+    },
+  );
 
   router.delete(
     "/api/works/:id",
@@ -964,13 +970,13 @@ function createWorksRouter({ db, workService, inboxService }) {
     },
   );
 
-  // NEW: Smart Contextual Passage Explanation (Gemini)
   router.post(
-    "/api/works/:id/dictionary/explain",
+    "/api/works/:id/quotes/analyze",
     authenticateToken,
     async (req, res) => {
       try {
         const workId = req.params.id;
+        const userId = req.user.id;
         const { text } = req.body;
 
         if (!text) return res.status(400).json({ error: "Text is required" });
@@ -980,35 +986,73 @@ function createWorksRouter({ db, workService, inboxService }) {
           .get(workId);
         if (!work) return res.status(404).json({ error: "Work not found" });
 
+        const pastQuotes = db
+          .prepare(
+            `
+            SELECT quote, explanation
+            FROM work_quotes
+            WHERE user_id = ? AND work_id = ? AND explanation IS NOT NULL
+            ORDER BY created_at DESC
+            LIMIT 3
+          `,
+          )
+          .all(userId, workId)
+          .reverse();
+
+        const chatHistory = pastQuotes.flatMap((row) => [
+          {
+            role: "user",
+            parts: [{ text: `Analyze this passage: "${row.quote}"` }],
+          },
+          {
+            role: "model",
+            parts: [
+              {
+                text: JSON.stringify({
+                  cleaned_quote: row.quote,
+                  explanation: row.explanation,
+                }),
+              },
+            ],
+          },
+        ]);
+
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({
           model: "gemini-2.5-flash",
           generationConfig: { responseMimeType: "application/json" },
+          systemInstruction: `You are an expert literary analyst helping a user read "${work.title}".
+              Task 1: Clean up the user's copied PDF text (fix broken line breaks and hyphenations) without changing the author's words.
+              Task 2: Provide an insightful explanation of the passage.
+
+              CRITICAL RULE: You are in a continuous session. DO NOT repeat the overarching themes, basic plot summaries, or general character bios of the book. Assume the user already knows the premise. Focus strictly on the unique subtext, metaphors, and specific word choices of the immediate passage provided.
+
+              Always output valid JSON matching this schema:
+              {
+                "cleaned_quote": "The perfectly formatted original text.",
+                "explanation": "Your highly specific, non-repetitive analysis here."
+              }`,
         });
 
-        const prompt = `
-                You are an expert literary analyst. The user is reading "${work.title}".
-                They copied the following passage from a PDF, which likely contains broken formatting, hyphenated line-breaks, or awkward spacing:
+        const chat = model.startChat({
+          history: chatHistory,
+        });
 
-                "${text}"
+        const result = await chat.sendMessage(
+          `Analyze this passage: "${text}"`,
+        );
+        const responseText = result.response.text();
 
-                Task 1: Clean up the text. Remove broken PDF line breaks, fix hyphenated words, and restore the proper paragraph flow. Do NOT alter the author's actual words or punctuation, just fix the extraction errors.
-                Task 2: Provide a concise, insightful explanation of this passage. Decode any complex metaphors, subtext, historical context, or relevance to the broader themes of the book. Keep it under 3 paragraphs.
-
-                You MUST respond with ONLY a valid JSON object matching this strict structure:
-                {
-                  "cleaned_quote": "The perfectly formatted original text.",
-                  "explanation": "Your detailed analysis here."
-                }
-              `;
-
-        const result = await model.generateContent(prompt);
-        const analysisData = JSON.parse(result.response.text());
-
-        res.json({ success: true, result: analysisData });
+        try {
+          const data = JSON.parse(responseText);
+          res.json({ success: true, result: data });
+        } catch (parseError) {
+          console.error("Gemini Explanation JSON Error:", responseText);
+          res.status(500).json({ error: "Failed to parse explanation." });
+        }
       } catch (error) {
-        console.error("Gemini Explain Error:", error);
-        res.status(500).json({ error: "Failed to explain passage." });
+        console.error("Explain Passage Error:", error);
+        res.status(500).json({ error: "Failed to analyze passage." });
       }
     },
   );

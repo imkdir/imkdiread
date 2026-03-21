@@ -153,8 +153,13 @@ function seedTestDb(targetDbPath) {
     "INSERT INTO works (id, title, page_count, goodreads_id, dropbox_link, amazon_asin) VALUES (?, ?, ?, ?, ?, ?)",
   ).run("W1", "Nicomachean Ethics", 100, "book-1", null, null);
 
-  const tagId = db.prepare("SELECT id FROM tags WHERE name = ?").get("philosophy").id;
-  db.prepare("INSERT INTO work_tags (work_id, tag_id) VALUES (?, ?)").run("W1", tagId);
+  const tagId = db
+    .prepare("SELECT id FROM tags WHERE name = ?")
+    .get("philosophy").id;
+  db.prepare("INSERT INTO work_tags (work_id, tag_id) VALUES (?, ?)").run(
+    "W1",
+    tagId,
+  );
   db.prepare("INSERT INTO work_authors (work_id, author_id) VALUES (?, ?)").run(
     "W1",
     authorId,
@@ -218,10 +223,9 @@ function seedLegacyAuthorSchemaDb(targetDbPath) {
   );
   db.prepare("INSERT INTO users (id) VALUES (?)").run("user-1");
   db.prepare("INSERT INTO works (id) VALUES (?)").run("W1");
-  db.prepare("INSERT INTO work_authors (work_id, author_name) VALUES (?, ?)").run(
-    "W1",
-    "Aristotle",
-  );
+  db.prepare(
+    "INSERT INTO work_authors (work_id, author_name) VALUES (?, ?)",
+  ).run("W1", "Aristotle");
   db.prepare(
     "INSERT INTO user_author_interactions (user_id, author_name, followed) VALUES (?, ?, ?)",
   ).run("user-1", "Aristotle", 1);
@@ -257,7 +261,13 @@ function seedLegacyProgressSchemaDb(targetDbPath) {
   db.prepare(
     `INSERT INTO work_quotes (work_id, quote, page_number, created_at, user_id)
      VALUES (?, ?, ?, ?, ?)`,
-  ).run("W1", "@notes:Reached the midpoint", 123, "2026-03-14 09:00:00", "user-1");
+  ).run(
+    "W1",
+    "@notes:Reached the midpoint",
+    123,
+    "2026-03-14 09:00:00",
+    "user-1",
+  );
   db.prepare(
     `INSERT INTO work_quotes (work_id, quote, page_number, created_at, user_id)
      VALUES (?, ?, ?, ?, ?)`,
@@ -476,7 +486,9 @@ test.before(async () => {
             meanings: [
               {
                 partOfSpeech: "noun",
-                definitions: [{ definition: `Fallback definition for ${word}.` }],
+                definitions: [
+                  { definition: `Fallback definition for ${word}.` },
+                ],
               },
             ],
           },
@@ -525,7 +537,8 @@ test.after(async () => {
   }
 
   if (originalGetGenerativeModel) {
-    GoogleGenerativeAI.prototype.getGenerativeModel = originalGetGenerativeModel;
+    GoogleGenerativeAI.prototype.getGenerativeModel =
+      originalGetGenerativeModel;
   }
   if (originalFetch) {
     global.fetch = originalFetch;
@@ -571,7 +584,12 @@ test("admin routes enforce 401/403 and allow admin", async () => {
   const guestToken = guestLogin.json?.token;
   assert.equal(typeof guestToken, "string");
 
-  const forbidden = await requestJson("GET", "/api/tags", undefined, guestToken);
+  const forbidden = await requestJson(
+    "GET",
+    "/api/tags",
+    undefined,
+    guestToken,
+  );
   assert.equal(forbidden.status, 403);
   assert.equal(typeof forbidden.json?.error, "string");
 
@@ -864,7 +882,12 @@ test("profile routes support current user settings and avatar upload", async () 
     ...avatarUpload.json.avatar_url.replace(/^\//, "").split("/"),
   );
 
-  const refreshed = await requestJson("GET", "/api/profile/me", undefined, token);
+  const refreshed = await requestJson(
+    "GET",
+    "/api/profile/me",
+    undefined,
+    token,
+  );
   assert.equal(refreshed.status, 200);
   assert.equal(
     refreshed.json?.userInfo?.avatar_url,
@@ -898,7 +921,9 @@ test("utility discovery routes return screensavers, explore, works, and collecti
   assert.equal(screensavers.status, 200);
   assert.ok(Array.isArray(screensavers.json?.images));
   assert.ok(
-    screensavers.json.images.some((image) => image.endsWith(screensaverFilename)),
+    screensavers.json.images.some((image) =>
+      image.endsWith(screensaverFilename),
+    ),
   );
   assert.ok(screensavers.json.index >= 0);
   assert.ok(screensavers.json.index < screensavers.json.images.length);
@@ -923,11 +948,7 @@ test("utility discovery routes return screensavers, explore, works, and collecti
     uploadScreensaver.json?.filename,
     new RegExp(`^${uploadedFilenamePrefix}`),
   );
-  trackPublicArtifact(
-    "imgs",
-    "screensavers",
-    uploadScreensaver.json.filename,
-  );
+  trackPublicArtifact("imgs", "screensavers", uploadScreensaver.json.filename);
 
   appDb
     .prepare(
@@ -963,7 +984,9 @@ test("utility discovery routes return screensavers, explore, works, and collecti
     explore.json.catalogue.with_cover.some((work) => work.id === coveredWorkId),
   );
   assert.ok(
-    explore.json.catalogue.without_cover.every((work) => work.id !== draftWorkId),
+    explore.json.catalogue.without_cover.every(
+      (work) => work.id !== draftWorkId,
+    ),
   );
 
   const adminExplore = await requestJson(
@@ -982,7 +1005,9 @@ test("utility discovery routes return screensavers, explore, works, and collecti
     ),
   );
   assert.ok(
-    adminExplore.json.catalogue.with_cover.some((work) => work.id === coveredWorkId),
+    adminExplore.json.catalogue.with_cover.some(
+      (work) => work.id === coveredWorkId,
+    ),
   );
 
   const works = await requestJson("GET", "/api/works", undefined, token);
@@ -1105,11 +1130,7 @@ test("tag and author admin routes support create, mutate, upload, follow, and cl
   );
   assert.equal(authorGoodreadsUpdate.status, 200);
   assert.equal(authorGoodreadsUpdate.json?.success, true);
-  trackPublicArtifact(
-    "imgs",
-    "avatars",
-    `${renamedAuthorGoodreadsId}-2.png`,
-  );
+  trackPublicArtifact("imgs", "avatars", `${renamedAuthorGoodreadsId}-2.png`);
 
   const authorList = await requestJson("GET", "/api/authors", undefined, token);
   assert.equal(authorList.status, 200);
@@ -1490,7 +1511,10 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
       item.type === "work_file_issue_report" && item.work_id === notifyWorkId,
   );
   assert.equal(workIssueNotification?.title, "Issue reported");
-  assert.match(workIssueNotification?.body || "", /blank or missing pdf pages/i);
+  assert.match(
+    workIssueNotification?.body || "",
+    /blank or missing pdf pages/i,
+  );
   assert.match(workIssueNotification?.body || "", /page 321/i);
   assert.equal(
     workIssueNotification?.payload?.issue_type,
@@ -1529,7 +1553,10 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(adminSelfReportNotification?.title, "Issue reported");
   assert.equal(adminSelfReportNotification?.payload?.issue_type, "other_issue");
   assert.equal(adminSelfReportNotification?.payload?.page_number, null);
-  assert.equal(adminSelfReportNotification?.payload?.reporter_user_id, "admin-1");
+  assert.equal(
+    adminSelfReportNotification?.payload?.reporter_user_id,
+    "admin-1",
+  );
 
   const markImportedRead = await requestJson(
     "POST",
@@ -1641,7 +1668,7 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
 
   const explain = await requestJson(
     "POST",
-    `/api/works/${encodeURIComponent(workId)}/dictionary/explain`,
+    `/api/works/${encodeURIComponent(workId)}/quotes/analyze`,
     { text: "Broken-\nline passage" },
     guestToken,
   );
@@ -1712,8 +1739,8 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(workDetail.json?.rating, 7);
   assert.ok(typeof workDetail.json?.files === "object");
   assert.ok(
-    Object.values(workDetail.json.files || {}).some((url) =>
-      typeof url === "string" && url.endsWith(`${workId}.pdf`),
+    Object.values(workDetail.json.files || {}).some(
+      (url) => typeof url === "string" && url.endsWith(`${workId}.pdf`),
     ),
   );
   assert.ok(workDetail.json?.cover_img_url?.endsWith(`${workId}.png`));
@@ -1762,7 +1789,9 @@ test("author migration script upgrades legacy name-based tables", () => {
     });
 
     const migratedDb = new Database(legacyDbPath, { readonly: true });
-    const authorColumns = migratedDb.prepare("PRAGMA table_info(authors)").all();
+    const authorColumns = migratedDb
+      .prepare("PRAGMA table_info(authors)")
+      .all();
     const workAuthorColumns = migratedDb
       .prepare("PRAGMA table_info(work_authors)")
       .all();
@@ -1773,9 +1802,7 @@ test("author migration script upgrades legacy name-based tables", () => {
     assert.ok(authorColumns.some((column) => column.name === "id"));
     assert.ok(authorColumns.some((column) => column.name === "bio"));
     assert.ok(workAuthorColumns.some((column) => column.name === "author_id"));
-    assert.ok(
-      userAuthorColumns.some((column) => column.name === "author_id"),
-    );
+    assert.ok(userAuthorColumns.some((column) => column.name === "author_id"));
 
     const migratedAuthor = migratedDb
       .prepare("SELECT id, name, bio, goodreads_id FROM authors")
@@ -1788,7 +1815,9 @@ test("author migration script upgrades legacy name-based tables", () => {
       .prepare("SELECT work_id, author_id FROM work_authors")
       .get();
     const followedAuthor = migratedDb
-      .prepare("SELECT user_id, author_id, followed FROM user_author_interactions")
+      .prepare(
+        "SELECT user_id, author_id, followed FROM user_author_interactions",
+      )
       .get();
 
     assert.equal(workAuthor.work_id, "W1");
@@ -1812,19 +1841,21 @@ test("reading progress migration script moves legacy progress rows out of work_q
   try {
     seedLegacyProgressSchemaDb(legacyDbPath);
 
-    execFileSync("node", ["scripts/migrate-reading-progress-to-activities.js"], {
-      cwd: path.join(__dirname, ".."),
-      env: { ...process.env, DB_PATH: legacyDbPath },
-      stdio: "pipe",
-    });
+    execFileSync(
+      "node",
+      ["scripts/migrate-reading-progress-to-activities.js"],
+      {
+        cwd: path.join(__dirname, ".."),
+        env: { ...process.env, DB_PATH: legacyDbPath },
+        stdio: "pipe",
+      },
+    );
 
     const migratedDb = new Database(legacyDbPath, { readonly: true });
     const activityColumns = migratedDb
       .prepare("PRAGMA table_info(user_reading_activities)")
       .all();
-    assert.ok(
-      activityColumns.some((column) => column.name === "current_page"),
-    );
+    assert.ok(activityColumns.some((column) => column.name === "current_page"));
     assert.ok(activityColumns.some((column) => column.name === "notes"));
 
     const activity = migratedDb
@@ -1873,7 +1904,9 @@ test("ensure database schema script bootstraps missing tables and columns", () =
 
     const ensuredDb = new Database(driftedDbPath, { readonly: true });
     const userColumns = ensuredDb.prepare("PRAGMA table_info(users)").all();
-    const quoteColumns = ensuredDb.prepare("PRAGMA table_info(work_quotes)").all();
+    const quoteColumns = ensuredDb
+      .prepare("PRAGMA table_info(work_quotes)")
+      .all();
     const vocabTable = ensuredDb
       .prepare(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'vocabularies'",

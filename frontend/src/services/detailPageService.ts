@@ -170,7 +170,7 @@ export async function explainPassage(
   cleanedQuote?: string;
   explanation?: string;
 }> {
-  const res = await request(`/api/works/${workId}/dictionary/explain`, {
+  const res = await request(`/api/works/${workId}/quotes/analyze`, {
     method: "POST",
     body: JSON.stringify({ text }),
   });
@@ -234,13 +234,10 @@ export async function uploadWorkFile(
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await request(
-    `/api/works/${encodeURIComponent(workId)}/files`,
-    {
-      method: "POST",
-      body: formData,
-    },
-  );
+  const res = await request(`/api/works/${encodeURIComponent(workId)}/files`, {
+    method: "POST",
+    body: formData,
+  });
   const data = await readJsonSafe<WorkFileUploadResponse>(res);
   if (!res.ok || !data) {
     throw new Error(getApiErrorMessage(data, "Failed to upload file."));
@@ -255,13 +252,10 @@ export async function uploadWorkCover(
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await request(
-    `/api/works/${encodeURIComponent(workId)}/cover`,
-    {
-      method: "POST",
-      body: formData,
-    },
-  );
+  const res = await request(`/api/works/${encodeURIComponent(workId)}/cover`, {
+    method: "POST",
+    body: formData,
+  });
   const data = await readJsonSafe<WorkFileUploadResponse>(res);
   if (!res.ok || !data) {
     throw new Error(getApiErrorMessage(data, "Failed to upload cover."));
