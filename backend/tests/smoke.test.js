@@ -472,6 +472,17 @@ test.before(async () => {
           },
         };
       },
+      startChat: () => ({
+        sendMessage: async () => ({
+          response: {
+            text: () =>
+              JSON.stringify({
+                cleaned_quote: "A cleaned passage.",
+                explanation: "A concise explanation.",
+              }),
+          },
+        }),
+      }),
     };
   };
   global.fetch = async (input, init) => {
