@@ -112,6 +112,7 @@ class QuoteCardClass extends React.Component<Props, State> {
       body: JSON.stringify({
         quote: this.state.editQuote.trim(),
         pageNumber: Number(this.state.editPageNum) || null,
+        explanation: this.props.quote.explanation || null,
       }),
     })
       .then(async (res) => {
@@ -326,7 +327,7 @@ class QuoteCardClass extends React.Component<Props, State> {
                 {quote.page_number && (
                   <span className="quote-number">P{quote.page_number}</span>
                 )}
-                {displaySource && quote.work ? (
+                {displaySource && quote.work && (
                   <Link
                     to={`/work/${quote.work.id}`}
                     className="quote-source"
@@ -334,20 +335,19 @@ class QuoteCardClass extends React.Component<Props, State> {
                   >
                     {quote.work.title}
                   </Link>
-                ) : (
-                  !!quote.explanation && (
-                    <button
-                      type="button"
-                      onClick={(e) => this.toggleFlip("explain", e)}
-                      className="quote-explain-button"
-                    >
-                      <AppIcon
-                        name="gemini"
-                        className="quote-explain-icon"
-                        title="Gemini"
-                      />
-                    </button>
-                  )
+                )}
+                {!!quote.explanation && (
+                  <button
+                    type="button"
+                    onClick={(e) => this.toggleFlip("explain", e)}
+                    className="quote-explain-button"
+                  >
+                    <AppIcon
+                      name="gemini"
+                      className="quote-explain-icon"
+                      title="Gemini"
+                    />
+                  </button>
                 )}
               </div>
             )}

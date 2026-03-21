@@ -235,7 +235,7 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
 
   const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     if (
-      event.target instanceof HTMLElement &&
+      event.target instanceof Element &&
       event.target.closest("button")
     ) {
       return;
@@ -295,6 +295,7 @@ const FloatingDrawerPanel: React.FC<Omit<FloatingDrawerProps, "isOpen">> = ({
         <h2 className="floating-drawer__title">{title}</h2>
         <button
           className="floating-drawer__close"
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={onClose}
           aria-label="Close"
         >
