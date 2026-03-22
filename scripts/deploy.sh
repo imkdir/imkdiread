@@ -192,8 +192,11 @@ else
   log "Skipping Ollama setup"
 fi
 
-log "Building frontend"
-npm run build --prefix frontend
+log "Type-checking frontend"
+"$FRONTEND_DIR/node_modules/.bin/tsc" -b
+
+log "Bundling frontend"
+"$FRONTEND_DIR/node_modules/.bin/vite" build
 
 if [[ $RUN_LINT -eq 1 ]]; then
   log "Linting frontend"
