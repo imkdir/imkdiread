@@ -103,6 +103,27 @@ wait_for_ollama() {
   return 1
 }
 
+stop_ollama_if_running() {
+  if command -v systemctl >/dev/null 2>&1; then
+    sudo systemctl stop ollama >/dev/null 2>&1 || true
+  else
+    pkill -x ollama >/dev/null 2>&1 || true
+  fi
+}
+
+start_ollama() {
+  if command -v systemctl >/dev/null 2>&1; then
+    log "Starting Ollama service"
+    sudo systemctl enable ollama >/dev/null 2>&1 || true
+    sudo systemctl restart ollama
+  else
+    log "Starting Ollama without systemd"
+    if ! pgrep -x ollama >/dev/null 2>&1; then
+      nohup ollama serve >/tmp/ollama.log 2>&1 &
+    fi
+  fi
+}
+
 warm_ollama_model() {
   local response_file
   local http_code
@@ -166,28 +187,8 @@ if [[ $RUN_OLLAMA -eq 1 ]]; then
   if ! command -v ollama >/dev/null 2>&1; then
     curl -fsSL https://ollama.com/install.sh | sh
   fi
-
-  if command -v systemctl >/dev/null 2>&1; then
-    log "Starting Ollama service"
-    sudo systemctl enable ollama >/dev/null 2>&1 || true
-    sudo systemctl restart ollama
-  else
-    log "Starting Ollama without systemd"
-    if ! pgrep -x ollama >/dev/null 2>&1; then
-      nohup ollama serve >/tmp/ollama.log 2>&1 &
-    fi
-  fi
-
-  log "Waiting for Ollama API at $OLLAMA_HOST"
-  wait_for_ollama || fail "Ollama did not become ready at $OLLAMA_HOST"
-
-  log "Pulling Ollama model: $OLLAMA_MODEL"
-  ollama pull "$OLLAMA_MODEL"
-
-  log "Warming Ollama model: $OLLAMA_MODEL"
-  if ! warm_ollama_model; then
-    log "Continuing deployment without blocking on Ollama warm-up"
-  fi
+  log "Stopping Ollama before frontend build"
+  stop_ollama_if_running
 else
   log "Skipping Ollama setup"
 fi
@@ -203,6 +204,21 @@ if [[ $RUN_LINT -eq 1 ]]; then
   npm run lint --prefix frontend
 else
   log "Skipping frontend lint"
+fi
+
+if [[ $RUN_OLLAMA -eq 1 ]]; then
+  start_ollama
+
+  log "Waiting for Ollama API at $OLLAMA_HOST"
+  wait_for_ollama || fail "Ollama did not become ready at $OLLAMA_HOST"
+
+  log "Pulling Ollama model: $OLLAMA_MODEL"
+  ollama pull "$OLLAMA_MODEL"
+
+  log "Warming Ollama model: $OLLAMA_MODEL"
+  if ! warm_ollama_model; then
+    log "Continuing deployment without blocking on Ollama warm-up"
+  fi
 fi
 
 log "Ensuring backend database schema"
