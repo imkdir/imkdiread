@@ -11,6 +11,7 @@ import { ProgressBar } from "../components/ProgressBar";
 import { KindleButton } from "../components/KindleButton";
 import { QuoteCard } from "../components/QuoteCard";
 import { FinderButton } from "../components/FinderButton";
+import { QuoteConversationModal } from "../components/QuoteConversationModal";
 import { DetailActionPanel } from "../components/detail/DetailActionPanel";
 import { DetailQuoteModal } from "../components/detail/DetailQuoteModal";
 import { DetailDropboxLinkModal } from "../components/detail/DetailDropboxLinkModal";
@@ -1424,7 +1425,7 @@ function DetailPage({
       </div>
 
       <DetailQuoteModal
-        isOpen={isAddQuoteModalOpen}
+        isOpen={isAddQuoteModalOpen && editingForm.target === "progress"}
         isSaving={isSavingQuote}
         isExplaining={isExplaining}
         editingForm={editingForm}
@@ -1434,6 +1435,14 @@ function DetailPage({
         onInputChange={handleQuoteInputChange}
         onProgressFinished={handleProgressFinished}
         onExplainPassage={handleExplainPassage}
+      />
+      <QuoteConversationModal
+        isOpen={isAddQuoteModalOpen && editingForm.target === "quote"}
+        workId={work.id}
+        initialQuoteText={editingForm.quote}
+        initialPageNumber={editingForm.pageNumber}
+        onClose={closeAddQuoteModal}
+        onRefresh={fetchData}
       />
       <DetailDropboxLinkModal
         isOpen={isDropboxLinkModalOpen}

@@ -7,6 +7,7 @@ export type AppIconName =
   | "clock-filled"
   | "close"
   | "compass"
+  | "copy"
   | "dictionary"
   | "download"
   | "dropbox"
@@ -29,8 +30,10 @@ export type AppIconName =
   | "star-half"
   | "tag"
   | "trash"
+  | "tools"
   | "upload"
-  | "users";
+  | "users"
+  | "send";
 
 export interface AppIconProps extends Omit<SVGProps<SVGSVGElement>, "name"> {
   name: AppIconName;
@@ -78,6 +81,7 @@ function getSvgProps(
 
 export function AppIcon(props: AppIconProps) {
   const halfStarClipId = useId();
+  const copyMaskId = useId();
 
   switch (props.name) {
     case "home":
@@ -167,6 +171,54 @@ export function AppIcon(props: AppIconProps) {
         >
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      );
+
+    case "tools":
+      return (
+        <svg
+          {...getSvgProps(props, "0 0 24 24")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="4" y1="7" x2="11" y2="7" />
+          <circle cx="16.5" cy="7" r="2.5" />
+          <line x1="20" y1="7" x2="20" y2="7" />
+          <circle cx="7.5" cy="17" r="2.5" />
+          <line x1="12" y1="17" x2="20" y2="17" />
+        </svg>
+      );
+
+    case "copy":
+      return (
+        <svg
+          {...getSvgProps(props, "0 0 24 24")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <defs>
+            <mask id={copyMaskId}>
+              <rect width="24" height="24" fill="white" />
+              <rect
+                x="10"
+                y="4"
+                width="9"
+                height="11"
+                rx="2.2"
+                fill="black"
+                stroke="black"
+                strokeWidth="3.8"
+              />
+            </mask>
+          </defs>
+          <rect x="5" y="7" width="9" height="11" rx="2.2" mask={`url(#${copyMaskId})`} />
+          <rect x="10" y="4" width="9" height="11" rx="2.2" />
         </svg>
       );
 
@@ -345,6 +397,16 @@ export function AppIcon(props: AppIconProps) {
           <path d="M12 21V9" />
           <path d="m17 14-5-5-5 5" />
           <path d="M5 3h14" />
+        </svg>
+      );
+
+    case "send":
+      return (
+        <svg {...getSvgProps(props, "0 0 24 24")}>
+          <path
+            d="M4.15 4.55a1 1 0 0 1 1.17-.16l14.2 6.94a.75.75 0 0 1 0 1.34L5.32 19.61a1 1 0 0 1-1.17-.16.97.97 0 0 1-.22-.99l2.2-5.77a.75.75 0 0 0 0-.54l-2.2-5.62a.97.97 0 0 1 .22-.98Z"
+            fill="currentColor"
+          />
         </svg>
       );
 

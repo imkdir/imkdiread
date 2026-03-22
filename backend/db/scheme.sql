@@ -77,6 +77,15 @@ CREATE TABLE IF NOT EXISTS work_quotes (
   FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS conversations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  quote_id INTEGER NOT NULL,
+  FOREIGN KEY (quote_id) REFERENCES work_quotes(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS user_reading_activities (
   user_id TEXT,
   work_id TEXT,

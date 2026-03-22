@@ -9,6 +9,14 @@ export interface Quote {
   explanation?: string | null;
 }
 
+export interface ConversationMessage {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+  quote_id: number;
+}
+
 export interface ReadingActivity {
   user_id?: string | null;
   work_id: string;

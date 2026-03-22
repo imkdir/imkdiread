@@ -8,6 +8,7 @@ import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { AppIcon } from "./AppIcon";
 import { useAuth } from "./AuthContext";
+import { QuoteConversationModal } from "./QuoteConversationModal";
 import { showToast } from "../utils/toast";
 import "./Modal.css";
 import "./QuoteCard.css";
@@ -20,7 +21,8 @@ interface Props {
 }
 
 interface State {
-  activeDrawer: "edit" | "explain" | null;
+  activeDrawer: "edit" | null;
+  isConversationOpen: boolean;
   editQuote: string;
   editPageNum: string;
   isSaving: boolean;
@@ -33,6 +35,7 @@ class QuoteCardClass extends React.Component<Props, State> {
     super(props);
     this.state = {
       activeDrawer: null,
+      isConversationOpen: false,
       editQuote: props.quote.quote,
       editPageNum: props.quote.page_number
         ? props.quote.page_number.toString()
@@ -63,7 +66,7 @@ class QuoteCardClass extends React.Component<Props, State> {
     }
   };
 
-  toggleFlip = (mode: "edit" | "explain" = "edit", e?: React.MouseEvent) => {
+  toggleFlip = (mode: "edit" = "edit", e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
 
     if (mode === "edit" && !this.canEditOrDelete()) return;
@@ -82,6 +85,15 @@ class QuoteCardClass extends React.Component<Props, State> {
 
   closeDrawer = () => {
     this.setState({ activeDrawer: null });
+  };
+
+  openConversation = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    this.setState({ isConversationOpen: true });
+  };
+
+  closeConversation = () => {
+    this.setState({ isConversationOpen: false });
   };
 
   handleWindowKeyDown = (event: KeyboardEvent) => {
@@ -233,22 +245,7 @@ class QuoteCardClass extends React.Component<Props, State> {
     );
   };
 
-  renderExplanation = () => {
-    const { quote } = this.props;
-
-    return (
-      <div className="quote-card-explanation quote-card-explanation--drawer">
-        <div className="quote-card-explanation-panel">
-          <div className="quote-card-explanation-scroll">
-            <p className="quote-card-explanation-text">{quote.explanation}</p>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   renderDrawer = () => {
-    const { quote } = this.props;
     const { activeDrawer } = this.state;
 
     if (typeof document === "undefined") {
@@ -257,8 +254,7 @@ class QuoteCardClass extends React.Component<Props, State> {
 
     return createPortal(
       <AnimatePresence>
-        {activeDrawer &&
-          !(activeDrawer === "explain" && !quote.explanation) && (
+        {activeDrawer && (
             <motion.div
               className="modal-overlay quote-card-modal-overlay"
               onClick={this.closeDrawer}
@@ -267,7 +263,7 @@ class QuoteCardClass extends React.Component<Props, State> {
               exit={{ opacity: 0 }}
             >
               <motion.div
-                className={`quote-card-modal-shell ${activeDrawer === "edit" ? "quote-card-modal-shell--edit" : "quote-card-modal-shell--explain"}`}
+                className="quote-card-modal-shell quote-card-modal-shell--edit"
                 onClick={(event) => event.stopPropagation()}
                 initial={{ scale: 0.92, y: 24, opacity: 0 }}
                 animate={{ scale: 1, y: 0, opacity: 1 }}
@@ -281,9 +277,7 @@ class QuoteCardClass extends React.Component<Props, State> {
               >
                 <div className="quote-card-modal-panel">
                   <div className="quote-card-modal-header">
-                    <h3 className="quote-card-modal-title">
-                      {activeDrawer === "edit" ? "Edit Quote" : "Explanation"}
-                    </h3>
+                    <h3 className="quote-card-modal-title">Edit Quote</h3>
                     <button
                       type="button"
                       className="quote-card-modal-close"
@@ -295,9 +289,7 @@ class QuoteCardClass extends React.Component<Props, State> {
                   </div>
                   <div className="quote-card-modal-face">
                     <div className="quote-card-drawer-theme">
-                      {activeDrawer === "edit"
-                        ? this.renderEditForm()
-                        : this.renderExplanation()}
+                      {this.renderEditForm()}
                     </div>
                   </div>
                 </div>
@@ -313,8 +305,7 @@ class QuoteCardClass extends React.Component<Props, State> {
     const { quote, displaySource } = this.props;
 
     const hasPermission = this.canEditOrDelete();
-    const showQuoteMeta =
-      quote.page_number || (displaySource && quote.work) || quote.explanation;
+    const showQuoteMeta = true;
 
     return (
       <>
@@ -336,19 +327,17 @@ class QuoteCardClass extends React.Component<Props, State> {
                     {quote.work.title}
                   </Link>
                 )}
-                {!!quote.explanation && (
-                  <button
-                    type="button"
-                    onClick={(e) => this.toggleFlip("explain", e)}
-                    className="quote-explain-button"
-                  >
-                    <AppIcon
-                      name="gemini"
-                      className="quote-explain-icon"
-                      title="Gemini"
-                    />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={(e) => this.openConversation(e)}
+                  className="quote-explain-button"
+                >
+                  <AppIcon
+                    name="gemini"
+                    className="quote-explain-icon"
+                    title="Gemini"
+                  />
+                </button>
               </div>
             )}
 
@@ -365,6 +354,13 @@ class QuoteCardClass extends React.Component<Props, State> {
         </motion.div>
 
         {this.renderDrawer()}
+        <QuoteConversationModal
+          isOpen={this.state.isConversationOpen}
+          workId={quote.work_id}
+          quote={quote}
+          onClose={this.closeConversation}
+          onRefresh={this.props.onRefresh}
+        />
       </>
     );
   }

@@ -68,6 +68,11 @@ const workCoverUpload = multer({
 
 function createWorksRouter({ db, workService, inboxService }) {
   const router = express.Router();
+  const supportedQuoteChatTools = new Set(["chat", "analyze", "translate"]);
+  const supportedQuoteChatModels = new Set([
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+  ]);
 
   function sortWorksById(works) {
     return [...works].sort((left, right) =>
@@ -140,6 +145,183 @@ function createWorksRouter({ db, workService, inboxService }) {
         tags,
       },
     };
+  }
+
+  function getAccessibleQuote({ quoteId, userId, isAdmin }) {
+    return isAdmin
+      ? db.prepare("SELECT * FROM work_quotes WHERE id = ?").get(quoteId)
+      : db
+          .prepare("SELECT * FROM work_quotes WHERE id = ? AND user_id = ?")
+          .get(quoteId, userId);
+  }
+
+  function getQuoteConversations(quoteId) {
+    return db
+      .prepare(
+        `SELECT id, role, content, created_at, quote_id
+         FROM conversations
+         WHERE quote_id = ?
+         ORDER BY datetime(created_at) ASC, id ASC`,
+      )
+      .all(quoteId);
+  }
+
+  function ensureLegacyExplanationConversation(quoteRow) {
+    if (!quoteRow?.id) {
+      return [];
+    }
+
+    const existingConversations = getQuoteConversations(quoteRow.id);
+    const hasUserConversation = existingConversations.some(
+      (entry) => entry.role === "user",
+    );
+    const hasAssistantConversation = existingConversations.some(
+      (entry) => entry.role === "assistant",
+    );
+
+    if (!existingConversations.length && quoteRow.explanation) {
+      db.transaction(() => {
+        db.prepare(
+          `INSERT INTO conversations (role, content, created_at, quote_id)
+           VALUES (?, ?, ?, ?)`,
+        ).run("user", quoteRow.quote, quoteRow.created_at, quoteRow.id);
+        db.prepare(
+          `INSERT INTO conversations (role, content, created_at, quote_id)
+           VALUES (?, ?, ?, ?)`,
+        ).run(
+          "assistant",
+          quoteRow.explanation,
+          quoteRow.created_at,
+          quoteRow.id,
+        );
+      })();
+
+      return getQuoteConversations(quoteRow.id);
+    }
+
+    if (!hasUserConversation && hasAssistantConversation) {
+      const createdAt =
+        quoteRow.created_at || existingConversations[0]?.created_at;
+
+      db.prepare(
+        `INSERT INTO conversations (role, content, created_at, quote_id)
+         VALUES (?, ?, ?, ?)`,
+      ).run("user", quoteRow.quote, createdAt, quoteRow.id);
+
+      return getQuoteConversations(quoteRow.id);
+    }
+
+    return existingConversations;
+  }
+
+  function getLatestReplaceableQuoteTurn(conversations) {
+    if (!Array.isArray(conversations) || conversations.length === 0) {
+      return { userEntry: null, assistantEntry: null, remaining: [] };
+    }
+
+    let assistantIndex = -1;
+    for (let index = conversations.length - 1; index >= 0; index -= 1) {
+      if (conversations[index]?.role === "assistant") {
+        assistantIndex = index;
+        break;
+      }
+    }
+
+    let userIndex = -1;
+    const searchStart =
+      assistantIndex >= 0 ? assistantIndex - 1 : conversations.length - 1;
+    for (let index = searchStart; index >= 0; index -= 1) {
+      if (conversations[index]?.role === "user") {
+        userIndex = index;
+        break;
+      }
+    }
+
+    if (userIndex < 0) {
+      return { userEntry: null, assistantEntry: null, remaining: conversations };
+    }
+
+    const removableIds = new Set([conversations[userIndex].id]);
+    if (assistantIndex > userIndex) {
+      removableIds.add(conversations[assistantIndex].id);
+    }
+
+    return {
+      userEntry: conversations[userIndex],
+      assistantEntry:
+        assistantIndex > userIndex ? conversations[assistantIndex] : null,
+      remaining: conversations.filter((entry) => !removableIds.has(entry.id)),
+    };
+  }
+
+  function buildQuoteChatSystemInstruction({
+    workTitle,
+    quoteText,
+    tool,
+    targetLanguage,
+  }) {
+    const sharedContext = `You are an insightful literary reading companion helping someone read "${workTitle}".
+The canonical quoted passage for this conversation is:
+"${quoteText}"
+
+Ground every reply in the quoted passage and the immediate scene around it.
+Do not repeat generic plot summaries or broad character bios unless the user explicitly asks.
+Keep replies clear, specific, and helpful.`;
+
+    if (tool === "translate") {
+      return `${sharedContext}
+
+The user has selected the translate tool.
+Translate the latest user message into ${targetLanguage || "English"} with literary sensitivity.
+If the latest user message is just the original passage, translate that passage.
+Respond with the translated passage first.
+If useful, add a separate explanatory note after a line containing exactly "---".
+Do not add any headings like "Translator note:" or any preamble before the translation.`;
+    }
+
+    if (tool === "analyze") {
+      return `${sharedContext}
+
+The user has selected the analyze tool.
+Explain the passage's tone, imagery, syntax, subtext, or references with specificity.
+If the latest user message is only the passage text, treat it as a request to analyze that passage directly.`;
+    }
+
+    return `${sharedContext}
+
+The user is in a running chat about this quote.
+Answer conversationally, continue the thread naturally, and stay focused on the text.`;
+  }
+
+  async function generateQuoteChatReply({
+    workTitle,
+    quoteText,
+    conversations,
+    userMessage,
+    tool,
+    modelName,
+    targetLanguage,
+  }) {
+    const history = conversations.map((entry) => ({
+      role: entry.role === "assistant" ? "model" : "user",
+      parts: [{ text: entry.content }],
+    }));
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      systemInstruction: buildQuoteChatSystemInstruction({
+        workTitle,
+        quoteText,
+        tool,
+        targetLanguage,
+      }),
+    });
+
+    const chat = model.startChat({ history });
+    const result = await chat.sendMessage(userMessage);
+
+    return String(result.response.text() || "").trim();
   }
 
   router.get("/api/explore", authenticateToken, (req, res) => {
@@ -918,6 +1100,243 @@ function createWorksRouter({ db, workService, inboxService }) {
     }
   });
 
+  router.get("/api/quotes/:id/chat", authenticateToken, (req, res) => {
+    try {
+      const quoteId = Number(req.params.id);
+      const quote = getAccessibleQuote({
+        quoteId,
+        userId: req.user.id,
+        isAdmin: req.user.role === "admin",
+      });
+
+      if (!quote) {
+        return jsonError(res, 404, "Quote not found.");
+      }
+
+      const conversations = ensureLegacyExplanationConversation(quote);
+      res.json({ success: true, quote, conversations });
+    } catch (error) {
+      console.error("Failed to load quote chat:", error);
+      res.status(500).json({ error: "Failed to load quote chat." });
+    }
+  });
+
+  router.delete("/api/quotes/:id/chat", authenticateToken, (req, res) => {
+    try {
+      const quoteId = Number(req.params.id);
+      const quote = getAccessibleQuote({
+        quoteId,
+        userId: req.user.id,
+        isAdmin: req.user.role === "admin",
+      });
+
+      if (!quote) {
+        return jsonError(res, 404, "Quote not found.");
+      }
+
+      db.prepare("DELETE FROM conversations WHERE quote_id = ?").run(quoteId);
+      db.prepare("UPDATE work_quotes SET explanation = NULL WHERE id = ?").run(
+        quoteId,
+      );
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to clear quote chat:", error);
+      res.status(500).json({ error: "Failed to clear quote chat." });
+    }
+  });
+
+  router.post(
+    "/api/works/:id/quotes/chat",
+    authenticateToken,
+    async (req, res) => {
+      try {
+        const workId = req.params.id;
+        const userId = req.user.id;
+        const isAdmin = req.user.role === "admin";
+        const quoteIdRaw = req.body?.quoteId;
+        const quoteId = quoteIdRaw ? Number(quoteIdRaw) : null;
+        const quoteText = asOptionalString(req.body?.quote);
+        const message = asOptionalString(req.body?.message);
+        const tool = asOptionalString(req.body?.tool) || "chat";
+        const modelName =
+          asOptionalString(req.body?.model) || "gemini-2.5-flash";
+        const targetLanguage =
+          asOptionalString(req.body?.targetLanguage) || "English";
+        const replaceLatestTurn = req.body?.replaceLatestTurn === true;
+        const pageNumberRaw = req.body?.pageNumber;
+        const pageNumber =
+          pageNumberRaw === null ||
+          pageNumberRaw === undefined ||
+          `${pageNumberRaw}`.trim() === ""
+            ? null
+            : workService.normalizePageNumber(pageNumberRaw);
+        const hasExplicitPageNumber =
+          pageNumberRaw !== undefined &&
+          pageNumberRaw !== null &&
+          `${pageNumberRaw}`.trim() !== "";
+
+        if (!supportedQuoteChatTools.has(tool)) {
+          return jsonError(res, 400, "Invalid chat tool.");
+        }
+        if (!supportedQuoteChatModels.has(modelName)) {
+          return jsonError(res, 400, "Invalid chat model.");
+        }
+        if (quoteIdRaw !== undefined && quoteIdRaw !== null && !quoteId) {
+          return jsonError(res, 400, "Invalid quoteId.");
+        }
+        if (hasExplicitPageNumber && pageNumber === null) {
+          return jsonError(res, 400, "pageNumber must be a positive integer.");
+        }
+
+        const work = db
+          .prepare("SELECT id, title FROM works WHERE id = ?")
+          .get(workId);
+        if (!work) {
+          return jsonError(res, 404, "Work not found.");
+        }
+
+        let quote = quoteId
+          ? getAccessibleQuote({ quoteId, userId, isAdmin })
+          : null;
+
+        if (quote && quote.work_id !== workId) {
+          return jsonError(res, 400, "Quote does not belong to this work.");
+        }
+
+        if (!quote && !quoteText) {
+          return jsonError(res, 400, "Quote text is required.");
+        }
+        if (replaceLatestTurn && !quote?.id) {
+          return jsonError(
+            res,
+            400,
+            "A saved quote is required to replace the latest turn.",
+          );
+        }
+
+        const userMessage = message || quoteText;
+        if (!userMessage) {
+          return jsonError(res, 400, "Message is required.");
+        }
+
+        if (!quote) {
+          const insertResult = db
+            .prepare(
+              `INSERT INTO work_quotes (work_id, user_id, quote, page_number, explanation)
+               VALUES (?, ?, ?, ?, ?)`,
+            )
+            .run(workId, userId, quoteText, pageNumber, null);
+          quote = db
+            .prepare("SELECT * FROM work_quotes WHERE id = ?")
+            .get(insertResult.lastInsertRowid);
+        }
+
+        const existingConversations = ensureLegacyExplanationConversation(quote);
+        const latestTurn = replaceLatestTurn
+          ? getLatestReplaceableQuoteTurn(existingConversations)
+          : null;
+
+        if (replaceLatestTurn && !latestTurn?.userEntry) {
+          return jsonError(
+            res,
+            400,
+            "There is no recent user turn to replace.",
+          );
+        }
+
+        const promptHistory =
+          replaceLatestTurn && latestTurn
+            ? latestTurn.remaining
+            : existingConversations;
+        const assistantContent = await generateQuoteChatReply({
+          workTitle: work.title,
+          quoteText: quote.quote,
+          conversations: promptHistory,
+          userMessage,
+          tool,
+          modelName,
+          targetLanguage,
+        });
+
+        if (!assistantContent) {
+          return jsonError(res, 502, "The model returned an empty reply.");
+        }
+
+        const persistEntries = db.transaction(() => {
+          const insertConversation = db.prepare(
+            `INSERT INTO conversations (role, content, quote_id)
+             VALUES (?, ?, ?)`,
+          );
+
+          if (replaceLatestTurn && latestTurn?.userEntry?.id) {
+            const removableIds = [latestTurn.userEntry.id];
+            if (latestTurn.assistantEntry?.id) {
+              removableIds.push(latestTurn.assistantEntry.id);
+            }
+
+            const placeholders = removableIds.map(() => "?").join(", ");
+            db.prepare(
+              `DELETE FROM conversations
+               WHERE quote_id = ? AND id IN (${placeholders})`,
+            ).run(quote.id, ...removableIds);
+
+            if (
+              quote.explanation &&
+              latestTurn.assistantEntry?.content === quote.explanation
+            ) {
+              db.prepare("UPDATE work_quotes SET explanation = NULL WHERE id = ?").run(
+                quote.id,
+              );
+            }
+          }
+
+          const userResult = insertConversation.run(
+            "user",
+            userMessage,
+            quote.id,
+          );
+          const assistantResult = insertConversation.run(
+            "assistant",
+            assistantContent,
+            quote.id,
+          );
+
+          if (tool === "analyze") {
+            db.prepare("UPDATE work_quotes SET explanation = ? WHERE id = ?").run(
+              assistantContent,
+              quote.id,
+            );
+          }
+
+          return db
+            .prepare(
+              `SELECT id, role, content, created_at, quote_id
+               FROM conversations
+               WHERE id IN (?, ?)
+               ORDER BY id ASC`,
+            )
+            .all(userResult.lastInsertRowid, assistantResult.lastInsertRowid);
+        });
+
+        const entries = persistEntries();
+        const freshQuote = db
+          .prepare("SELECT * FROM work_quotes WHERE id = ?")
+          .get(quote.id);
+
+        res.json({
+          success: true,
+          quote: freshQuote,
+          conversations: entries,
+          model: modelName,
+          tool,
+        });
+      } catch (error) {
+        console.error("Quote chat failed:", error);
+        res.status(500).json({ error: "Failed to continue quote chat." });
+      }
+    },
+  );
+
   // ============================================================================
   // DOMAIN: VOCABULARIES
   // ============================================================================
@@ -925,6 +1344,98 @@ function createWorksRouter({ db, workService, inboxService }) {
   // ============================================================================
   // DOMAIN: CONTEXT LOOKUP
   // ============================================================================
+  router.post(
+    "/api/works/:id/quotes/translate",
+    authenticateToken,
+    async (req, res) => {
+      try {
+        const workId = req.params.id;
+        const userId = req.user.id;
+        const text = asNonEmptyString(req.body?.text);
+        const targetLanguage =
+          asOptionalString(req.body?.targetLanguage) || "modern English";
+
+        if (!text) return res.status(400).json({ error: "Text is required" });
+
+        const work = db
+          .prepare("SELECT title FROM works WHERE id = ?")
+          .get(workId);
+        if (!work) return res.status(404).json({ error: "Work not found" });
+
+        const pastQuotes = db
+          .prepare(
+            `
+            SELECT quote, explanation
+            FROM work_quotes
+            WHERE user_id = ? AND work_id = ?
+            ORDER BY created_at DESC
+            LIMIT 4
+          `,
+          )
+          .all(userId, workId)
+          .reverse();
+
+        const chatHistory = pastQuotes.flatMap((row) => [
+          {
+            role: "user",
+            parts: [{ text: `Context passage: "${row.quote}"` }],
+          },
+          {
+            role: "model",
+            parts: [
+              {
+                text: row.explanation
+                  ? `Noted. This passage sits in the reading context as: ${row.explanation}`
+                  : "Noted. I will retain this as nearby reading context.",
+              },
+            ],
+          },
+        ]);
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({
+          model: "gemini-2.5-flash",
+          generationConfig: { responseMimeType: "application/json" },
+          systemInstruction: `You are an expert literary translator and cultural historian. The user is currently reading the book "${work.title}".
+              They will provide a passage, phrase, or idiom that they need translated into ${targetLanguage}.
+
+              Your tasks:
+              1. Identify the original language of the passage.
+              2. Provide a highly accurate, beautifully written literary translation in ${targetLanguage}.
+              3. Explain difficult idioms, historical references, or unusual syntax in "translator_note" when needed.
+              4. If the text is archaic English and the target language is English, translate it into modern, readable English.
+
+              CRITICAL RULE: You are part of a continuous reading session. Use the provided recent quote context only to understand the immediate scene and tone.
+
+              You must respond with only a valid JSON object matching this schema:
+              {
+                "detected_language": "The language of the original text",
+                "original_text": "The perfectly formatted original text.",
+                "translation": "Your literary translation in ${targetLanguage}.",
+                "translator_note": "Helpful context in ${targetLanguage}, or null if the passage is straightforward."
+              }`,
+        });
+
+        const chat = model.startChat({ history: chatHistory });
+        const result = await chat.sendMessage(
+          `Translate this passage: "${text}"`,
+        );
+        const responseText = result.response.text();
+
+        try {
+          const data = JSON.parse(responseText);
+          return res.json({ success: true, result: data });
+        } catch (parseError) {
+          console.error("Gemini Translation JSON Error:", responseText);
+          return res.status(500).json({ error: "Failed to parse translation." });
+        }
+      } catch (error) {
+        console.error("Translation Error:", error);
+        res.status(500).json({ error: "Failed to translate passage." });
+      }
+    },
+  );
+
   router.post(
     "/api/works/:id/context/lookup",
     authenticateToken,

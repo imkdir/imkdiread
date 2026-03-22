@@ -96,6 +96,14 @@ function seedTestDb(targetDbPath) {
       user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(work_id) REFERENCES works(id) ON DELETE CASCADE
     );
+    CREATE TABLE conversations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      quote_id INTEGER NOT NULL,
+      FOREIGN KEY(quote_id) REFERENCES work_quotes(id) ON DELETE CASCADE
+    );
     CREATE TABLE user_reading_activities (
       user_id TEXT,
       work_id TEXT,
@@ -439,7 +447,7 @@ test.before(async () => {
 
   originalGetGenerativeModel = GoogleGenerativeAI.prototype.getGenerativeModel;
   originalFetch = global.fetch;
-  GoogleGenerativeAI.prototype.getGenerativeModel = function getModel() {
+  GoogleGenerativeAI.prototype.getGenerativeModel = function getModel(config) {
     return {
       generateContent: async (prompt) => {
         const text = String(prompt);
@@ -474,13 +482,38 @@ test.before(async () => {
         };
       },
       startChat: () => ({
-        sendMessage: async () => ({
+        sendMessage: async (prompt) => ({
           response: {
-            text: () =>
-              JSON.stringify({
+            text: () => {
+              const text = String(prompt);
+              const systemInstruction = String(config?.systemInstruction || "");
+
+              if (text.includes("Translate this passage")) {
+                return JSON.stringify({
+                  detected_language: "French",
+                  original_text: "Une phrase bien formatee.",
+                  translation: "A well-formatted sentence.",
+                  translator_note: "A brief translation note.",
+                });
+              }
+
+              if (systemInstruction.includes("selected the translate tool")) {
+                return "Translation (English): A well-formatted sentence.";
+              }
+
+              if (systemInstruction.includes("selected the analyze tool")) {
+                return "A close reading of the passage.";
+              }
+
+              if (systemInstruction.includes("running chat about this quote")) {
+                return "A conversational reading response.";
+              }
+
+              return JSON.stringify({
                 cleaned_quote: "A cleaned passage.",
                 explanation: "A concise explanation.",
-              }),
+              });
+            },
           },
         }),
       }),
@@ -1718,6 +1751,196 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(explain.json?.success, true);
   assert.equal(explain.json?.result?.cleaned_quote, "A cleaned passage.");
 
+  const translate = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/quotes/translate`,
+    {
+      text: "Une phrase bien formatée.",
+      targetLanguage: "English",
+    },
+    guestToken,
+  );
+  assert.equal(translate.status, 200);
+  assert.equal(translate.json?.success, true);
+  assert.equal(translate.json?.result?.detected_language, "French");
+  assert.equal(
+    translate.json?.result?.translation,
+    "A well-formatted sentence.",
+  );
+
+  const legacyQuoteId = appDb
+    .prepare(
+      "SELECT id FROM work_quotes WHERE work_id = ? AND user_id = ? AND quote = ?",
+    )
+    .get("W1", "guest-1", "We are what we repeatedly do.")?.id;
+  assert.equal(typeof legacyQuoteId, "number");
+
+  const legacyQuoteChatHistory = await requestJson(
+    "GET",
+    `/api/quotes/${legacyQuoteId}/chat`,
+    undefined,
+    guestToken,
+  );
+  assert.equal(legacyQuoteChatHistory.status, 200);
+  assert.equal(legacyQuoteChatHistory.json?.success, true);
+  assert.equal(legacyQuoteChatHistory.json?.conversations?.length, 2);
+  assert.equal(legacyQuoteChatHistory.json?.conversations?.[0]?.role, "user");
+  assert.equal(
+    legacyQuoteChatHistory.json?.conversations?.[0]?.content,
+    "We are what we repeatedly do.",
+  );
+  assert.equal(
+    legacyQuoteChatHistory.json?.conversations?.[1]?.role,
+    "assistant",
+  );
+  assert.equal(
+    legacyQuoteChatHistory.json?.conversations?.[1]?.content,
+    "Classic line",
+  );
+
+  const legacyQuoteChatReply = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent("W1")}/quotes/chat`,
+    {
+      quoteId: legacyQuoteId,
+      message: "Can you say more about this?",
+      tool: "chat",
+      model: "gemini-2.5-flash",
+    },
+    guestToken,
+  );
+  assert.equal(legacyQuoteChatReply.status, 200);
+  assert.equal(legacyQuoteChatReply.json?.success, true);
+  assert.equal(
+    legacyQuoteChatReply.json?.conversations?.[1]?.content,
+    "A conversational reading response.",
+  );
+
+  const quoteChatCreate = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/quotes/chat`,
+    {
+      quote: "A passage to discuss.",
+      pageNumber: 24,
+      message: "A passage to discuss.",
+      tool: "analyze",
+      model: "gemini-2.5-flash",
+    },
+    guestToken,
+  );
+  assert.equal(quoteChatCreate.status, 200);
+  assert.equal(quoteChatCreate.json?.success, true);
+  assert.equal(quoteChatCreate.json?.quote?.quote, "A passage to discuss.");
+  assert.equal(quoteChatCreate.json?.conversations?.length, 2);
+
+  const chatQuoteId = quoteChatCreate.json?.quote?.id;
+  assert.equal(typeof chatQuoteId, "number");
+
+  const quoteChatHistory = await requestJson(
+    "GET",
+    `/api/quotes/${chatQuoteId}/chat`,
+    undefined,
+    guestToken,
+  );
+  assert.equal(quoteChatHistory.status, 200);
+  assert.equal(quoteChatHistory.json?.success, true);
+  assert.equal(quoteChatHistory.json?.conversations?.length, 2);
+  assert.equal(
+    quoteChatHistory.json?.conversations?.[1]?.content,
+    "A close reading of the passage.",
+  );
+
+  const quoteChatReply = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/quotes/chat`,
+    {
+      quoteId: chatQuoteId,
+      message: "What do you make of its tone?",
+      tool: "chat",
+      model: "gemini-2.5-pro",
+    },
+    guestToken,
+  );
+  assert.equal(quoteChatReply.status, 200);
+  assert.equal(quoteChatReply.json?.success, true);
+  assert.equal(
+    quoteChatReply.json?.conversations?.[1]?.content,
+    "A conversational reading response.",
+  );
+
+  const quoteChatTranslate = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/quotes/chat`,
+    {
+      quoteId: chatQuoteId,
+      message: "Translate this into English.",
+      tool: "translate",
+      model: "gemini-2.5-flash",
+      targetLanguage: "English",
+    },
+    guestToken,
+  );
+  assert.equal(quoteChatTranslate.status, 200);
+  assert.equal(quoteChatTranslate.json?.success, true);
+  assert.equal(
+    quoteChatTranslate.json?.conversations?.[1]?.content,
+    "Translation (English): A well-formatted sentence.",
+  );
+
+  const quoteChatReplaceLatest = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/quotes/chat`,
+    {
+      quoteId: chatQuoteId,
+      message: "Actually, analyze this revised phrasing instead.",
+      tool: "analyze",
+      model: "gemini-2.5-flash",
+      replaceLatestTurn: true,
+    },
+    guestToken,
+  );
+  assert.equal(quoteChatReplaceLatest.status, 200);
+  assert.equal(quoteChatReplaceLatest.json?.success, true);
+  assert.equal(
+    quoteChatReplaceLatest.json?.conversations?.[0]?.content,
+    "Actually, analyze this revised phrasing instead.",
+  );
+  assert.equal(
+    quoteChatReplaceLatest.json?.conversations?.[1]?.content,
+    "A close reading of the passage.",
+  );
+  assert.equal(
+    quoteChatReplaceLatest.json?.quote?.explanation,
+    "A close reading of the passage.",
+  );
+
+  const quoteChatHistoryAfterReplace = await requestJson(
+    "GET",
+    `/api/quotes/${chatQuoteId}/chat`,
+    undefined,
+    guestToken,
+  );
+  assert.equal(quoteChatHistoryAfterReplace.status, 200);
+  assert.equal(quoteChatHistoryAfterReplace.json?.success, true);
+  assert.equal(quoteChatHistoryAfterReplace.json?.conversations?.length, 6);
+  assert.equal(
+    quoteChatHistoryAfterReplace.json?.conversations?.[4]?.content,
+    "Actually, analyze this revised phrasing instead.",
+  );
+  assert.equal(
+    quoteChatHistoryAfterReplace.json?.conversations?.[5]?.content,
+    "A close reading of the passage.",
+  );
+
+  const clearQuoteChat = await requestJson(
+    "DELETE",
+    `/api/quotes/${chatQuoteId}/chat`,
+    undefined,
+    guestToken,
+  );
+  assert.equal(clearQuoteChat.status, 200);
+  assert.equal(clearQuoteChat.json?.success, true);
+
   const vocabCreate = await requestJson(
     "POST",
     `/api/works/${encodeURIComponent(workId)}/vocabularies`,
@@ -1969,6 +2192,11 @@ test("ensure database schema script bootstraps missing tables and columns", () =
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user_notifications'",
       )
       .get();
+    const conversationsTable = ensuredDb
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'conversations'",
+      )
+      .get();
 
     const seriesTable = ensuredDb
       .prepare(
@@ -1984,6 +2212,7 @@ test("ensure database schema script bootstraps missing tables and columns", () =
     assert.ok(activityTable);
     assert.ok(inboxAlertsTable);
     assert.ok(inboxNotificationsTable);
+    assert.ok(conversationsTable);
     assert.equal(seriesTable, undefined);
 
     ensuredDb.close();
