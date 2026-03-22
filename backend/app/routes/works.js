@@ -69,10 +69,186 @@ const workCoverUpload = multer({
 function createWorksRouter({ db, workService, inboxService }) {
   const router = express.Router();
   const supportedQuoteChatTools = new Set(["chat", "analyze", "translate"]);
-  const supportedQuoteChatModels = new Set([
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-  ]);
+  const GEMINI_QUOTE_CHAT_MODELS = [
+    {
+      id: "gemini:gemini-2.5-flash",
+      provider: "gemini",
+      provider_label: "Gemini",
+      name: "gemini-2.5-flash",
+      label: "Gemini Flash",
+      short_label: "Flash",
+    },
+    {
+      id: "gemini:gemini-2.5-pro",
+      provider: "gemini",
+      provider_label: "Gemini",
+      name: "gemini-2.5-pro",
+      label: "Gemini Pro",
+      short_label: "Pro",
+    },
+  ];
+  const supportedGeminiQuoteChatModels = new Set(
+    GEMINI_QUOTE_CHAT_MODELS.map((model) => model.name),
+  );
+  const defaultQuoteChatModelId = GEMINI_QUOTE_CHAT_MODELS[0].id;
+  const ollamaHost = String(
+    process.env.OLLAMA_HOST || "http://127.0.0.1:11434",
+  ).replace(/\/+$/, "");
+  const ollamaProviderLabel = "Ollama";
+  const configuredOllamaModel = asOptionalString(
+    process.env.OLLAMA_CLIP_ANALYSIS_MODEL,
+  );
+
+  function getGeminiQuoteChatModels() {
+    return GEMINI_QUOTE_CHAT_MODELS.map((model) => ({ ...model }));
+  }
+
+  function buildQuoteChatModelId(provider, modelName) {
+    return `${provider}:${modelName}`;
+  }
+
+  function parseRequestedQuoteChatModel(requestedModelId) {
+    const normalizedModelId =
+      asOptionalString(requestedModelId) || defaultQuoteChatModelId;
+
+    const legacyGeminiModel = GEMINI_QUOTE_CHAT_MODELS.find(
+      (model) =>
+        model.name === normalizedModelId || model.id === normalizedModelId,
+    );
+    if (legacyGeminiModel) {
+      return { ...legacyGeminiModel };
+    }
+
+    const separatorIndex = normalizedModelId.indexOf(":");
+    if (separatorIndex <= 0 || separatorIndex >= normalizedModelId.length - 1) {
+      return null;
+    }
+
+    const provider = normalizedModelId.slice(0, separatorIndex);
+    const modelName = normalizedModelId.slice(separatorIndex + 1).trim();
+    if (!modelName) {
+      return null;
+    }
+
+    if (provider === "gemini") {
+      if (!supportedGeminiQuoteChatModels.has(modelName)) {
+        return null;
+      }
+
+      return (
+        GEMINI_QUOTE_CHAT_MODELS.find((model) => model.name === modelName) || null
+      );
+    }
+
+    if (provider === "ollama") {
+      return {
+        id: buildQuoteChatModelId(provider, modelName),
+        provider,
+        provider_label: ollamaProviderLabel,
+        name: modelName,
+        label: modelName,
+        short_label: modelName,
+      };
+    }
+
+    return null;
+  }
+
+  async function fetchOllamaQuoteChatModels() {
+    const fallbackModels = configuredOllamaModel
+      ? [
+          {
+            id: buildQuoteChatModelId("ollama", configuredOllamaModel),
+            provider: "ollama",
+            provider_label: ollamaProviderLabel,
+            name: configuredOllamaModel,
+            label: `${ollamaProviderLabel} ${configuredOllamaModel}`,
+            short_label: configuredOllamaModel,
+          },
+        ]
+      : [];
+
+    if (!ollamaHost) {
+      return { models: fallbackModels, warnings: [] };
+    }
+
+    try {
+      const response = await fetch(`${ollamaHost}/api/tags`);
+      if (!response.ok) {
+        throw new Error(`Ollama returned ${response.status}.`);
+      }
+
+      const data = await response.json();
+      const seenModelIds = new Set();
+      const models = Array.isArray(data?.models)
+        ? data.models
+            .map((entry) => {
+              const modelName = asOptionalString(entry?.model || entry?.name);
+              if (!modelName) {
+                return null;
+              }
+
+              const modelId = buildQuoteChatModelId("ollama", modelName);
+              if (seenModelIds.has(modelId)) {
+                return null;
+              }
+              seenModelIds.add(modelId);
+
+              const displayLabel = asOptionalString(entry?.name) || modelName;
+              return {
+                id: modelId,
+                provider: "ollama",
+                provider_label: ollamaProviderLabel,
+                name: modelName,
+                label: `${ollamaProviderLabel} ${displayLabel}`,
+                short_label: displayLabel,
+              };
+            })
+            .filter(Boolean)
+            .sort((left, right) =>
+              String(left?.label || "").localeCompare(
+                String(right?.label || ""),
+                undefined,
+                { sensitivity: "base" },
+              ),
+            )
+        : [];
+
+      const mergedModels = [...models];
+      if (
+        configuredOllamaModel &&
+        !mergedModels.some((model) => model.name === configuredOllamaModel)
+      ) {
+        mergedModels.unshift(fallbackModels[0]);
+      }
+
+      return { models: mergedModels, warnings: [] };
+    } catch (error) {
+      return {
+        models: fallbackModels,
+        warnings: [
+          {
+            provider: "ollama",
+            message:
+              error instanceof Error
+                ? error.message
+                : `${ollamaProviderLabel} is unavailable.`,
+          },
+        ],
+      };
+    }
+  }
+
+  async function listQuoteChatModels() {
+    const geminiModels = getGeminiQuoteChatModels();
+    const ollamaModelsResult = await fetchOllamaQuoteChatModels();
+
+    return {
+      models: [...geminiModels, ...ollamaModelsResult.models],
+      default_model: defaultQuoteChatModelId,
+      warnings: ollamaModelsResult.warnings,
+    };
+  }
 
   function sortWorksById(works) {
     return [...works].sort((left, right) =>
@@ -293,7 +469,7 @@ The user is in a running chat about this quote.
 Answer conversationally, continue the thread naturally, and stay focused on the text.`;
   }
 
-  async function generateQuoteChatReply({
+  async function generateGeminiQuoteChatReply({
     workTitle,
     quoteText,
     conversations,
@@ -322,6 +498,89 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
     const result = await chat.sendMessage(userMessage);
 
     return String(result.response.text() || "").trim();
+  }
+
+  async function generateOllamaQuoteChatReply({
+    workTitle,
+    quoteText,
+    conversations,
+    userMessage,
+    tool,
+    modelName,
+    targetLanguage,
+  }) {
+    const messages = [
+      {
+        role: "system",
+        content: buildQuoteChatSystemInstruction({
+          workTitle,
+          quoteText,
+          tool,
+          targetLanguage,
+        }),
+      },
+      ...conversations.map((entry) => ({
+        role: entry.role === "assistant" ? "assistant" : "user",
+        content: entry.content,
+      })),
+      { role: "user", content: userMessage },
+    ];
+
+    const response = await fetch(`${ollamaHost}/api/chat`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to reach ${ollamaProviderLabel}. (${response.status})`,
+      );
+    }
+
+    const data = await response.json();
+    const assistantContent =
+      asOptionalString(data?.message?.content) || asOptionalString(data?.response);
+
+    return String(assistantContent || "").trim();
+  }
+
+  async function generateQuoteChatReply({
+    workTitle,
+    quoteText,
+    conversations,
+    userMessage,
+    tool,
+    model,
+    targetLanguage,
+  }) {
+    if (model.provider === "ollama") {
+      return generateOllamaQuoteChatReply({
+        workTitle,
+        quoteText,
+        conversations,
+        userMessage,
+        tool,
+        modelName: model.name,
+        targetLanguage,
+      });
+    }
+
+    return generateGeminiQuoteChatReply({
+      workTitle,
+      quoteText,
+      conversations,
+      userMessage,
+      tool,
+      modelName: model.name,
+      targetLanguage,
+    });
   }
 
   router.get("/api/explore", authenticateToken, (req, res) => {
@@ -1145,6 +1404,16 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
     }
   });
 
+  router.get("/api/quote-chat/models", authenticateToken, async (_req, res) => {
+    try {
+      const modelCatalog = await listQuoteChatModels();
+      res.json({ success: true, ...modelCatalog });
+    } catch (error) {
+      console.error("Failed to load quote chat models:", error);
+      res.status(500).json({ error: "Failed to load quote chat models." });
+    }
+  });
+
   router.post(
     "/api/works/:id/quotes/chat",
     authenticateToken,
@@ -1158,8 +1427,9 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
         const quoteText = asOptionalString(req.body?.quote);
         const message = asOptionalString(req.body?.message);
         const tool = asOptionalString(req.body?.tool) || "chat";
-        const modelName =
-          asOptionalString(req.body?.model) || "gemini-2.5-flash";
+        const requestedModelId =
+          asOptionalString(req.body?.model) || defaultQuoteChatModelId;
+        const model = parseRequestedQuoteChatModel(requestedModelId);
         const targetLanguage =
           asOptionalString(req.body?.targetLanguage) || "English";
         const replaceLatestTurn = req.body?.replaceLatestTurn === true;
@@ -1178,7 +1448,7 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
         if (!supportedQuoteChatTools.has(tool)) {
           return jsonError(res, 400, "Invalid chat tool.");
         }
-        if (!supportedQuoteChatModels.has(modelName)) {
+        if (!model) {
           return jsonError(res, 400, "Invalid chat model.");
         }
         if (quoteIdRaw !== undefined && quoteIdRaw !== null && !quoteId) {
@@ -1254,7 +1524,7 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
           conversations: promptHistory,
           userMessage,
           tool,
-          modelName,
+          model,
           targetLanguage,
         });
 
@@ -1327,7 +1597,7 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
           success: true,
           quote: freshQuote,
           conversations: entries,
-          model: modelName,
+          model: model.id,
           tool,
         });
       } catch (error) {

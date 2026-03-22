@@ -41,6 +41,7 @@
 
 .quote-chat-modal__model-select {
     height: 24px;
+    max-width: min(240px, calc(100vw - 140px));
     border-radius: 12px;
     border: none;
     background-color: transparent;

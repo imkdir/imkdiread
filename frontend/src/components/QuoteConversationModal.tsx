@@ -15,15 +15,13 @@ import { Modal } from "./Modal";
 import {
   clearQuoteChat,
   fetchQuoteChat,
+  fetchQuoteChatModels,
   sendQuoteChatMessage,
+  DEFAULT_QUOTE_CHAT_MODELS,
+  type QuoteChatModelOption,
   type QuoteChatModel,
 } from "../services/quoteConversationService";
 import "./QuoteConversationModal.css";
-
-const MODEL_OPTIONS: Array<{ value: QuoteChatModel; label: string }> = [
-  { value: "gemini-2.5-flash", label: "Flash" },
-  { value: "gemini-2.5-pro", label: "Pro" },
-];
 
 const TOOL_OPTIONS = [
   { value: "translate", label: "Translate" },
@@ -45,6 +43,8 @@ type ActiveToolValue = ToolValue | null;
 type TranslationLanguageValue =
   | "browser"
   | (typeof TRANSLATION_LANGUAGE_OPTIONS)[number]["value"];
+
+const DEFAULT_QUOTE_CHAT_MODEL = DEFAULT_QUOTE_CHAT_MODELS[0].id;
 
 interface QuoteConversationModalProps {
   isOpen: boolean;
@@ -424,13 +424,17 @@ export function QuoteConversationModal({
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState("");
   const [selectedTool, setSelectedTool] = useState<ActiveToolValue>(null);
+  const [modelOptions, setModelOptions] = useState<QuoteChatModelOption[]>(
+    DEFAULT_QUOTE_CHAT_MODELS,
+  );
   const [selectedModel, setSelectedModel] =
-    useState<QuoteChatModel>("gemini-2.5-flash");
+    useState<QuoteChatModel>(DEFAULT_QUOTE_CHAT_MODEL);
   const [selectedTranslationLanguage, setSelectedTranslationLanguage] =
     useState<TranslationLanguageValue>("browser");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -456,6 +460,10 @@ export function QuoteConversationModal({
   const selectedToolLabel = TOOL_OPTIONS.find(
     (option) => option.value === selectedTool,
   )?.label;
+  const selectedModelOption =
+    modelOptions.find((option) => option.id === selectedModel) ||
+    DEFAULT_QUOTE_CHAT_MODELS.find((option) => option.id === selectedModel) ||
+    null;
   const selectedLanguageLabel = translationLanguageOptions.find(
     (option) => option.value === selectedTranslationLanguage,
   )?.label;
@@ -552,7 +560,8 @@ export function QuoteConversationModal({
     setIsToolMenuOpen(false);
     setIsLanguageMenuOpen(false);
     setSelectedTool(null);
-    setSelectedModel("gemini-2.5-flash");
+    setModelOptions(DEFAULT_QUOTE_CHAT_MODELS);
+    setSelectedModel(DEFAULT_QUOTE_CHAT_MODEL);
     setSelectedTranslationLanguage("browser");
     setComposer(quote?.id ? "" : initialQuoteText);
 
@@ -582,6 +591,53 @@ export function QuoteConversationModal({
         setIsLoadingHistory(false);
       });
   }, [initialPageNumber, initialQuoteText, isOpen, quote]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    let isCancelled = false;
+    setIsLoadingModels(true);
+
+    void fetchQuoteChatModels()
+      .then((data) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setModelOptions(data.models);
+        setSelectedModel((current) => {
+          const hasCurrentModel = data.models.some(
+            (option) => option.id === current,
+          );
+          return hasCurrentModel ? current : data.defaultModel;
+        });
+      })
+      .catch((loadError) => {
+        if (isCancelled) {
+          return;
+        }
+
+        setModelOptions(DEFAULT_QUOTE_CHAT_MODELS);
+        setSelectedModel(DEFAULT_QUOTE_CHAT_MODEL);
+        showToast(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load quote chat models.",
+          { tone: "error" },
+        );
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingModels(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !pendingUserMessage) {
@@ -727,6 +783,7 @@ export function QuoteConversationModal({
         pendingUnreadCheckRef.current = true;
       }
       setActiveQuote(data.quote);
+      setSelectedModel(data.model);
       setMessages((prev) =>
         replaceLatestTurn ? [...nextVisibleMessages, ...data.conversations] : [...prev, ...data.conversations],
       );
@@ -876,18 +933,23 @@ export function QuoteConversationModal({
         <div ref={headerRef} className="quote-chat-modal__header">
           <select
             value={selectedModel}
-            disabled={isSending}
+            disabled={isSending || isLoadingModels}
             className="quote-chat-modal__model-select"
             onClick={(event) => event.stopPropagation()}
             onChange={(event) =>
               setSelectedModel(event.target.value as QuoteChatModel)
             }
           >
-            {MODEL_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
+            {(isLoadingModels ? [] : modelOptions).map((option) => (
+              <option key={option.id} value={option.id}>
                 {option.label}
               </option>
             ))}
+            {isLoadingModels ? (
+              <option value={selectedModel}>
+                {selectedModelOption?.label || "Loading models..."}
+              </option>
+            ) : null}
           </select>
 
           <div

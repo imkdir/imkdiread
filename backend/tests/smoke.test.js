@@ -441,9 +441,13 @@ test.before(async () => {
   originalEnv = {
     JWT_SECRET: process.env.JWT_SECRET,
     GUEST_INVITE_CODE: process.env.GUEST_INVITE_CODE,
+    OLLAMA_CLIP_ANALYSIS_MODEL: process.env.OLLAMA_CLIP_ANALYSIS_MODEL,
+    OLLAMA_HOST: process.env.OLLAMA_HOST,
   };
   process.env.JWT_SECRET = "test-jwt-secret";
   process.env.GUEST_INVITE_CODE = "test-invite-code";
+  process.env.OLLAMA_CLIP_ANALYSIS_MODEL = "llama3";
+  process.env.OLLAMA_HOST = "http://127.0.0.1:11434";
 
   originalGetGenerativeModel = GoogleGenerativeAI.prototype.getGenerativeModel;
   originalFetch = global.fetch;
@@ -568,6 +572,47 @@ test.before(async () => {
       );
     }
 
+    if (url === "http://127.0.0.1:11434/api/tags") {
+      return new Response(
+        JSON.stringify({
+          models: [
+            {
+              name: "llama3",
+              model: "llama3",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
+    if (url === "http://127.0.0.1:11434/api/chat") {
+      const body = JSON.parse(String(init?.body || "{}"));
+      const latestUserMessage = Array.isArray(body?.messages)
+        ? [...body.messages].reverse().find((message) => message?.role === "user")
+        : null;
+
+      return new Response(
+        JSON.stringify({
+          model: body?.model || "llama3",
+          done: true,
+          message: {
+            role: "assistant",
+            content: latestUserMessage?.content === "Use the VPS model for this."
+              ? "An Ollama-backed reading response."
+              : "A fallback Ollama response.",
+          },
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
     return originalFetch(input, init);
   };
 
@@ -615,6 +660,9 @@ test.after(async () => {
   if (originalEnv) {
     process.env.JWT_SECRET = originalEnv.JWT_SECRET;
     process.env.GUEST_INVITE_CODE = originalEnv.GUEST_INVITE_CODE;
+    process.env.OLLAMA_CLIP_ANALYSIS_MODEL =
+      originalEnv.OLLAMA_CLIP_ANALYSIS_MODEL;
+    process.env.OLLAMA_HOST = originalEnv.OLLAMA_HOST;
   }
 });
 
@@ -1768,6 +1816,27 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
     "A well-formatted sentence.",
   );
 
+  const quoteChatModels = await requestJson(
+    "GET",
+    "/api/quote-chat/models",
+    undefined,
+    guestToken,
+  );
+  assert.equal(quoteChatModels.status, 200);
+  assert.equal(quoteChatModels.json?.success, true);
+  assert.equal(
+    quoteChatModels.json?.models?.some(
+      (model) => model.id === "gemini:gemini-2.5-flash",
+    ),
+    true,
+  );
+  assert.equal(
+    quoteChatModels.json?.models?.some(
+      (model) => model.id === "ollama:llama3",
+    ),
+    true,
+  );
+
   const legacyQuoteId = appDb
     .prepare(
       "SELECT id FROM work_quotes WHERE work_id = ? AND user_id = ? AND quote = ?",
@@ -1814,6 +1883,28 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(
     legacyQuoteChatReply.json?.conversations?.[1]?.content,
     "A conversational reading response.",
+  );
+
+  const legacyQuoteChatOllamaReply = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent("W1")}/quotes/chat`,
+    {
+      quoteId: legacyQuoteId,
+      message: "Use the VPS model for this.",
+      tool: "chat",
+      model: "ollama:llama3",
+    },
+    guestToken,
+  );
+  assert.equal(legacyQuoteChatOllamaReply.status, 200);
+  assert.equal(legacyQuoteChatOllamaReply.json?.success, true);
+  assert.equal(
+    legacyQuoteChatOllamaReply.json?.model,
+    "ollama:llama3",
+  );
+  assert.equal(
+    legacyQuoteChatOllamaReply.json?.conversations?.[1]?.content,
+    "An Ollama-backed reading response.",
   );
 
   const quoteChatCreate = await requestJson(

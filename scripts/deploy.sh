@@ -10,8 +10,11 @@ RUN_INSTALL=1
 RUN_SMOKE=1
 RUN_LINT=1
 RUN_RESTART=1
+RUN_OLLAMA=1
 SYSTEMD_SERVICE="${SYSTEMD_SERVICE:-imkdiread}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
+OLLAMA_HOST="${OLLAMA_HOST:-http://127.0.0.1:11434}"
+OLLAMA_MODEL="${OLLAMA_CLIP_ANALYSIS_MODEL:-llama3}"
 
 usage() {
   cat <<'EOF'
@@ -21,6 +24,7 @@ Options:
   --skip-install        Skip npm install at the repo root
   --skip-smoke          Skip backend smoke tests
   --skip-lint           Skip frontend lint
+  --skip-ollama         Skip Ollama install/start/model warm-up
   --skip-restart        Skip systemd restart
   --service NAME        Override the systemd service name (default: imkdiread)
   --health-url URL      Verify the deployed app with GET URL after restart
@@ -30,6 +34,9 @@ Environment:
   SYSTEMD_SERVICE       Same as --service
   HEALTHCHECK_URL       Same as --health-url
   DB_PATH               Used by backend db:ensure and optional scripts
+  OLLAMA_HOST           Ollama API host (default: http://127.0.0.1:11434)
+  OLLAMA_CLIP_ANALYSIS_MODEL
+                        Ollama model to pull and warm up (default: llama3)
 
 Notes:
   - If backend/.env exists, it will be loaded automatically before running steps.
@@ -57,6 +64,9 @@ while [[ $# -gt 0 ]]; do
     --skip-lint)
       RUN_LINT=0
       ;;
+    --skip-ollama)
+      RUN_OLLAMA=0
+      ;;
     --skip-restart)
       RUN_RESTART=0
       ;;
@@ -80,6 +90,19 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+wait_for_ollama() {
+  local attempt
+
+  for attempt in {1..20}; do
+    if curl --fail --silent --show-error "$OLLAMA_HOST/api/tags" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  return 1
+}
 
 if [[ -f "$BACKEND_DIR/.env" ]]; then
   log "Loading backend environment from backend/.env"
@@ -105,6 +128,42 @@ if [[ $RUN_INSTALL -eq 1 ]]; then
   npm install
 else
   log "Skipping dependency install"
+fi
+
+if [[ $RUN_OLLAMA -eq 1 ]]; then
+  log "Ensuring Ollama is installed"
+  if ! command -v ollama >/dev/null 2>&1; then
+    curl -fsSL https://ollama.com/install.sh | sh
+  fi
+
+  if command -v systemctl >/dev/null 2>&1; then
+    log "Starting Ollama service"
+    sudo systemctl enable ollama >/dev/null 2>&1 || true
+    sudo systemctl restart ollama
+  else
+    log "Starting Ollama without systemd"
+    if ! pgrep -x ollama >/dev/null 2>&1; then
+      nohup ollama serve >/tmp/ollama.log 2>&1 &
+    fi
+  fi
+
+  log "Waiting for Ollama API at $OLLAMA_HOST"
+  wait_for_ollama || fail "Ollama did not become ready at $OLLAMA_HOST"
+
+  log "Pulling Ollama model: $OLLAMA_MODEL"
+  ollama pull "$OLLAMA_MODEL"
+
+  log "Warming Ollama model: $OLLAMA_MODEL"
+  curl \
+    --fail \
+    --silent \
+    --show-error \
+    "$OLLAMA_HOST/api/chat" \
+    -H "Content-Type: application/json" \
+    -d "$(printf '{"model":"%s","messages":[{"role":"user","content":"Hello."}],"stream":false}' "$OLLAMA_MODEL")" \
+    >/dev/null
+else
+  log "Skipping Ollama setup"
 fi
 
 log "Building frontend"

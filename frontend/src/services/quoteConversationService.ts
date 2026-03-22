@@ -3,7 +3,22 @@ import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 
 export type QuoteChatTool = "chat" | "analyze" | "translate";
-export type QuoteChatModel = "gemini-2.5-flash" | "gemini-2.5-pro";
+export type QuoteChatProvider = "gemini" | "ollama";
+export type QuoteChatModel = string;
+
+export interface QuoteChatModelOption {
+  id: QuoteChatModel;
+  provider: QuoteChatProvider;
+  provider_label: string;
+  name: string;
+  label: string;
+  short_label: string;
+}
+
+interface QuoteChatModelWarning {
+  provider: QuoteChatProvider;
+  message: string;
+}
 
 interface QuoteChatResponse {
   success?: boolean;
@@ -12,6 +27,45 @@ interface QuoteChatResponse {
   conversations?: ConversationMessage[];
   model?: QuoteChatModel;
   tool?: QuoteChatTool;
+  models?: QuoteChatModelOption[];
+  default_model?: QuoteChatModel;
+  warnings?: QuoteChatModelWarning[];
+}
+
+export const DEFAULT_QUOTE_CHAT_MODELS: QuoteChatModelOption[] = [
+  {
+    id: "gemini:gemini-2.5-flash",
+    provider: "gemini",
+    provider_label: "Gemini",
+    name: "gemini-2.5-flash",
+    label: "Gemini Flash",
+    short_label: "Flash",
+  },
+  {
+    id: "gemini:gemini-2.5-pro",
+    provider: "gemini",
+    provider_label: "Gemini",
+    name: "gemini-2.5-pro",
+    label: "Gemini Pro",
+    short_label: "Pro",
+  },
+];
+
+export async function fetchQuoteChatModels() {
+  const res = await request("/api/quote-chat/models");
+  const data = await readJsonSafe<QuoteChatResponse>(res);
+
+  if (!res.ok || !data?.success) {
+    throw new Error(
+      getApiErrorMessage(data, "Failed to load quote chat models."),
+    );
+  }
+
+  return {
+    models: data.models?.length ? data.models : DEFAULT_QUOTE_CHAT_MODELS,
+    defaultModel: data.default_model || DEFAULT_QUOTE_CHAT_MODELS[0].id,
+    warnings: data.warnings || [],
+  };
 }
 
 export async function fetchQuoteChat(quoteId: number) {
