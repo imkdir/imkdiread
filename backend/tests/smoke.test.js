@@ -613,6 +613,31 @@ test.before(async () => {
       );
     }
 
+    if (url === "http://127.0.0.1:11434/api/generate") {
+      return new Response(
+        JSON.stringify({
+          model: "llama3",
+          done: true,
+          response: JSON.stringify({
+            word: "temperance",
+            lore_note: "A contextual note.",
+            phonetic: "/tem-per-ance/",
+            is_visualizable: false,
+            meanings: [
+              {
+                partOfSpeech: "noun",
+                definitions: [{ definition: "Moderation and self-restraint." }],
+              },
+            ],
+          }),
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
     return originalFetch(input, init);
   };
 
@@ -1760,12 +1785,11 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   const lookup = await requestJson(
     "POST",
     `/api/works/${encodeURIComponent(workId)}/context/lookup`,
-    { word: "virtue", mode: "context" },
+    { word: "virtue", provider: "gemini" },
     guestToken,
   );
   assert.equal(lookup.status, 200);
   assert.equal(lookup.json?.success, true);
-  assert.equal(lookup.json?.mode, "context");
   assert.equal(lookup.json?.provider, "gemini");
   assert.equal(lookup.json?.result?.word, "virtue");
   assert.equal(lookup.json?.result?.is_visualizable, true);
@@ -1777,15 +1801,14 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   const wordLookup = await requestJson(
     "POST",
     `/api/works/${encodeURIComponent(workId)}/context/lookup`,
-    { word: "temperance", mode: "word" },
+    { word: "temperance", provider: "ollama" },
     guestToken,
   );
   assert.equal(wordLookup.status, 200);
   assert.equal(wordLookup.json?.success, true);
-  assert.equal(wordLookup.json?.mode, "word");
-  assert.equal(wordLookup.json?.provider, "free-dictionary");
+  assert.equal(wordLookup.json?.provider, "ollama");
   assert.equal(wordLookup.json?.result?.word, "temperance");
-  assert.equal(wordLookup.json?.result?.lore_note, null);
+  assert.equal(wordLookup.json?.result?.lore_note, "A contextual note.");
   assert.equal(wordLookup.json?.result?.is_visualizable, false);
   assert.equal(wordLookup.json?.result?.image_url, null);
 

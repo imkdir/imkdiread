@@ -180,7 +180,7 @@ export const SidebarLayout: React.FC = () => {
     useState<DOMRect | null>(null);
   const [dictionaryInitialQuery, setDictionaryInitialQuery] = useState("");
   const [dictionaryInitialLookupMode, setDictionaryInitialLookupMode] =
-    useState<DictionaryLookupMode>("context");
+    useState<DictionaryLookupMode>("gemini");
   const [dictionaryRequestKey, setDictionaryRequestKey] = useState(0);
 
   const isDictOpen = Boolean(workId) && openDictionaryForWorkId === workId;
@@ -429,12 +429,12 @@ export const SidebarLayout: React.FC = () => {
       if (!query) return;
 
       setDictionaryInitialQuery(query);
+      const requestedLookupMode: string | undefined =
+        typeof rawDetail === "string" ? "gemini" : rawDetail?.mode;
       setDictionaryInitialLookupMode(
-        typeof rawDetail === "string"
-          ? query.includes(" ")
-            ? "context"
-            : "word"
-          : rawDetail?.mode || (query.includes(" ") ? "context" : "word"),
+        requestedLookupMode === "ollama" || requestedLookupMode === "word"
+          ? "ollama"
+          : "gemini",
       );
       setDictionaryRequestKey((current) => current + 1);
       setDictionaryAnchorRect(null);
@@ -550,7 +550,7 @@ export const SidebarLayout: React.FC = () => {
                   event.currentTarget.getBoundingClientRect(),
                 );
                 setDictionaryInitialQuery("");
-                setDictionaryInitialLookupMode("context");
+                setDictionaryInitialLookupMode("gemini");
                 setDictionaryRequestKey(0);
                 setOpenDictionaryForWorkId((current) =>
                   current === workId ? null : workId,

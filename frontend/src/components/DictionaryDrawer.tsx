@@ -97,11 +97,11 @@ function normalizeClipboardText(rawText: string) {
   return cleanedText.replace(/\s+/g, " ").trim();
 }
 
-function inferLookupMode(query: string): LookupMode {
-  return query.includes(" ") ? "context" : "word";
+function inferLookupMode(): LookupMode {
+  return "gemini";
 }
 
-export type LookupMode = "word" | "context";
+export type LookupMode = "gemini" | "ollama";
 
 interface Props {
   workId: string;
@@ -119,12 +119,12 @@ export const DictionaryDrawer: React.FC<Props> = ({
   onClose,
   anchorRect,
   initialQuery = "",
-  initialLookupMode = "context",
+  initialLookupMode = "gemini",
   initialRequestKey = 0,
 }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [lookupMode, setLookupMode] = useState<LookupMode>("context");
+  const [lookupMode, setLookupMode] = useState<LookupMode>("gemini");
   const [isSearching, setIsSearching] = useState(false);
   const [dictResult, setDictResult] = useState<DictResult | null>(null);
   const [savedVocabs, setSavedVocabs] = useState<SavedVocab[]>([]);
@@ -206,7 +206,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
           const normalizedText = normalizeClipboardText(clipboardText);
           if (normalizedText) {
             setSearchQuery(normalizedText);
-            setLookupMode(inferLookupMode(normalizedText));
+            setLookupMode(inferLookupMode());
             setDictResult(null);
           }
         } catch {
@@ -403,14 +403,13 @@ export const DictionaryDrawer: React.FC<Props> = ({
           method: "POST",
           body: JSON.stringify({
             word: searchQuery.trim(),
-            mode: lookupMode,
+            provider: lookupMode,
           }),
         });
 
         const data = await readJsonSafe<{
           success?: boolean;
           error?: string;
-          mode?: LookupMode;
           provider?: string;
           result?: DictResult;
         }>(res);
@@ -484,11 +483,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
           ref={searchInputRef}
           id="dictionary-search-input"
           type="text"
-          placeholder={
-            lookupMode === "context"
-              ? "Look up a term in this book..."
-              : "Look up a word..."
-          }
+          placeholder="Look up a term in this book..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={styles.searchInput}
@@ -507,25 +502,25 @@ export const DictionaryDrawer: React.FC<Props> = ({
           type="button"
           style={{
             ...styles.lookupModeButton,
-            ...(lookupMode === "word"
+            ...(lookupMode === "ollama"
               ? styles.lookupModeButtonActive
               : undefined),
           }}
-          onClick={() => setLookupMode("word")}
+          onClick={() => setLookupMode("ollama")}
         >
-          Word
+          Ollama
         </button>
         <button
           type="button"
           style={{
             ...styles.lookupModeButton,
-            ...(lookupMode === "context"
+            ...(lookupMode === "gemini"
               ? styles.lookupModeButtonActive
               : undefined),
           }}
-          onClick={() => setLookupMode("context")}
+          onClick={() => setLookupMode("gemini")}
         >
-          Context
+          Gemini
         </button>
       </div>
 

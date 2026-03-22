@@ -1712,11 +1712,21 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
     async (req, res) => {
       try {
         const workId = req.params.id;
-        const { word, mode = "context" } = req.body;
+        const { word } = req.body;
+        const rawProvider =
+          asOptionalString(req.body?.provider) ||
+          asOptionalString(req.body?.mode) ||
+          "gemini";
+        const provider =
+          rawProvider === "context"
+            ? "gemini"
+            : rawProvider === "word"
+              ? "ollama"
+              : rawProvider;
 
         if (!word) return res.status(400).json({ error: "Word is required" });
-        if (!["word", "context"].includes(mode)) {
-          return res.status(400).json({ error: "Invalid lookup mode." });
+        if (!["gemini", "ollama"].includes(provider)) {
+          return res.status(400).json({ error: "Invalid lookup provider." });
         }
 
         const work = db
@@ -1727,14 +1737,13 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
         const lookup = await lookupContext({
           word,
           workTitle: work.title,
-          mode,
+          provider,
           apiKey: process.env.GEMINI_API_KEY,
         });
 
         return res.json({
           success: true,
-          mode,
-          provider: lookup.provider,
+          provider,
           result: lookup.result,
         });
       } catch (error) {
