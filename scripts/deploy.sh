@@ -14,7 +14,7 @@ RUN_OLLAMA=1
 SYSTEMD_SERVICE="${SYSTEMD_SERVICE:-imkdiread}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
 OLLAMA_HOST="${OLLAMA_HOST:-http://127.0.0.1:11434}"
-OLLAMA_MODEL="${OLLAMA_CLIP_ANALYSIS_MODEL:-llama3}"
+OLLAMA_MODEL="${OLLAMA_MODEL:-llama3}"
 
 usage() {
   cat <<'EOF'
@@ -35,8 +35,7 @@ Environment:
   HEALTHCHECK_URL       Same as --health-url
   DB_PATH               Used by backend db:ensure and optional scripts
   OLLAMA_HOST           Ollama API host (default: http://127.0.0.1:11434)
-  OLLAMA_CLIP_ANALYSIS_MODEL
-                        Ollama model to pull and warm up (default: llama3)
+  OLLAMA_MODEL          Ollama model to pull and warm up (default: llama3)
 
 Notes:
   - If backend/.env exists, it will be loaded automatically before running steps.

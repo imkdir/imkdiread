@@ -441,12 +441,12 @@ test.before(async () => {
   originalEnv = {
     JWT_SECRET: process.env.JWT_SECRET,
     GUEST_INVITE_CODE: process.env.GUEST_INVITE_CODE,
-    OLLAMA_CLIP_ANALYSIS_MODEL: process.env.OLLAMA_CLIP_ANALYSIS_MODEL,
+    OLLAMA_MODEL: process.env.OLLAMA_MODEL,
     OLLAMA_HOST: process.env.OLLAMA_HOST,
   };
   process.env.JWT_SECRET = "test-jwt-secret";
   process.env.GUEST_INVITE_CODE = "test-invite-code";
-  process.env.OLLAMA_CLIP_ANALYSIS_MODEL = "llama3";
+  process.env.OLLAMA_MODEL = "llama3";
   process.env.OLLAMA_HOST = "http://127.0.0.1:11434";
 
   originalGetGenerativeModel = GoogleGenerativeAI.prototype.getGenerativeModel;
@@ -592,7 +592,9 @@ test.before(async () => {
     if (url === "http://127.0.0.1:11434/api/chat") {
       const body = JSON.parse(String(init?.body || "{}"));
       const latestUserMessage = Array.isArray(body?.messages)
-        ? [...body.messages].reverse().find((message) => message?.role === "user")
+        ? [...body.messages]
+            .reverse()
+            .find((message) => message?.role === "user")
         : null;
 
       return new Response(
@@ -601,9 +603,10 @@ test.before(async () => {
           done: true,
           message: {
             role: "assistant",
-            content: latestUserMessage?.content === "Use the VPS model for this."
-              ? "An Ollama-backed reading response."
-              : "A fallback Ollama response.",
+            content:
+              latestUserMessage?.content === "Use the VPS model for this."
+                ? "An Ollama-backed reading response."
+                : "A fallback Ollama response.",
           },
         }),
         {
@@ -685,8 +688,7 @@ test.after(async () => {
   if (originalEnv) {
     process.env.JWT_SECRET = originalEnv.JWT_SECRET;
     process.env.GUEST_INVITE_CODE = originalEnv.GUEST_INVITE_CODE;
-    process.env.OLLAMA_CLIP_ANALYSIS_MODEL =
-      originalEnv.OLLAMA_CLIP_ANALYSIS_MODEL;
+    process.env.OLLAMA_MODEL = originalEnv.OLLAMA_MODEL;
     process.env.OLLAMA_HOST = originalEnv.OLLAMA_HOST;
   }
 });
@@ -1854,9 +1856,7 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
     true,
   );
   assert.equal(
-    quoteChatModels.json?.models?.some(
-      (model) => model.id === "ollama:llama3",
-    ),
+    quoteChatModels.json?.models?.some((model) => model.id === "ollama:llama3"),
     true,
   );
 
@@ -1921,10 +1921,7 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   );
   assert.equal(legacyQuoteChatOllamaReply.status, 200);
   assert.equal(legacyQuoteChatOllamaReply.json?.success, true);
-  assert.equal(
-    legacyQuoteChatOllamaReply.json?.model,
-    "ollama:llama3",
-  );
+  assert.equal(legacyQuoteChatOllamaReply.json?.model, "ollama:llama3");
   assert.equal(
     legacyQuoteChatOllamaReply.json?.conversations?.[1]?.content,
     "An Ollama-backed reading response.",

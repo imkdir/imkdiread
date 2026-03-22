@@ -95,9 +95,7 @@ function createWorksRouter({ db, workService, inboxService }) {
     process.env.OLLAMA_HOST || "http://127.0.0.1:11434",
   ).replace(/\/+$/, "");
   const ollamaProviderLabel = "Ollama";
-  const configuredOllamaModel = asOptionalString(
-    process.env.OLLAMA_CLIP_ANALYSIS_MODEL,
-  );
+  const configuredOllamaModel = asOptionalString(process.env.OLLAMA_MODEL);
 
   function getGeminiQuoteChatModels() {
     return GEMINI_QUOTE_CHAT_MODELS.map((model) => ({ ...model }));
@@ -136,7 +134,8 @@ function createWorksRouter({ db, workService, inboxService }) {
       }
 
       return (
-        GEMINI_QUOTE_CHAT_MODELS.find((model) => model.name === modelName) || null
+        GEMINI_QUOTE_CHAT_MODELS.find((model) => model.name === modelName) ||
+        null
       );
     }
 
@@ -414,7 +413,11 @@ function createWorksRouter({ db, workService, inboxService }) {
     }
 
     if (userIndex < 0) {
-      return { userEntry: null, assistantEntry: null, remaining: conversations };
+      return {
+        userEntry: null,
+        assistantEntry: null,
+        remaining: conversations,
+      };
     }
 
     const removableIds = new Set([conversations[userIndex].id]);
@@ -546,7 +549,8 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
 
     const data = await response.json();
     const assistantContent =
-      asOptionalString(data?.message?.content) || asOptionalString(data?.response);
+      asOptionalString(data?.message?.content) ||
+      asOptionalString(data?.response);
 
     return String(assistantContent || "").trim();
   }
@@ -1501,7 +1505,8 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
             .get(insertResult.lastInsertRowid);
         }
 
-        const existingConversations = ensureLegacyExplanationConversation(quote);
+        const existingConversations =
+          ensureLegacyExplanationConversation(quote);
         const latestTurn = replaceLatestTurn
           ? getLatestReplaceableQuoteTurn(existingConversations)
           : null;
@@ -1554,9 +1559,9 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
               quote.explanation &&
               latestTurn.assistantEntry?.content === quote.explanation
             ) {
-              db.prepare("UPDATE work_quotes SET explanation = NULL WHERE id = ?").run(
-                quote.id,
-              );
+              db.prepare(
+                "UPDATE work_quotes SET explanation = NULL WHERE id = ?",
+              ).run(quote.id);
             }
           }
 
@@ -1572,10 +1577,9 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
           );
 
           if (tool === "analyze") {
-            db.prepare("UPDATE work_quotes SET explanation = ? WHERE id = ?").run(
-              assistantContent,
-              quote.id,
-            );
+            db.prepare(
+              "UPDATE work_quotes SET explanation = ? WHERE id = ?",
+            ).run(assistantContent, quote.id);
           }
 
           return db
@@ -1697,7 +1701,9 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
           return res.json({ success: true, result: data });
         } catch (parseError) {
           console.error("Gemini Translation JSON Error:", responseText);
-          return res.status(500).json({ error: "Failed to parse translation." });
+          return res
+            .status(500)
+            .json({ error: "Failed to parse translation." });
         }
       } catch (error) {
         console.error("Translation Error:", error);

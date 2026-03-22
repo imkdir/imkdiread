@@ -6,8 +6,7 @@ const WIKIMEDIA_PAGE_IMAGE_API_BASE = "https://en.wikipedia.org/w/api.php";
 const OLLAMA_HOST = String(
   process.env.OLLAMA_HOST || "http://127.0.0.1:11434",
 ).replace(/\/+$/, "");
-const OLLAMA_LOOKUP_MODEL =
-  process.env.OLLAMA_CLIP_ANALYSIS_MODEL || "llama3";
+const OLLAMA_LOOKUP_MODEL = process.env.OLLAMA_MODEL || "llama3";
 
 class LookupError extends Error {
   constructor(message, status = 500) {
@@ -253,12 +252,7 @@ async function lookupWithOllama({ word, workTitle }) {
   };
 }
 
-async function lookupContext({
-  word,
-  workTitle,
-  provider = "gemini",
-  apiKey,
-}) {
+async function lookupContext({ word, workTitle, provider = "gemini", apiKey }) {
   if (provider === "ollama") {
     return lookupWithOllama({ word, workTitle });
   }
