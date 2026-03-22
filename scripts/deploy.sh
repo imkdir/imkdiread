@@ -104,6 +104,38 @@ wait_for_ollama() {
   return 1
 }
 
+warm_ollama_model() {
+  local response_file
+  local http_code
+
+  response_file="$(mktemp)"
+  http_code="$(
+    curl \
+      --silent \
+      --show-error \
+      --output "$response_file" \
+      --write-out "%{http_code}" \
+      "$OLLAMA_HOST/api/generate" \
+      -H "Content-Type: application/json" \
+      -d "$(printf '{"model":"%s","prompt":"Hello.","stream":false,"keep_alive":"15m"}' "$OLLAMA_MODEL")" \
+      || true
+  )"
+
+  if [[ "$http_code" == "200" ]]; then
+    rm -f "$response_file"
+    return 0
+  fi
+
+  printf '\nWARNING: Ollama warm-up returned HTTP %s\n' "${http_code:-unknown}" >&2
+  if [[ -s "$response_file" ]]; then
+    printf 'Response:\n' >&2
+    cat "$response_file" >&2
+    printf '\n' >&2
+  fi
+  rm -f "$response_file"
+  return 1
+}
+
 if [[ -f "$BACKEND_DIR/.env" ]]; then
   log "Loading backend environment from backend/.env"
   set -a
@@ -154,14 +186,9 @@ if [[ $RUN_OLLAMA -eq 1 ]]; then
   ollama pull "$OLLAMA_MODEL"
 
   log "Warming Ollama model: $OLLAMA_MODEL"
-  curl \
-    --fail \
-    --silent \
-    --show-error \
-    "$OLLAMA_HOST/api/chat" \
-    -H "Content-Type: application/json" \
-    -d "$(printf '{"model":"%s","messages":[{"role":"user","content":"Hello."}],"stream":false}' "$OLLAMA_MODEL")" \
-    >/dev/null
+  if ! warm_ollama_model; then
+    log "Continuing deployment without blocking on Ollama warm-up"
+  fi
 else
   log "Skipping Ollama setup"
 fi
