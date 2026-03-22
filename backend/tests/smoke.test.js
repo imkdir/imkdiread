@@ -462,6 +462,7 @@ test.before(async () => {
                 word: "virtue",
                 lore_note: "A contextual note.",
                 phonetic: "/vur-choo/",
+                is_visualizable: true,
                 meanings: [
                   {
                     partOfSpeech: "noun",
@@ -504,6 +505,29 @@ test.before(async () => {
             ],
           },
         ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
+    if (
+      url?.startsWith("https://en.wikipedia.org/w/api.php") &&
+      url.includes("pageimages")
+    ) {
+      return new Response(
+        JSON.stringify({
+          query: {
+            pages: {
+              123: {
+                thumbnail: {
+                  source: "https://upload.wikimedia.org/mock/virtue.jpg",
+                },
+              },
+            },
+          },
+        }),
         {
           status: 200,
           headers: { "content-type": "application/json" },
@@ -1663,6 +1687,11 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(lookup.json?.mode, "context");
   assert.equal(lookup.json?.provider, "gemini");
   assert.equal(lookup.json?.result?.word, "virtue");
+  assert.equal(lookup.json?.result?.is_visualizable, true);
+  assert.equal(
+    lookup.json?.result?.image_url,
+    "https://upload.wikimedia.org/mock/virtue.jpg",
+  );
 
   const wordLookup = await requestJson(
     "POST",
@@ -1676,6 +1705,8 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(wordLookup.json?.provider, "free-dictionary");
   assert.equal(wordLookup.json?.result?.word, "temperance");
   assert.equal(wordLookup.json?.result?.lore_note, null);
+  assert.equal(wordLookup.json?.result?.is_visualizable, false);
+  assert.equal(wordLookup.json?.result?.image_url, null);
 
   const explain = await requestJson(
     "POST",

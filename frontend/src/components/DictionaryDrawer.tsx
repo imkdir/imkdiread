@@ -17,7 +17,9 @@ interface DictionaryDrawerSettings {
 interface DictResult {
   word: string;
   phonetic?: string;
-  lore_note?: string;
+  lore_note?: string | null;
+  is_visualizable?: boolean;
+  image_url?: string | null;
   meanings: {
     partOfSpeech: string;
     definitions: { definition: string }[];
@@ -544,6 +546,17 @@ export const DictionaryDrawer: React.FC<Props> = ({
               </div>
             )}
 
+            {dictResult.image_url && (
+              <div style={styles.dictionaryImageFrame}>
+                <img
+                  src={dictResult.image_url}
+                  alt={`Illustration of ${dictResult.word}`}
+                  style={styles.dictionaryImage}
+                  loading="lazy"
+                />
+              </div>
+            )}
+
             <div style={styles.dictBody}>
               {dictResult.meanings.slice(0, 2).map((meaning, idx) => (
                 <div key={idx} style={styles.meaningBlock}>
@@ -895,6 +908,22 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontFamily: "Libre Baskerville",
     textWrap: "pretty",
     textShadow: "0 1px 0 rgba(255, 250, 240, 0.45)",
+  },
+  dictionaryImageFrame: {
+    marginBottom: "20px",
+    borderRadius: "16px",
+    overflow: "hidden",
+    border: "1px solid rgba(114, 91, 54, 0.18)",
+    background:
+      "linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(239, 229, 210, 0.92)), rgba(250, 244, 234, 0.96)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255, 255, 255, 0.56), 0 12px 22px rgba(86, 58, 28, 0.08)",
+  },
+  dictionaryImage: {
+    display: "block",
+    width: "100%",
+    maxHeight: "220px",
+    objectFit: "cover",
   },
   dictBody: {
     marginBottom: "16px",
