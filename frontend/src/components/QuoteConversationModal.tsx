@@ -89,7 +89,7 @@ function formatLanguageLabel(value: string) {
     .replace(/\b\p{L}/gu, (letter) => letter.toUpperCase());
 }
 
-function resolveBrowserTranslationLanguage() {
+function resolveBrowserTranslationLanguage(): TranslationLanguageOption {
   const requestedLanguage =
     typeof navigator !== "undefined"
       ? navigator.languages?.[0] || navigator.language
@@ -126,12 +126,16 @@ function resolveBrowserTranslationLanguage() {
 
 function getMergedTranslationLanguageOptions(
   browserLanguage: TranslationLanguageOption,
-) {
+): TranslationLanguageOption[] {
   if (browserLanguage.value !== "browser") {
-    return TRANSLATION_LANGUAGE_OPTIONS;
+    return [...TRANSLATION_LANGUAGE_OPTIONS];
   }
 
   return [browserLanguage, ...TRANSLATION_LANGUAGE_OPTIONS];
+}
+
+function getDefaultTranslationLanguageValue(): TranslationLanguageValue {
+  return resolveBrowserTranslationLanguage().value;
 }
 
 function normalizeConversationText(content: string) {
@@ -203,7 +207,7 @@ function getLatestConversationEntry(messages: ConversationMessage[]) {
 
 type AssistantMessageBlock =
   | { type: "paragraph"; text: string }
-  | { type: "list"; ordered: boolean; items: string[] };
+  | { type: "list"; ordered: boolean; items: string[]; start: number | null };
 
 interface AssistantMessageSections {
   contentBlocks: AssistantMessageBlock[];
@@ -256,15 +260,23 @@ function parseAssistantMessageBlocks(content: string): AssistantMessageBlock[] {
     }
 
     const unorderedMatch = trimmedLine.match(/^[-*+]\s+(.+)$/);
-    const orderedMatch = trimmedLine.match(/^\d+\.\s+(.+)$/);
+    const orderedMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/);
     if (unorderedMatch || orderedMatch) {
       flushParagraph();
       const ordered = Boolean(orderedMatch);
-      const itemText = (orderedMatch?.[1] || unorderedMatch?.[1] || "").trim();
+      const itemText = (orderedMatch?.[2] || unorderedMatch?.[1] || "").trim();
+      const orderedStart = orderedMatch
+        ? Number.parseInt(orderedMatch[1], 10) || 1
+        : null;
 
       if (!listBlock || listBlock.type !== "list" || listBlock.ordered !== ordered) {
         flushList();
-        listBlock = { type: "list", ordered, items: [] };
+        listBlock = {
+          type: "list",
+          ordered,
+          items: [],
+          start: ordered ? orderedStart : null,
+        };
       }
 
       listBlock.items.push(itemText);
@@ -555,6 +567,7 @@ function renderAssistantBlocks(
       <ol
         key={`${keyPrefix}-list-${index}`}
         className="quote-chat-message__list quote-chat-message__list--ordered"
+        start={block.start || undefined}
       >
         {block.items.map((item, itemIndex) => (
           <li
@@ -619,7 +632,7 @@ export function QuoteConversationModal({
   const [selectedModel, setSelectedModel] =
     useState<QuoteChatModel>(DEFAULT_QUOTE_CHAT_MODEL);
   const [selectedTranslationLanguage, setSelectedTranslationLanguage] =
-    useState<TranslationLanguageValue>(() => resolveBrowserTranslationLanguage().value);
+    useState<TranslationLanguageValue>(getDefaultTranslationLanguageValue);
   const [theme, setTheme] = useState<QuoteConversationTheme>(
     loadQuoteConversationTheme,
   );
