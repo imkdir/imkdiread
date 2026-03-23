@@ -902,7 +902,7 @@ function DetailPage({
 
   const startReadingFocusPreviewDrag = useCallback(
     (
-      event: React.PointerEvent<HTMLDivElement>,
+      event: React.PointerEvent<HTMLElement>,
       mode: "move" | "resize-top" | "resize-bottom",
     ) => {
       if (!readingFocusDraft.enabled || !readingFocusPreviewRef.current) {
