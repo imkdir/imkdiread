@@ -11,6 +11,7 @@ RUN_SMOKE=1
 RUN_LINT=1
 RUN_RESTART=1
 RUN_OLLAMA=1
+OLLAMA_ENABLED=1
 SYSTEMD_SERVICE="${SYSTEMD_SERVICE:-imkdiread}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
 OLLAMA_HOST="${OLLAMA_HOST:-http://127.0.0.1:11434}"
@@ -34,6 +35,7 @@ Environment:
   SYSTEMD_SERVICE       Same as --service
   HEALTHCHECK_URL       Same as --health-url
   DB_PATH               Used by backend db:ensure and optional scripts
+  OLLAMA_ENABLED        Set to 0/false/off/no to skip Ollama deploy steps
   OLLAMA_HOST           Ollama API host (default: http://127.0.0.1:11434)
   OLLAMA_MODEL          Ollama model to pull and warm up (default: llama3)
 
@@ -50,6 +52,16 @@ log() {
 fail() {
   printf '\nERROR: %s\n' "$1" >&2
   exit 1
+}
+
+is_truthy() {
+  local normalized
+  normalized="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+  case "$normalized" in
+    "" ) return 0 ;;
+    0|false|no|off|disabled ) return 1 ;;
+    * ) return 0 ;;
+  esac
 }
 
 while [[ $# -gt 0 ]]; do
@@ -162,6 +174,10 @@ if [[ -f "$BACKEND_DIR/.env" ]]; then
   # shellcheck disable=SC1091
   source "$BACKEND_DIR/.env"
   set +a
+fi
+
+if ! is_truthy "$OLLAMA_ENABLED"; then
+  RUN_OLLAMA=0
 fi
 
 cd "$ROOT_DIR"
