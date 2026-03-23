@@ -17,6 +17,7 @@ interface Props {
   quote: Quote;
   displaySource?: boolean;
   onRefresh: () => void;
+  onOpenConversation?: (quote: Quote) => void;
   user: User | null;
 }
 
@@ -28,7 +29,43 @@ interface State {
   isSaving: boolean;
 }
 
-class QuoteCardClass extends React.Component<Props, State> {
+const activeQuoteDrawerClosers = new Set<() => void>();
+let isQuoteDrawerEscapeListenerAttached = false;
+
+function handleQuoteDrawerEscape(event: KeyboardEvent) {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  activeQuoteDrawerClosers.forEach((closeDrawer) => closeDrawer());
+}
+
+function registerQuoteDrawerCloser(closeDrawer: () => void) {
+  activeQuoteDrawerClosers.add(closeDrawer);
+
+  if (
+    !isQuoteDrawerEscapeListenerAttached &&
+    typeof window !== "undefined"
+  ) {
+    window.addEventListener("keydown", handleQuoteDrawerEscape);
+    isQuoteDrawerEscapeListenerAttached = true;
+  }
+}
+
+function unregisterQuoteDrawerCloser(closeDrawer: () => void) {
+  activeQuoteDrawerClosers.delete(closeDrawer);
+
+  if (
+    isQuoteDrawerEscapeListenerAttached &&
+    activeQuoteDrawerClosers.size === 0 &&
+    typeof window !== "undefined"
+  ) {
+    window.removeEventListener("keydown", handleQuoteDrawerEscape);
+    isQuoteDrawerEscapeListenerAttached = false;
+  }
+}
+
+class QuoteCardClass extends React.PureComponent<Props, State> {
   private textareaRef = React.createRef<HTMLTextAreaElement>();
 
   constructor(props: Props) {
@@ -45,11 +82,11 @@ class QuoteCardClass extends React.Component<Props, State> {
   }
 
   componentDidMount() {
-    window.addEventListener("keydown", this.handleWindowKeyDown);
+    registerQuoteDrawerCloser(this.closeDrawerOnEscape);
   }
 
   componentWillUnmount() {
-    window.removeEventListener("keydown", this.handleWindowKeyDown);
+    unregisterQuoteDrawerCloser(this.closeDrawerOnEscape);
   }
 
   // --- OWNERSHIP GUARD ---
@@ -87,19 +124,25 @@ class QuoteCardClass extends React.Component<Props, State> {
     this.setState({ activeDrawer: null });
   };
 
+  closeDrawerOnEscape = () => {
+    if (this.state.activeDrawer) {
+      this.closeDrawer();
+    }
+  };
+
   openConversation = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+
+    if (this.props.onOpenConversation) {
+      this.props.onOpenConversation(this.props.quote);
+      return;
+    }
+
     this.setState({ isConversationOpen: true });
   };
 
   closeConversation = () => {
     this.setState({ isConversationOpen: false });
-  };
-
-  handleWindowKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && this.state.activeDrawer) {
-      this.closeDrawer();
-    }
   };
 
   handleInputChange = (
@@ -309,7 +352,7 @@ class QuoteCardClass extends React.Component<Props, State> {
 
     return (
       <>
-        <motion.div layout className="quote-card-container">
+        <div className="quote-card-container">
           <div className="quote-face-front quote-face-front--visible">
             <blockquote className="quote-text">{quote.quote}</blockquote>
 
@@ -351,23 +394,27 @@ class QuoteCardClass extends React.Component<Props, State> {
               </button>
             )}
           </div>
-        </motion.div>
+        </div>
 
         {this.renderDrawer()}
-        <QuoteConversationModal
-          isOpen={this.state.isConversationOpen}
-          workId={quote.work_id}
-          quote={quote}
-          onClose={this.closeConversation}
-          onRefresh={this.props.onRefresh}
-        />
+        {!this.props.onOpenConversation && (
+          <QuoteConversationModal
+            isOpen={this.state.isConversationOpen}
+            workId={quote.work_id}
+            quote={quote}
+            onClose={this.closeConversation}
+            onRefresh={this.props.onRefresh}
+          />
+        )}
       </>
     );
   }
 }
 
 // --- FUNCTIONAL WRAPPER ---
-export const QuoteCard = (props: Omit<Props, "user">) => {
+const QuoteCardWithUser = (props: Omit<Props, "user">) => {
   const { user } = useAuth();
   return <QuoteCardClass {...props} user={user} />;
 };
+
+export const QuoteCard = React.memo(QuoteCardWithUser);

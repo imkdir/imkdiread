@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Masonry from "react-masonry-css";
-import type { Work } from "../types";
+import type { Quote, Work } from "../types";
 
 import { AppIcon } from "../components/AppIcon";
 import { GoodreadsButton } from "../components/GoodreadsButton";
@@ -231,6 +231,8 @@ function DetailPage({
   const [readingFocusDraft, setReadingFocusDraft] = useState(
     loadReadingFocusSettings,
   );
+  const [activeConversationQuote, setActiveConversationQuote] =
+    useState<Quote | null>(null);
   const [isSharedLayoutActive, setIsSharedLayoutActive] =
     useState(useEntrySharedLayout);
   const [pdfFrameHeight, setPdfFrameHeight] = useState(0);
@@ -264,6 +266,18 @@ function DetailPage({
     mediaQuery.addEventListener("change", updateMatches);
 
     return () => mediaQuery.removeEventListener("change", updateMatches);
+  }, []);
+
+  useEffect(() => {
+    setActiveConversationQuote(null);
+  }, [workId]);
+
+  const openQuoteConversation = useCallback((quote: Quote) => {
+    setActiveConversationQuote(quote);
+  }, []);
+
+  const closeQuoteConversation = useCallback(() => {
+    setActiveConversationQuote(null);
   }, []);
 
   const openSearchDrawer = (query: string) => {
@@ -1379,6 +1393,7 @@ function DetailPage({
                       key={quote.id}
                       quote={quote}
                       onRefresh={fetchData}
+                      onOpenConversation={openQuoteConversation}
                     />
                   ))}
                 </Masonry>
@@ -1442,6 +1457,13 @@ function DetailPage({
         initialQuoteText={editingForm.quote}
         initialPageNumber={editingForm.pageNumber}
         onClose={closeAddQuoteModal}
+        onRefresh={fetchData}
+      />
+      <QuoteConversationModal
+        isOpen={!!activeConversationQuote}
+        workId={work.id}
+        quote={activeConversationQuote}
+        onClose={closeQuoteConversation}
         onRefresh={fetchData}
       />
       <DetailDropboxLinkModal
