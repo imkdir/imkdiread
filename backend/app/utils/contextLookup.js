@@ -21,7 +21,9 @@ function isFeatureEnabled(rawValue, fallback = true) {
   );
 }
 
-const OLLAMA_ENABLED = isFeatureEnabled(process.env.OLLAMA_ENABLED, true);
+function isOllamaEnabled() {
+  return isFeatureEnabled(process.env.OLLAMA_ENABLED, true);
+}
 
 class LookupError extends Error {
   constructor(message, status = 500) {
@@ -227,7 +229,7 @@ async function lookupWithGemini({ word, workTitle, apiKey }) {
 }
 
 async function lookupWithOllama({ word, workTitle }) {
-  if (!OLLAMA_ENABLED) {
+  if (!isOllamaEnabled()) {
     throw new LookupError("Ollama lookup is disabled.", 503);
   }
 

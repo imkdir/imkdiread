@@ -21,6 +21,16 @@ let originalGetGenerativeModel;
 let originalFetch;
 const tempPublicPaths = new Set();
 
+function isFeatureEnabled(rawValue, fallback = true) {
+  const normalized =
+    typeof rawValue === "string" ? rawValue.trim().toLowerCase() : "";
+  if (!normalized) {
+    return fallback;
+  }
+
+  return !["0", "false", "no", "off", "disabled"].includes(normalized);
+}
+
 function seedTestDb(targetDbPath) {
   const db = new Database(targetDbPath);
   db.exec(`
@@ -443,6 +453,7 @@ test.before(async () => {
     GUEST_INVITE_CODE: process.env.GUEST_INVITE_CODE,
     OLLAMA_MODEL: process.env.OLLAMA_MODEL,
     OLLAMA_HOST: process.env.OLLAMA_HOST,
+    OLLAMA_ENABLED: process.env.OLLAMA_ENABLED,
   };
   process.env.JWT_SECRET = "test-jwt-secret";
   process.env.GUEST_INVITE_CODE = "test-invite-code";
@@ -690,6 +701,7 @@ test.after(async () => {
     process.env.GUEST_INVITE_CODE = originalEnv.GUEST_INVITE_CODE;
     process.env.OLLAMA_MODEL = originalEnv.OLLAMA_MODEL;
     process.env.OLLAMA_HOST = originalEnv.OLLAMA_HOST;
+    process.env.OLLAMA_ENABLED = originalEnv.OLLAMA_ENABLED;
   }
 });
 
@@ -1799,6 +1811,7 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
     lookup.json?.result?.image_url,
     "https://upload.wikimedia.org/mock/virtue.jpg",
   );
+  const ollamaEnabled = isFeatureEnabled(process.env.OLLAMA_ENABLED, true);
 
   const wordLookup = await requestJson(
     "POST",
@@ -1806,13 +1819,18 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
     { word: "temperance", provider: "ollama" },
     guestToken,
   );
-  assert.equal(wordLookup.status, 200);
-  assert.equal(wordLookup.json?.success, true);
-  assert.equal(wordLookup.json?.provider, "ollama");
-  assert.equal(wordLookup.json?.result?.word, "temperance");
-  assert.equal(wordLookup.json?.result?.lore_note, "A contextual note.");
-  assert.equal(wordLookup.json?.result?.is_visualizable, false);
-  assert.equal(wordLookup.json?.result?.image_url, null);
+  if (ollamaEnabled) {
+    assert.equal(wordLookup.status, 200);
+    assert.equal(wordLookup.json?.success, true);
+    assert.equal(wordLookup.json?.provider, "ollama");
+    assert.equal(wordLookup.json?.result?.word, "temperance");
+    assert.equal(wordLookup.json?.result?.lore_note, "A contextual note.");
+    assert.equal(wordLookup.json?.result?.is_visualizable, false);
+    assert.equal(wordLookup.json?.result?.image_url, null);
+  } else {
+    assert.equal(wordLookup.status, 503);
+    assert.equal(wordLookup.json?.error, "Ollama lookup is disabled.");
+  }
 
   const explain = await requestJson(
     "POST",
@@ -1858,6 +1876,12 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(
     quoteChatModels.json?.models?.some((model) => model.id === "ollama:llama3"),
     true,
+  );
+  assert.equal(quoteChatModels.json?.providers?.ollama?.enabled, ollamaEnabled);
+  assert.equal(
+    quoteChatModels.json?.models?.find((model) => model.id === "ollama:llama3")
+      ?.disabled,
+    ollamaEnabled ? false : true,
   );
 
   const legacyQuoteId = appDb
@@ -1919,13 +1943,18 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
     },
     guestToken,
   );
-  assert.equal(legacyQuoteChatOllamaReply.status, 200);
-  assert.equal(legacyQuoteChatOllamaReply.json?.success, true);
-  assert.equal(legacyQuoteChatOllamaReply.json?.model, "ollama:llama3");
-  assert.equal(
-    legacyQuoteChatOllamaReply.json?.conversations?.[1]?.content,
-    "An Ollama-backed reading response.",
-  );
+  if (ollamaEnabled) {
+    assert.equal(legacyQuoteChatOllamaReply.status, 200);
+    assert.equal(legacyQuoteChatOllamaReply.json?.success, true);
+    assert.equal(legacyQuoteChatOllamaReply.json?.model, "ollama:llama3");
+    assert.equal(
+      legacyQuoteChatOllamaReply.json?.conversations?.[1]?.content,
+      "An Ollama-backed reading response.",
+    );
+  } else {
+    assert.equal(legacyQuoteChatOllamaReply.status, 400);
+    assert.equal(legacyQuoteChatOllamaReply.json?.error, "Invalid chat model.");
+  }
 
   const quoteChatCreate = await requestJson(
     "POST",
