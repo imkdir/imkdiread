@@ -45,6 +45,11 @@ type ActiveToolValue = ToolValue | null;
 type TranslationLanguageValue =
   | "browser"
   | (typeof TRANSLATION_LANGUAGE_OPTIONS)[number]["value"];
+type TranslationLanguageOption = {
+  value: TranslationLanguageValue;
+  label: string;
+  targetLanguage: string;
+};
 type QuoteConversationTheme = "dark" | "light";
 
 const DEFAULT_QUOTE_CHAT_MODEL = DEFAULT_QUOTE_CHAT_MODELS[0].id;
@@ -117,6 +122,16 @@ function resolveBrowserTranslationLanguage() {
     label: "English",
     targetLanguage: "English",
   };
+}
+
+function getMergedTranslationLanguageOptions(
+  browserLanguage: TranslationLanguageOption,
+) {
+  if (browserLanguage.value !== "browser") {
+    return TRANSLATION_LANGUAGE_OPTIONS;
+  }
+
+  return [browserLanguage, ...TRANSLATION_LANGUAGE_OPTIONS];
 }
 
 function normalizeConversationText(content: string) {
@@ -604,7 +619,7 @@ export function QuoteConversationModal({
   const [selectedModel, setSelectedModel] =
     useState<QuoteChatModel>(DEFAULT_QUOTE_CHAT_MODEL);
   const [selectedTranslationLanguage, setSelectedTranslationLanguage] =
-    useState<TranslationLanguageValue>("browser");
+    useState<TranslationLanguageValue>(() => resolveBrowserTranslationLanguage().value);
   const [theme, setTheme] = useState<QuoteConversationTheme>(
     loadQuoteConversationTheme,
   );
@@ -625,14 +640,7 @@ export function QuoteConversationModal({
     [],
   );
   const translationLanguageOptions = useMemo(
-    () => [
-      {
-        value: "browser",
-        label: `Auto (${browserTranslationLanguage.label})`,
-        targetLanguage: browserTranslationLanguage.targetLanguage,
-      },
-      ...TRANSLATION_LANGUAGE_OPTIONS,
-    ],
+    () => getMergedTranslationLanguageOptions(browserTranslationLanguage),
     [browserTranslationLanguage],
   );
   const selectedToolLabel = TOOL_OPTIONS.find(
