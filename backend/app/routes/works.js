@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
 const { jsonError } = require("../utils/errorHelpers");
+const { fetchWithTimeout } = require("../utils/fetchWithTimeout");
 const { LookupError, lookupContext } = require("../utils/contextLookup");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
@@ -96,6 +97,7 @@ function createWorksRouter({ db, workService, inboxService }) {
   ).replace(/\/+$/, "");
   const ollamaProviderLabel = "Ollama";
   const configuredOllamaModel = asOptionalString(process.env.OLLAMA_MODEL);
+  const AI_REQUEST_TIMEOUT_MS = 60_000;
 
   function getGeminiQuoteChatModels() {
     return GEMINI_QUOTE_CHAT_MODELS.map((model) => ({ ...model }));
@@ -172,7 +174,7 @@ function createWorksRouter({ db, workService, inboxService }) {
     }
 
     try {
-      const response = await fetch(`${ollamaHost}/api/tags`);
+      const response = await fetchWithTimeout(`${ollamaHost}/api/tags`);
       if (!response.ok) {
         throw new Error(`Ollama returned ${response.status}.`);
       }
@@ -495,7 +497,7 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
         tool,
         targetLanguage,
       }),
-    });
+    }, { timeout: AI_REQUEST_TIMEOUT_MS });
 
     const chat = model.startChat({ history });
     const result = await chat.sendMessage(userMessage);
@@ -529,7 +531,7 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
       { role: "user", content: userMessage },
     ];
 
-    const response = await fetch(`${ollamaHost}/api/chat`, {
+    const response = await fetchWithTimeout(`${ollamaHost}/api/chat`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -539,6 +541,7 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
         messages,
         stream: false,
       }),
+      timeoutMs: AI_REQUEST_TIMEOUT_MS,
     });
 
     if (!response.ok) {
@@ -1688,7 +1691,7 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
                 "translation": "Your literary translation in ${targetLanguage}.",
                 "translator_note": "Helpful context in ${targetLanguage}, or null if the passage is straightforward."
               }`,
-        });
+        }, { timeout: AI_REQUEST_TIMEOUT_MS });
 
         const chat = model.startChat({ history: chatHistory });
         const result = await chat.sendMessage(
@@ -1828,7 +1831,7 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
                 "cleaned_quote": "The perfectly formatted original text.",
                 "explanation": "Your highly specific, non-repetitive analysis here."
               }`,
-        });
+        }, { timeout: AI_REQUEST_TIMEOUT_MS });
 
         const chat = model.startChat({
           history: chatHistory,

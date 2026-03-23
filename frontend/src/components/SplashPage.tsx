@@ -5,6 +5,8 @@ import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
 
+const SCREENSAVER_UPLOAD_TIMEOUT_MS = 120_000;
+
 interface PageState {
   images: string[];
   index: number;
@@ -139,6 +141,7 @@ export class SplashPage extends React.Component<
       const res = await request("/api/screensavers", {
         method: "POST",
         body: formData,
+        timeoutMs: SCREENSAVER_UPLOAD_TIMEOUT_MS,
       });
       const data = await readJsonSafe<{
         success?: boolean;

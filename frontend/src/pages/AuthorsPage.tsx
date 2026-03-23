@@ -9,6 +9,8 @@ import { showToast } from "../utils/toast";
 
 import "./AuthorsPage.css";
 
+const AUTHOR_AVATAR_UPLOAD_TIMEOUT_MS = 120_000;
+
 interface PageState {
   authors: Author[];
   loading: boolean;
@@ -147,6 +149,7 @@ export class AuthorsPage extends React.Component<
           {
             method: "POST",
             body: formData,
+            timeoutMs: AUTHOR_AVATAR_UPLOAD_TIMEOUT_MS,
           },
         );
         const uploadData = await readJsonSafe<{

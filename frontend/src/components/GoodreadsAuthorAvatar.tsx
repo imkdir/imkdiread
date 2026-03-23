@@ -7,6 +7,8 @@ import { showToast } from "../utils/toast";
 
 import "./GoodreadsImages.css";
 
+const AUTHOR_AVATAR_UPLOAD_TIMEOUT_MS = 120_000;
+
 interface AvatarProps {
   author: Author;
   className?: string;
@@ -97,6 +99,7 @@ export class GoodreadsAuthorAvatar extends React.Component<
         {
           method: "POST",
           body: formData,
+          timeoutMs: AUTHOR_AVATAR_UPLOAD_TIMEOUT_MS,
         },
       );
       const data = await readJsonSafe<{

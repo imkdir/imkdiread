@@ -8,6 +8,7 @@ import { AppIcon } from "./AppIcon";
 import { FloatingDrawer } from "./FloatingDrawer";
 
 const DICTIONARY_DRAWER_SETTINGS_KEY = "dictionary-drawer-settings";
+const CONTEXT_LOOKUP_TIMEOUT_MS = 70_000;
 
 interface DictionaryDrawerSettings {
   autoClearOnOpen: boolean;
@@ -405,6 +406,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
             word: searchQuery.trim(),
             provider: lookupMode,
           }),
+          timeoutMs: CONTEXT_LOOKUP_TIMEOUT_MS,
         });
 
         const data = await readJsonSafe<{

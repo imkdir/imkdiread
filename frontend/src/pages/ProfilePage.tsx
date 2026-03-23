@@ -10,6 +10,8 @@ import {
 
 import "./ProfilePage.css";
 
+const PROFILE_AVATAR_UPLOAD_TIMEOUT_MS = 120_000;
+
 interface RichQuote extends Quote {
   work?: Work | null;
 }
@@ -99,6 +101,7 @@ export class ProfilePage extends Component<Record<string, never>, PageState> {
       const res = await request("/api/profile/avatar", {
         method: "POST",
         body: formData,
+        timeoutMs: PROFILE_AVATAR_UPLOAD_TIMEOUT_MS,
       });
 
       const data = await readJsonSafe<{

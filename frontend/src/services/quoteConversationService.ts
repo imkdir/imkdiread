@@ -2,6 +2,8 @@ import type { ConversationMessage, Quote } from "../types";
 import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 
+const QUOTE_CHAT_REQUEST_TIMEOUT_MS = 70_000;
+
 export type QuoteChatTool = "chat" | "analyze" | "translate";
 export type QuoteChatProvider = "gemini" | "ollama";
 export type QuoteChatModel = string;
@@ -106,10 +108,14 @@ export async function sendQuoteChatMessage(
     replaceLatestTurn?: boolean;
   },
 ) {
-  const res = await request(`/api/works/${encodeURIComponent(workId)}/quotes/chat`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const res = await request(
+    `/api/works/${encodeURIComponent(workId)}/quotes/chat`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      timeoutMs: QUOTE_CHAT_REQUEST_TIMEOUT_MS,
+    },
+  );
   const data = await readJsonSafe<QuoteChatResponse>(res);
 
   if (!res.ok || !data?.success || !data.quote) {

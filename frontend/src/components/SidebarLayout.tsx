@@ -23,6 +23,8 @@ import { InboxDrawer } from "./InboxDrawer";
 import { Modal } from "./Modal";
 import { SearchDrawer } from "../pages/SearchPage";
 
+const ADMIN_BULK_REQUEST_TIMEOUT_MS = 120_000;
+
 interface ProfileResponse {
   quotes?: Quote[];
 }
@@ -296,7 +298,10 @@ export const SidebarLayout: React.FC = () => {
     setIsRescanningWorks(true);
 
     try {
-      const res = await request("/api/works/rescan", { method: "POST" });
+      const res = await request("/api/works/rescan", {
+        method: "POST",
+        timeoutMs: ADMIN_BULK_REQUEST_TIMEOUT_MS,
+      });
       const data = await readJsonSafe<RescanWorksResponse>(res);
 
       if (!res.ok) {
@@ -364,6 +369,7 @@ export const SidebarLayout: React.FC = () => {
       const res = await request("/api/works/bulk-import", {
         method: "POST",
         body: JSON.stringify(importedWorks),
+        timeoutMs: ADMIN_BULK_REQUEST_TIMEOUT_MS,
       });
       const data = await readJsonSafe<{
         success?: boolean;

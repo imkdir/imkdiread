@@ -1,4 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { fetchWithTimeout } = require("./fetchWithTimeout");
 
 const FREE_DICTIONARY_API_BASE =
   "https://api.dictionaryapi.dev/api/v2/entries/en/";
@@ -7,6 +8,7 @@ const OLLAMA_HOST = String(
   process.env.OLLAMA_HOST || "http://127.0.0.1:11434",
 ).replace(/\/+$/, "");
 const OLLAMA_LOOKUP_MODEL = process.env.OLLAMA_MODEL || "llama3";
+const LOOKUP_REQUEST_TIMEOUT_MS = 60_000;
 
 class LookupError extends Error {
   constructor(message, status = 500) {
@@ -48,7 +50,7 @@ function formatFreeDictionaryEntry(dictEntry) {
 }
 
 async function lookupWithFreeDictionary(word) {
-  const fallbackRes = await fetch(
+  const fallbackRes = await fetchWithTimeout(
     `${FREE_DICTIONARY_API_BASE}${encodeURIComponent(word)}`,
   );
 
@@ -154,7 +156,7 @@ function normalizeGeminiEntry(result, fallbackWord) {
 
 async function lookupWikipediaThumbnail(word) {
   try {
-    const wikiRes = await fetch(
+    const wikiRes = await fetchWithTimeout(
       `${WIKIMEDIA_PAGE_IMAGE_API_BASE}?action=query&titles=${encodeURIComponent(word)}&prop=pageimages&format=json&pithumbsize=300`,
     );
 
@@ -191,7 +193,7 @@ async function lookupWithGemini({ word, workTitle, apiKey }) {
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash",
     generationConfig: { responseMimeType: "application/json" },
-  });
+  }, { timeout: LOOKUP_REQUEST_TIMEOUT_MS });
 
   const prompt = buildLiteraryDictionaryPrompt({ word, workTitle });
   const generated = await model.generateContent(prompt);
@@ -219,7 +221,7 @@ async function lookupWithOllama({ word, workTitle }) {
     throw new LookupError("Ollama model is not configured.", 503);
   }
 
-  const response = await fetch(`${OLLAMA_HOST}/api/generate`, {
+  const response = await fetchWithTimeout(`${OLLAMA_HOST}/api/generate`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -230,6 +232,7 @@ async function lookupWithOllama({ word, workTitle }) {
       format: "json",
       stream: false,
     }),
+    timeoutMs: LOOKUP_REQUEST_TIMEOUT_MS,
   });
 
   if (!response.ok) {

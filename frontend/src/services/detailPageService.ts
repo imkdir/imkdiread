@@ -2,6 +2,9 @@ import type { Work } from "../types";
 import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 
+const AI_REQUEST_TIMEOUT_MS = 70_000;
+const FILE_UPLOAD_REQUEST_TIMEOUT_MS = 120_000;
+
 export type DetailToggleAction = "read" | "liked" | "shelved";
 
 interface ApiSuccessResponse {
@@ -173,6 +176,7 @@ export async function explainPassage(
   const res = await request(`/api/works/${workId}/quotes/analyze`, {
     method: "POST",
     body: JSON.stringify({ text }),
+    timeoutMs: AI_REQUEST_TIMEOUT_MS,
   });
   const data = await readJsonSafe<ExplainResponse>(res);
 
@@ -237,6 +241,7 @@ export async function uploadWorkFile(
   const res = await request(`/api/works/${encodeURIComponent(workId)}/files`, {
     method: "POST",
     body: formData,
+    timeoutMs: FILE_UPLOAD_REQUEST_TIMEOUT_MS,
   });
   const data = await readJsonSafe<WorkFileUploadResponse>(res);
   if (!res.ok || !data) {
@@ -255,6 +260,7 @@ export async function uploadWorkCover(
   const res = await request(`/api/works/${encodeURIComponent(workId)}/cover`, {
     method: "POST",
     body: formData,
+    timeoutMs: FILE_UPLOAD_REQUEST_TIMEOUT_MS,
   });
   const data = await readJsonSafe<WorkFileUploadResponse>(res);
   if (!res.ok || !data) {
