@@ -202,7 +202,54 @@ function getLatestConversationTurn(messages: ConversationMessage[]) {
 }
 
 function getLatestConversationEntry(messages: ConversationMessage[]) {
-  return messages[messages.length - 1] || null;
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role !== "meta") {
+      return messages[index];
+    }
+  }
+
+  return null;
+}
+
+function getLatestConversationEntryId(messages: ConversationMessage[]) {
+  return getLatestConversationEntry(messages)?.id || 0;
+}
+
+function createConversationMetaMessage(
+  id: number,
+  metaType: NonNullable<ConversationMessage["meta_type"]>,
+  content: string,
+): ConversationMessage {
+  return {
+    id,
+    role: "meta",
+    content,
+    created_at: new Date().toISOString(),
+    quote_id: 0,
+    meta_type: metaType,
+    meta_display: "divider",
+  };
+}
+
+function mergeTrailingMetaMessage(
+  messages: ConversationMessage[],
+  nextMessage: ConversationMessage,
+) {
+  let trailingStart = messages.length;
+  while (trailingStart > 0 && messages[trailingStart - 1]?.role === "meta") {
+    trailingStart -= 1;
+  }
+
+  const leadingMessages = messages.slice(0, trailingStart);
+  const trailingMessages = messages.slice(trailingStart).filter((message) => {
+    return !(
+      message.role === "meta" &&
+      message.meta_type &&
+      message.meta_type === nextMessage.meta_type
+    );
+  });
+
+  return [...leadingMessages, ...trailingMessages, nextMessage];
 }
 
 type AssistantMessageBlock =
@@ -611,6 +658,7 @@ export function QuoteConversationModal({
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const editingTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const replyRefs = useRef(new Map<number, HTMLDivElement | null>());
+  const nextClientMessageIdRef = useRef(-1);
   const lastSeenReplyIdRef = useRef(0);
   const pendingScrollBehaviorRef = useRef<ScrollBehavior | null>(null);
   const pendingUnreadCheckRef = useRef(false);
@@ -667,7 +715,7 @@ export function QuoteConversationModal({
     null;
   const selectedLanguageLabel = translationLanguageOptions.find(
     (option) => option.value === selectedTranslationLanguage,
-  )?.label;
+  )?.label || browserTranslationLanguage.label;
   const shouldRenderQuoteBubble = useMemo(() => {
     if (!activeQuote?.quote) {
       return false;
@@ -772,7 +820,7 @@ export function QuoteConversationModal({
     setSelectedTool(null);
     setModelOptions(DEFAULT_QUOTE_CHAT_MODELS);
     setSelectedModel(DEFAULT_QUOTE_CHAT_MODEL);
-    setSelectedTranslationLanguage("browser");
+    setSelectedTranslationLanguage(getDefaultTranslationLanguageValue());
     setComposer(quote?.id ? "" : initialQuoteText);
     setIsSavingConversation(false);
 
@@ -784,8 +832,9 @@ export function QuoteConversationModal({
     setIsLoadingHistory(true);
     void fetchQuoteChat(quote.id)
       .then((data) => {
-        const latestReply = getLatestConversationEntry(data.conversations);
-        lastSeenReplyIdRef.current = latestReply?.id || 0;
+        lastSeenReplyIdRef.current = getLatestConversationEntryId(
+          data.conversations,
+        );
         pendingScrollBehaviorRef.current = "auto";
         setShowScrollToBottom(false);
         setActiveQuote(data.quote);
@@ -868,13 +917,10 @@ export function QuoteConversationModal({
     if (pendingScrollBehaviorRef.current) {
       const behavior = pendingScrollBehaviorRef.current;
       pendingScrollBehaviorRef.current = null;
-      const latestReply = getLatestConversationEntry(messages);
-      if (latestReply) {
-        lastSeenReplyIdRef.current = Math.max(
-          lastSeenReplyIdRef.current,
-          latestReply.id,
-        );
-      }
+      lastSeenReplyIdRef.current = Math.max(
+        lastSeenReplyIdRef.current,
+        getLatestConversationEntryId(messages),
+      );
       setShowScrollToBottom(false);
       scrollToBottom(behavior);
       return;
@@ -1141,6 +1187,34 @@ export function QuoteConversationModal({
     updateUnreadReplyState();
   };
 
+  const handleModelSelectionChange = (nextModel: QuoteChatModel) => {
+    if (nextModel === selectedModel) {
+      return;
+    }
+
+    const nextModelOption =
+      modelOptions.find((option) => option.id === nextModel) ||
+      DEFAULT_QUOTE_CHAT_MODELS.find((option) => option.id === nextModel) ||
+      null;
+
+    setSelectedModel(nextModel);
+
+    if (!nextModelOption) {
+      return;
+    }
+
+    setMessages((current) =>
+      mergeTrailingMetaMessage(
+        current,
+        createConversationMetaMessage(
+          nextClientMessageIdRef.current--,
+          "model",
+          `Switched to ${nextModelOption.label}`,
+        ),
+      ),
+    );
+  };
+
   const handleRetryFailedTurn = async () => {
     if (!failedTurn || isSending || isSavingConversation) {
       return;
@@ -1212,7 +1286,7 @@ export function QuoteConversationModal({
             className="quote-chat-modal__model-select"
             onClick={(event) => event.stopPropagation()}
             onChange={(event) =>
-              setSelectedModel(event.target.value as QuoteChatModel)
+              handleModelSelectionChange(event.target.value as QuoteChatModel)
             }
           >
             {(isLoadingModels ? [] : modelOptions).map((option) => (
@@ -1312,6 +1386,16 @@ export function QuoteConversationModal({
                 </div>
               ) : null}
               {messages.map((message) => {
+                if (message.role === "meta") {
+                  return (
+                    <div key={message.id} className="quote-chat-message quote-chat-message--meta">
+                      <div className="quote-chat-message__meta-divider">
+                        <span>{message.content}</span>
+                      </div>
+                    </div>
+                  );
+                }
+
                 const isLatestEditableUser =
                   message.role === "user" && message.id === latestUserMessageId;
                 const isEditingLatestUser =
@@ -1532,13 +1616,10 @@ export function QuoteConversationModal({
             }}
             onClick={(event) => {
               event.stopPropagation();
-              const latestReply = getLatestConversationEntry(messages);
-              if (latestReply) {
-                lastSeenReplyIdRef.current = Math.max(
-                  lastSeenReplyIdRef.current,
-                  latestReply.id,
-                );
-              }
+              lastSeenReplyIdRef.current = Math.max(
+                lastSeenReplyIdRef.current,
+                getLatestConversationEntryId(messages),
+              );
               setShowScrollToBottom(false);
               scrollToBottom("smooth");
             }}

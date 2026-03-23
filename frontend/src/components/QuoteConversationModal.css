@@ -276,6 +276,10 @@
     justify-content: flex-start;
 }
 
+.quote-chat-message--meta {
+    justify-content: center;
+}
+
 .quote-chat-message--copyable {
     align-items: flex-end;
 }
@@ -305,6 +309,31 @@
     border-radius: 0;
     background: transparent;
     color: var(--qcm-text);
+}
+
+.quote-chat-message__meta-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: min(100%, 520px);
+    color: var(--qcm-text-subtle);
+    font-size: 11px;
+    line-height: 1.4;
+    letter-spacing: 0.03em;
+}
+
+.quote-chat-message__meta-divider::before,
+.quote-chat-message__meta-divider::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.quote-chat-message__meta-divider span {
+    font-style: italic;
+    white-space: nowrap;
 }
 
 .quote-chat-message__text {

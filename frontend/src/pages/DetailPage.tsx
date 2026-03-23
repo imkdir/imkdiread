@@ -356,6 +356,7 @@ function DetailPage({
     handleProgressFinished,
     closeAddQuoteModal,
     handleExplainPassage,
+    triggerClipboardQuoteCapture,
     togglePDFViewer,
     closePDFViewer,
     handleFinderButtonClick,
@@ -1607,7 +1608,20 @@ function DetailPage({
                       top: effectiveFocusTop,
                       height: effectiveFocusHeight,
                     }}
-                  />
+                  >
+                    <div className="detail-reading-focus-overlay__action-zone">
+                      <button
+                        type="button"
+                        className="detail-reading-focus-overlay__action"
+                        onClick={() => {
+                          void triggerClipboardQuoteCapture();
+                        }}
+                      >
+                        <AppIcon name="analyze" size={14} />
+                        <span>Explain</span>
+                      </button>
+                    </div>
+                  </div>
                   <div
                     className="detail-reading-focus-overlay__mask detail-reading-focus-overlay__mask--bottom"
                     style={{

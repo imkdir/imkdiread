@@ -56,6 +56,43 @@ function normalizeDropboxLink(rawLink: string): string {
   }
 }
 
+function openQuoteFromPastedText(
+  pastedText: string,
+  options: {
+    setIsAddQuoteModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    setIsSavingQuote: React.Dispatch<React.SetStateAction<boolean>>;
+    setEditingForm: React.Dispatch<React.SetStateAction<DetailEditingForm>>;
+  },
+) {
+  const normalizedInput = pastedText.trim();
+  if (!normalizedInput) {
+    return false;
+  }
+
+  let cleanedText = normalizedInput.replace(/-\r?\n/g, "");
+  cleanedText = cleanedText
+    .split(/\r?\n\s*\r?\n/)
+    .map((paragraph) => paragraph.replace(/\r?\n/g, " "))
+    .join("\n\n");
+  cleanedText = cleanedText.replace(/ {2,}/g, " ");
+  const normalizedText = cleanedText.replace(/\s+/g, " ").trim();
+
+  if (normalizedText && DICTIONARY_PASTE_PATTERN.test(normalizedText)) {
+    return false;
+  }
+
+  options.setIsAddQuoteModalOpen(true);
+  options.setIsSavingQuote(false);
+  options.setEditingForm({
+    target: "quote",
+    quote: cleanedText,
+    pageNumber: "",
+    explanation: "",
+  });
+
+  return true;
+}
+
 export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const [work, setWork] = useState<Work | null>(initialWork || null);
   const [loading, setLoading] = useState(!initialWork);
@@ -162,30 +199,10 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     }
     e.preventDefault();
 
-    let pastedText = e.clipboardData?.getData("text/plain") || "";
-    pastedText = pastedText.trim();
-
-    if (pastedText.length <= 0) return;
-
-    let cleanedText = pastedText.replace(/-\r?\n/g, "");
-    cleanedText = cleanedText
-      .split(/\r?\n\s*\r?\n/)
-      .map((paragraph) => paragraph.replace(/\r?\n/g, " "))
-      .join("\n\n");
-    cleanedText = cleanedText.replace(/ {2,}/g, " ");
-    const normalizedText = cleanedText.replace(/\s+/g, " ").trim();
-
-    if (normalizedText && DICTIONARY_PASTE_PATTERN.test(normalizedText)) {
-      return;
-    }
-
-    setIsAddQuoteModalOpen(true);
-    setIsSavingQuote(false);
-    setEditingForm({
-      target: "quote",
-      quote: cleanedText,
-      pageNumber: "",
-      explanation: "",
+    void openQuoteFromPastedText(e.clipboardData?.getData("text/plain") || "", {
+      setIsAddQuoteModalOpen,
+      setIsSavingQuote,
+      setEditingForm,
     });
   }, []);
 
@@ -193,6 +210,39 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     window.addEventListener("paste", handleGlobalPaste);
     return () => window.removeEventListener("paste", handleGlobalPaste);
   }, [handleGlobalPaste]);
+
+  const triggerClipboardQuoteCapture = useCallback(async () => {
+    if (
+      typeof navigator === "undefined" ||
+      typeof navigator.clipboard?.readText !== "function"
+    ) {
+      showToast("Clipboard access is unavailable in this browser.", {
+        tone: "error",
+      });
+      return false;
+    }
+
+    try {
+      const clipboardText = await navigator.clipboard.readText();
+      const opened = openQuoteFromPastedText(clipboardText, {
+        setIsAddQuoteModalOpen,
+        setIsSavingQuote,
+        setEditingForm,
+      });
+
+      if (!opened) {
+        showToast("Clipboard did not contain a quote passage to explain.", {
+          tone: "error",
+        });
+      }
+
+      return opened;
+    } catch (error) {
+      console.error("Failed to read clipboard:", error);
+      showToast("Clipboard access failed.", { tone: "error" });
+      return false;
+    }
+  }, []);
 
   const toggleActionDrawer = useCallback(() => {
     setIsActionDrawerOpen((prev) => !prev);
@@ -655,6 +705,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     handleProgressFinished,
     closeAddQuoteModal,
     handleExplainPassage,
+    triggerClipboardQuoteCapture,
     togglePDFViewer,
     closePDFViewer,
     handleFinderButtonClick,

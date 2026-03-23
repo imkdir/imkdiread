@@ -11,10 +11,12 @@ export interface Quote {
 
 export interface ConversationMessage {
   id: number;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "meta";
   content: string;
   created_at: string;
   quote_id: number;
+  meta_type?: "model";
+  meta_display?: "divider";
 }
 
 export interface ReadingActivity {
