@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { fetchQuoteChatModels } from "../services/quoteConversationService";
 import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
@@ -126,6 +127,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [lookupMode, setLookupMode] = useState<LookupMode>("gemini");
+  const [isOllamaEnabled, setIsOllamaEnabled] = useState<boolean | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [dictResult, setDictResult] = useState<DictResult | null>(null);
   const [savedVocabs, setSavedVocabs] = useState<SavedVocab[]>([]);
@@ -159,6 +161,36 @@ export const DictionaryDrawer: React.FC<Props> = ({
 
     return () => window.cancelAnimationFrame(frameId);
   }, [initialLookupMode, initialQuery, initialRequestKey, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    void fetchQuoteChatModels()
+      .then((data) => {
+        if (!isCancelled) {
+          setIsOllamaEnabled(data.providers.ollama.enabled);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setIsOllamaEnabled(true);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOllamaEnabled === false && lookupMode === "ollama") {
+      setLookupMode("gemini");
+    }
+  }, [isOllamaEnabled, lookupMode]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -395,6 +427,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
     async (e?: React.FormEvent) => {
       if (e) e.preventDefault();
       if (!searchQuery.trim() || !workId) return;
+      if (lookupMode === "ollama" && isOllamaEnabled !== true) return;
 
       setIsSearching(true);
       setDictResult(null);
@@ -429,7 +462,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
         setIsSearching(false);
       }
     },
-    [lookupMode, searchQuery, workId],
+    [isOllamaEnabled, lookupMode, searchQuery, workId],
   );
 
   const handleSaveVocab = async () => {
@@ -492,8 +525,16 @@ export const DictionaryDrawer: React.FC<Props> = ({
         />
         <button
           type="submit"
-          disabled={isSearching}
-          style={{ ...styles.searchBtn, opacity: isSearching ? 0.7 : 1 }}
+          disabled={
+            isSearching || (lookupMode === "ollama" && isOllamaEnabled !== true)
+          }
+          style={{
+            ...styles.searchBtn,
+            opacity:
+              isSearching || (lookupMode === "ollama" && isOllamaEnabled !== true)
+                ? 0.7
+                : 1,
+          }}
         >
           {isSearching ? "Thinking..." : "Search"}
         </button>
@@ -507,8 +548,19 @@ export const DictionaryDrawer: React.FC<Props> = ({
             ...(lookupMode === "ollama"
               ? styles.lookupModeButtonActive
               : undefined),
+            ...(isOllamaEnabled !== true
+              ? styles.lookupModeButtonDisabled
+              : undefined),
           }}
-          onClick={() => setLookupMode("ollama")}
+          onClick={() => {
+            if (isOllamaEnabled === true) {
+              setLookupMode("ollama");
+            }
+          }}
+          disabled={isOllamaEnabled !== true}
+          title={
+            isOllamaEnabled === false ? "Ollama is disabled." : undefined
+          }
         >
           Ollama
         </button>
@@ -809,6 +861,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontFamily: "Fredoka",
     fontSize: "13px",
     fontWeight: 600,
+  },
+  lookupModeButtonDisabled: {
+    color: "rgba(107, 82, 56, 0.4)",
+    cursor: "default",
+    opacity: 0.75,
   },
   lookupModeButtonActive: {
     background:

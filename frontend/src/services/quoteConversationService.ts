@@ -15,11 +15,22 @@ export interface QuoteChatModelOption {
   name: string;
   label: string;
   short_label: string;
+  disabled?: boolean;
 }
 
 interface QuoteChatModelWarning {
   provider: QuoteChatProvider;
   message: string;
+}
+
+export interface AIProviderOption {
+  enabled: boolean;
+  label: string;
+}
+
+export interface AIProviderCatalog {
+  gemini: AIProviderOption;
+  ollama: AIProviderOption;
 }
 
 interface QuoteChatResponse {
@@ -32,6 +43,13 @@ interface QuoteChatResponse {
   models?: QuoteChatModelOption[];
   default_model?: QuoteChatModel;
   warnings?: QuoteChatModelWarning[];
+  providers?: AIProviderCatalog;
+}
+
+interface QuoteSaveResponse {
+  success?: boolean;
+  error?: string;
+  quote?: Quote;
 }
 
 export const DEFAULT_QUOTE_CHAT_MODELS: QuoteChatModelOption[] = [
@@ -53,6 +71,17 @@ export const DEFAULT_QUOTE_CHAT_MODELS: QuoteChatModelOption[] = [
   },
 ];
 
+const DEFAULT_AI_PROVIDERS: AIProviderCatalog = {
+  gemini: {
+    enabled: true,
+    label: "Gemini",
+  },
+  ollama: {
+    enabled: true,
+    label: "Ollama",
+  },
+};
+
 export async function fetchQuoteChatModels() {
   const res = await request("/api/quote-chat/models");
   const data = await readJsonSafe<QuoteChatResponse>(res);
@@ -67,6 +96,7 @@ export async function fetchQuoteChatModels() {
     models: data.models?.length ? data.models : DEFAULT_QUOTE_CHAT_MODELS,
     defaultModel: data.default_model || DEFAULT_QUOTE_CHAT_MODELS[0].id,
     warnings: data.warnings || [],
+    providers: data.providers || DEFAULT_AI_PROVIDERS,
   };
 }
 
@@ -93,6 +123,27 @@ export async function clearQuoteChat(quoteId: number) {
   if (!res.ok || !data?.success) {
     throw new Error(getApiErrorMessage(data, "Failed to clear quote chat."));
   }
+}
+
+export async function saveQuoteConversation(
+  workId: string,
+  payload: {
+    quote: string;
+    pageNumber?: number | null;
+    explanation?: string;
+  },
+) {
+  const res = await request(`/api/works/${encodeURIComponent(workId)}/quotes`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const data = await readJsonSafe<QuoteSaveResponse>(res);
+
+  if (!res.ok || !data?.success || !data.quote) {
+    throw new Error(getApiErrorMessage(data, "Failed to save conversation."));
+  }
+
+  return data.quote;
 }
 
 export async function sendQuoteChatMessage(

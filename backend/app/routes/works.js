@@ -99,6 +99,32 @@ function createWorksRouter({ db, workService, inboxService }) {
   const configuredOllamaModel = asOptionalString(process.env.OLLAMA_MODEL);
   const AI_REQUEST_TIMEOUT_MS = 60_000;
 
+  function isFeatureEnabled(rawValue, fallback = true) {
+    const normalized = asOptionalString(rawValue);
+    if (normalized === null) {
+      return fallback;
+    }
+
+    return !["0", "false", "no", "off", "disabled"].includes(
+      normalized.toLowerCase(),
+    );
+  }
+
+  const isOllamaEnabled = isFeatureEnabled(process.env.OLLAMA_ENABLED, true);
+
+  function getAIProviders() {
+    return {
+      gemini: {
+        enabled: true,
+        label: "Gemini",
+      },
+      ollama: {
+        enabled: isOllamaEnabled,
+        label: ollamaProviderLabel,
+      },
+    };
+  }
+
   function getGeminiQuoteChatModels() {
     return GEMINI_QUOTE_CHAT_MODELS.map((model) => ({ ...model }));
   }
@@ -142,6 +168,10 @@ function createWorksRouter({ db, workService, inboxService }) {
     }
 
     if (provider === "ollama") {
+      if (!isOllamaEnabled) {
+        return null;
+      }
+
       return {
         id: buildQuoteChatModelId(provider, modelName),
         provider,
@@ -165,9 +195,14 @@ function createWorksRouter({ db, workService, inboxService }) {
             name: configuredOllamaModel,
             label: `${ollamaProviderLabel} ${configuredOllamaModel}`,
             short_label: configuredOllamaModel,
+            disabled: !isOllamaEnabled,
           },
         ]
       : [];
+
+    if (!isOllamaEnabled) {
+      return { models: fallbackModels, warnings: [] };
+    }
 
     if (!ollamaHost) {
       return { models: fallbackModels, warnings: [] };
@@ -203,6 +238,7 @@ function createWorksRouter({ db, workService, inboxService }) {
                 name: modelName,
                 label: `${ollamaProviderLabel} ${displayLabel}`,
                 short_label: displayLabel,
+                disabled: false,
               };
             })
             .filter(Boolean)
@@ -248,6 +284,7 @@ function createWorksRouter({ db, workService, inboxService }) {
       models: [...geminiModels, ...ollamaModelsResult.models],
       default_model: defaultQuoteChatModelId,
       warnings: ollamaModelsResult.warnings,
+      providers: getAIProviders(),
     };
   }
 
@@ -1247,7 +1284,11 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
         )
         .run(workId, userId, quote, pageNumber, explanation || null);
 
-      res.json({ success: true });
+      const savedQuote = db
+        .prepare("SELECT * FROM work_quotes WHERE id = ?")
+        .get(result.lastInsertRowid);
+
+      res.json({ success: true, quote: savedQuote });
     } catch (error) {
       console.error("Failed to add quote:", error);
       res

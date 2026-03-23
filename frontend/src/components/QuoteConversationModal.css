@@ -1,12 +1,117 @@
 .quote-chat-modal-card {
+    --qcm-card-bg: #161616;
+    --qcm-card-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+    --qcm-text: #e3e3e3;
+    --qcm-text-strong: #f4f7ff;
+    --qcm-text-muted: rgba(227, 227, 227, 0.68);
+    --qcm-text-subtle: rgba(227, 227, 227, 0.48);
+    --qcm-header-bg: rgba(0, 0, 0, 0.05);
+    --qcm-menu-bg: rgba(32, 32, 32, 0.98);
+    --qcm-menu-border: rgba(255, 255, 255, 0.08);
+    --qcm-overlay-shadow: 0 18px 32px rgba(0, 0, 0, 0.28);
+    --qcm-dropdown-bg: rgba(32, 32, 32, 0.98);
+    --qcm-dropdown-border: rgba(255, 255, 255, 0.1);
+    --qcm-hover-bg: rgba(255, 255, 255, 0.04);
+    --qcm-user-bubble-bg: #35506d;
+    --qcm-user-bubble-text: #eef4fb;
+    --qcm-emphasis: #f0dcc2;
+    --qcm-note-bg: rgba(255, 255, 255, 0.045);
+    --qcm-note-border: rgba(255, 255, 255, 0.06);
+    --qcm-note-text: rgba(227, 227, 227, 0.82);
+    --qcm-icon-muted: rgba(227, 227, 227, 0.82);
+    --qcm-edit-border: #a9c5ff;
+    --qcm-accent: #a9c5ff;
+    --qcm-accent-strong: #a8c7fa;
+    --qcm-accent-strong-hover: #9bbbee;
+    --qcm-accent-contrast: #052e6f;
+    --qcm-disabled-bg: #2d2d30;
+    --qcm-disabled-text: rgba(215, 219, 224, 0.45);
+    --qcm-loading: rgba(227, 227, 227, 0.72);
+    --qcm-scroll-button-bg: rgba(32, 36, 44, 0.94);
+    --qcm-scroll-button-hover: rgba(43, 48, 58, 0.98);
+    --qcm-scroll-button-text: #f4f4f6;
+    --qcm-scroll-button-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+    --qcm-composer-bg: #242424;
+    --qcm-placeholder: rgba(227, 227, 227, 0.8);
+    --qcm-mode-pill-border: rgba(160, 193, 255, 0.9);
+    --qcm-mode-pill-bg: rgba(112, 150, 224, 0.1);
+    --qcm-mode-pill-text: #a9c5ff;
+    --qcm-error: #ffaea3;
+    --qcm-danger: #ffb4bc;
+    --qcm-error-surface: rgba(255, 174, 163, 0.08);
+    --qcm-error-border: rgba(255, 174, 163, 0.24);
     width: min(920px, calc(100vw - 32px));
     height: min(720px, calc(100vh - 56px));
     padding: 0 0 20px 0;
     overflow: hidden;
-    background: #161616;
+    background: var(--qcm-card-bg);
     border: none;
-    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
-    color: #e3e3e3;
+    box-shadow: var(--qcm-card-shadow);
+    color: var(--qcm-text);
+    transition:
+        background 0.32s ease,
+        box-shadow 0.32s ease,
+        color 0.28s ease;
+}
+
+.quote-chat-modal-card--light {
+    --qcm-card-bg:
+        radial-gradient(
+            circle at top,
+            rgba(255, 255, 255, 0.42),
+            transparent 34%
+        ),
+        linear-gradient(
+            180deg,
+            rgba(252, 248, 240, 0.98),
+            rgba(243, 232, 212, 0.96)
+        );
+    --qcm-card-shadow: 0 20px 48px rgba(89, 62, 34, 0.14);
+    --qcm-text: #2f241a;
+    --qcm-text-strong: #4a3018;
+    --qcm-text-muted: rgba(85, 61, 38, 0.72);
+    --qcm-text-subtle: rgba(96, 73, 48, 0.56);
+    --qcm-header-bg: rgba(255, 248, 238, 0.58);
+    --qcm-menu-bg: rgba(252, 247, 239, 0.98);
+    --qcm-menu-border: rgba(122, 91, 57, 0.16);
+    --qcm-dropdown-bg: rgba(252, 247, 239, 0.98);
+    --qcm-dropdown-border: rgba(122, 91, 57, 0.18);
+    --qcm-hover-bg: rgba(142, 93, 48, 0.08);
+    --qcm-user-bubble-bg: #e7ddd1;
+    --qcm-user-bubble-text: #49382b;
+    --qcm-emphasis: #8e5d30;
+    --qcm-note-bg: rgba(255, 255, 255, 0.48);
+    --qcm-note-border: rgba(122, 91, 57, 0.14);
+    --qcm-note-text: rgba(64, 46, 29, 0.82);
+    --qcm-icon-muted: rgba(77, 58, 36, 0.78);
+    --qcm-edit-border: rgba(142, 93, 48, 0.42);
+    --qcm-overlay-shadow: 0 18px 32px rgba(89, 62, 34, 0.12);
+    --qcm-accent: #7a512d;
+    --qcm-accent-strong: #8e5d30;
+    --qcm-accent-strong-hover: #7a512d;
+    --qcm-accent-contrast: #fbf4ea;
+    --qcm-disabled-bg: rgba(165, 141, 113, 0.28);
+    --qcm-disabled-text: rgba(102, 77, 53, 0.45);
+    --qcm-loading: rgba(107, 82, 56, 0.72);
+    --qcm-scroll-button-bg: rgba(251, 244, 234, 0.96);
+    --qcm-scroll-button-hover: rgba(245, 234, 215, 0.98);
+    --qcm-scroll-button-text: #6b5238;
+    --qcm-scroll-button-shadow: 0 10px 24px rgba(89, 62, 34, 0.14);
+    --qcm-composer-bg:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.55),
+            rgba(241, 231, 214, 0.92)
+        ),
+        rgba(255, 250, 243, 0.9);
+    --qcm-placeholder: rgba(91, 68, 45, 0.58);
+    --qcm-mode-pill-border: rgba(122, 91, 57, 0.28);
+    --qcm-mode-pill-bg: rgba(142, 93, 48, 0.09);
+    --qcm-mode-pill-text: #7a512d;
+    --qcm-error: #b34a34;
+    --qcm-danger: #b44a48;
+    --qcm-error-surface: rgba(179, 74, 52, 0.08);
+    --qcm-error-border: rgba(179, 74, 52, 0.2);
 }
 
 .quote-chat-modal {
@@ -16,6 +121,8 @@
     min-height: 0;
     overflow: hidden;
     position: relative;
+    color: var(--qcm-text);
+    transition: color 0.28s ease;
 }
 
 .quote-chat-modal__header,
@@ -34,9 +141,12 @@
     justify-content: space-between;
     gap: 16px;
     border-bottom: none;
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--qcm-header-bg);
     backdrop-filter: blur(18px) saturate(120%);
     -webkit-backdrop-filter: blur(18px) saturate(120%);
+    transition:
+        background-color 0.28s ease,
+        color 0.28s ease;
 }
 
 .quote-chat-modal__model-select {
@@ -45,7 +155,7 @@
     border-radius: 12px;
     border: none;
     background-color: transparent;
-    color: #e3e3e3;
+    color: var(--qcm-text);
     padding: 0 28px 0 12px;
     font-size: 12px;
     font-family: inherit;
@@ -64,7 +174,7 @@
     border: none;
     background-color: transparent;
     transform: translateX(25%) translateY(-25%);
-    color: #e3e3e3;
+    color: var(--qcm-text);
     min-width: 40px;
     height: 32px;
     padding: 0 12px;
@@ -77,19 +187,23 @@
     top: 32px;
     right: 8px;
     min-width: 188px;
-    background-color: rgba(32, 32, 32, 0.98);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background-color: var(--qcm-menu-bg);
+    border: 1px solid var(--qcm-menu-border);
     border-radius: 12px;
-    box-shadow: 0 18px 32px rgba(0, 0, 0, 0.28);
+    box-shadow: var(--qcm-overlay-shadow);
     padding: 6px;
     z-index: 3;
+    transition:
+        background-color 0.28s ease,
+        border-color 0.28s ease,
+        box-shadow 0.28s ease;
 }
 
 .quote-chat-modal__menu-item {
     width: 100%;
     border: none;
     background-color: transparent;
-    color: #e3e3e3;
+    color: var(--qcm-text);
     border-radius: 8px;
     padding: 10px 12px;
     font-size: 13px;
@@ -98,7 +212,7 @@
 }
 
 .quote-chat-modal__menu-item--danger {
-    color: #ffb4bc;
+    color: var(--qcm-danger);
 }
 
 .quote-chat-modal__composer-select,
@@ -106,7 +220,7 @@
     border: none;
     border-radius: 999px;
     background: transparent;
-    color: #e3e3e3;
+    color: var(--qcm-text);
     font: inherit;
     cursor: pointer;
     transition:
@@ -144,7 +258,7 @@
     align-items: center;
     justify-content: center;
     min-height: 180px;
-    color: rgba(255, 255, 255, 0.48);
+    color: var(--qcm-text-subtle);
     text-align: center;
 }
 
@@ -166,6 +280,10 @@
     align-items: flex-end;
 }
 
+.quote-chat-message--retryable {
+    align-items: flex-end;
+}
+
 .quote-chat-message__bubble {
     width: fit-content;
     max-width: min(66%, 100%);
@@ -176,8 +294,9 @@
 
 .quote-chat-message--user .quote-chat-message__bubble {
     border-radius: 34px;
-    background: #303134;
-    color: #e3e3e3;
+    background: var(--qcm-user-bubble-bg);
+    color: var(--qcm-user-bubble-text);
+    transition: color 0.28s ease;
 }
 
 .quote-chat-message--assistant .quote-chat-message__bubble {
@@ -185,12 +304,12 @@
     padding: 0;
     border-radius: 0;
     background: transparent;
-    color: #e3e3e3;
+    color: var(--qcm-text);
 }
 
 .quote-chat-message__text {
     margin: 0;
-    color: #e3e3e3;
+    color: var(--qcm-text);
     font-size: 16px;
     line-height: 1.6;
     white-space: pre-wrap;
@@ -213,7 +332,7 @@
 .quote-chat-message__list {
     margin: 0 0 0 1.45em;
     padding: 0;
-    color: #e3e3e3;
+    color: var(--qcm-text);
     font-size: 16px;
     line-height: 1.6;
 }
@@ -228,7 +347,12 @@
 
 .quote-chat-message__strong {
     font-weight: 600;
-    color: #f4f7ff;
+    color: var(--qcm-text-strong);
+}
+
+.quote-chat-message__emphasis {
+    font-style: italic;
+    color: var(--qcm-emphasis);
 }
 
 .quote-chat-message__note-card {
@@ -238,13 +362,16 @@
     margin-top: 2px;
     padding: 14px 16px;
     border-radius: 20px;
-    background: rgba(255, 255, 255, 0.045);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--qcm-note-bg);
+    border: 1px solid var(--qcm-note-border);
+    transition:
+        background-color 0.28s ease,
+        border-color 0.28s ease;
 }
 
 .quote-chat-message__note-label {
     margin: 0;
-    color: rgba(227, 227, 227, 0.68);
+    color: var(--qcm-text-muted);
     font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -259,12 +386,14 @@
 
 .quote-chat-message__note-content .quote-chat-message__text,
 .quote-chat-message__note-content .quote-chat-message__list {
-    color: rgba(227, 227, 227, 0.82);
+    color: var(--qcm-note-text);
     font-size: 14px;
     line-height: 1.45;
 }
 
-.quote-chat-message__note-content .quote-chat-message__list-item + .quote-chat-message__list-item {
+.quote-chat-message__note-content
+    .quote-chat-message__list-item
+    + .quote-chat-message__list-item {
     margin-top: 6px;
 }
 
@@ -273,32 +402,30 @@
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: 0;
+    width: 36px;
     height: 36px;
     margin-top: 10px;
-    margin-right: 0;
+    margin-right: 12px;
     padding: 0;
-    overflow: hidden;
     border: none;
     border-radius: 999px;
     background: transparent;
-    color: rgba(227, 227, 227, 0.82);
+    color: var(--qcm-icon-muted);
     opacity: 0;
+    transform: translateX(8px);
     cursor: pointer;
     pointer-events: none;
     transition:
-        width 0.18s ease,
-        margin-right 0.18s ease,
         opacity 0.18s ease,
+        transform 0.18s ease,
         background-color 0.18s ease,
         color 0.18s ease;
 }
 
 .quote-chat-message--editable:hover .quote-chat-message__hover-action,
 .quote-chat-message--editable:focus-within .quote-chat-message__hover-action {
-    width: 36px;
-    margin-right: 12px;
     opacity: 1;
+    transform: translateX(0);
     pointer-events: auto;
 }
 
@@ -316,7 +443,7 @@
     border: none;
     border-radius: 999px;
     background: transparent;
-    color: rgba(227, 227, 227, 0.82);
+    color: var(--qcm-icon-muted);
     opacity: 0;
     cursor: pointer;
     pointer-events: none;
@@ -336,6 +463,49 @@
     pointer-events: auto;
 }
 
+.quote-chat-message__retry-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    margin-bottom: -4px;
+    margin-left: 12px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--qcm-icon-muted);
+    cursor: pointer;
+    transition:
+        transform 0.18s ease,
+        background-color 0.18s ease,
+        color 0.18s ease,
+        opacity 0.18s ease;
+}
+
+.quote-chat-message__error-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: min(78%, 100%);
+    padding: 14px 16px;
+    border: 1px solid var(--qcm-error-border);
+    border-radius: 20px;
+    background: var(--qcm-error-surface);
+    transition:
+        background-color 0.28s ease,
+        border-color 0.28s ease;
+}
+
+.quote-chat-message__error-text {
+    margin: 0;
+    color: var(--qcm-error);
+    font-size: 14px;
+    line-height: 1.45;
+}
+
 .quote-chat-message__edit-button {
     display: inline-flex;
     align-items: center;
@@ -343,8 +513,8 @@
     gap: 6px;
     border: none;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #d7dbe0;
+    background: var(--qcm-hover-bg);
+    color: var(--qcm-text);
     font: inherit;
     font-size: 12px;
     line-height: 1;
@@ -360,7 +530,7 @@
     flex-direction: column;
     width: 100%;
     padding: 34px 30px;
-    border: 2px solid #a9c5ff;
+    border: 2px solid var(--qcm-edit-border);
     border-radius: 44px;
     background: transparent;
 }
@@ -370,7 +540,7 @@
     padding: 0;
     border: none;
     background: transparent;
-    color: #e3e3e3;
+    color: var(--qcm-text);
     font: inherit;
     font-size: 18px;
     line-height: 1.55;
@@ -401,17 +571,17 @@
 
 .quote-chat-message__edit-button--ghost {
     background: transparent;
-    color: #a9c5ff;
+    color: var(--qcm-accent);
 }
 
 .quote-chat-message__edit-button--primary {
-    background: #a8c7fa;
-    color: #052e6f;
+    background: var(--qcm-accent-strong);
+    color: var(--qcm-accent-contrast);
 }
 
 .quote-chat-message__edit-button--primary:disabled {
-    background: #2d2d30;
-    color: rgba(215, 219, 224, 0.45);
+    background: var(--qcm-disabled-bg);
+    color: var(--qcm-disabled-text);
 }
 
 .quote-chat-message--editing {
@@ -427,6 +597,7 @@
     padding: 0;
     border-radius: 0;
     background: transparent;
+    transition: none;
 }
 
 .quote-chat-message__loading-bubble {
@@ -435,7 +606,7 @@
     gap: 8px;
     min-height: 18px;
     padding: 6px 0;
-    color: rgba(227, 227, 227, 0.72);
+    color: var(--qcm-loading);
 }
 
 .quote-chat-message__loading-bubble span {
@@ -461,14 +632,14 @@
     transform: translateX(-50%);
     border: none;
     border-radius: 999px;
-    background: rgba(32, 36, 44, 0.94);
-    color: #f4f4f6;
+    background: var(--qcm-scroll-button-bg);
+    color: var(--qcm-scroll-button-text);
     padding: 11px 18px;
     font: inherit;
     font-size: 13px;
     font-weight: 500;
     line-height: 1.1;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+    box-shadow: var(--qcm-scroll-button-shadow);
     cursor: pointer;
     transition:
         transform 0.18s ease,
@@ -496,7 +667,11 @@
     margin: 0;
     padding: 18px 18px 14px;
     border-radius: 28px;
-    background: #242424;
+    background: var(--qcm-composer-bg);
+    transition:
+        background 0.28s ease,
+        box-shadow 0.28s ease,
+        border-color 0.28s ease;
 }
 
 .quote-chat-modal__textarea {
@@ -507,7 +682,7 @@
     border: none;
     border-radius: 0;
     background: transparent;
-    color: #e3e3e3;
+    color: var(--qcm-text);
     font: inherit;
     font-size: 16px;
     line-height: 1.5;
@@ -525,7 +700,7 @@
 }
 
 .quote-chat-modal__textarea::placeholder {
-    color: rgba(227, 227, 227, 0.8);
+    color: var(--qcm-placeholder);
 }
 
 .quote-chat-modal__controls {
@@ -573,11 +748,15 @@
     bottom: calc(100% + 8px);
     min-width: 180px;
     padding: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--qcm-dropdown-border);
     border-radius: 14px;
-    background: rgba(32, 32, 32, 0.98);
-    box-shadow: 0 18px 32px rgba(0, 0, 0, 0.28);
+    background: var(--qcm-dropdown-bg);
+    box-shadow: var(--qcm-overlay-shadow);
     z-index: 4;
+    transition:
+        background-color 0.28s ease,
+        border-color 0.28s ease,
+        box-shadow 0.28s ease;
 }
 
 .quote-chat-modal__inline-item {
@@ -585,12 +764,18 @@
     border: none;
     border-radius: 10px;
     background: transparent;
-    color: #e3e3e3;
+    color: var(--qcm-text);
     padding: 10px 12px;
     font: inherit;
     font-size: 13px;
     text-align: left;
     cursor: pointer;
+}
+
+.quote-chat-modal__inline-item-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
 }
 
 .quote-chat-modal__mode-pill {
@@ -599,13 +784,37 @@
     gap: 10px;
     min-height: 36px;
     padding: 0 12px 0 14px;
-    border: 1px solid rgba(160, 193, 255, 0.9);
+    border: 1px solid var(--qcm-mode-pill-border);
     border-radius: 999px;
-    background: rgba(112, 150, 224, 0.1);
-    color: #a9c5ff;
+    background: var(--qcm-mode-pill-bg);
+    color: var(--qcm-mode-pill-text);
     font-size: 14px;
     font-weight: 500;
     white-space: nowrap;
+    transition:
+        background-color 0.28s ease,
+        border-color 0.28s ease,
+        color 0.28s ease;
+}
+
+.quote-chat-modal__mode-pill--interactive {
+    gap: 8px;
+    padding-right: 8px;
+}
+
+.quote-chat-modal__mode-pill-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 36px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
 }
 
 .quote-chat-modal__mode-pill-close {
@@ -644,28 +853,29 @@
 .quote-chat-modal__inline-item:hover,
 .quote-chat-message__hover-action:hover:not(:disabled),
 .quote-chat-message__copy-action:hover:not(:disabled),
-.quote-chat-modal__mode-pill-close:hover {
+.quote-chat-message__retry-action:hover:not(:disabled) {
     transform: translateY(-1px);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--qcm-hover-bg);
 }
 
 .quote-chat-modal__scroll-to-bottom:hover {
     transform: translateX(-50%) translateY(-1px);
-    background-color: rgba(43, 48, 58, 0.98);
+    background-color: var(--qcm-scroll-button-hover);
 }
 
 .quote-chat-message__edit-button:hover:not(:disabled) {
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: var(--qcm-hover-bg);
 }
 
 .quote-chat-message__edit-button--primary:hover:not(:disabled) {
-    background-color: #9bbbee;
+    background-color: var(--qcm-accent-strong-hover);
 }
 
 .quote-chat-modal__composer-select:disabled,
 .quote-chat-modal__send:disabled,
 .quote-chat-message__hover-action:disabled,
 .quote-chat-message__copy-action:disabled,
+.quote-chat-message__retry-action:disabled,
 .quote-chat-message__edit-button:disabled {
     opacity: 0.6;
     cursor: default;
@@ -673,7 +883,7 @@
 
 .quote-chat-modal__error {
     margin: 0;
-    color: #ffaea3;
+    color: var(--qcm-error);
     font-size: 13px;
 }
 

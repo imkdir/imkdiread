@@ -140,7 +140,7 @@ export function DetailActionPanel({
 
         <div className="detail-action-row">
           <button onClick={onOpenQuoteModal} className="detail-action-button">
-            <span className="detail-action-label">Add quotes...</span>
+            <span className="detail-action-label">Start conversation...</span>
           </button>
         </div>
 

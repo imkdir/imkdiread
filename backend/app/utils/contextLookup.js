@@ -10,6 +10,19 @@ const OLLAMA_HOST = String(
 const OLLAMA_LOOKUP_MODEL = process.env.OLLAMA_MODEL || "llama3";
 const LOOKUP_REQUEST_TIMEOUT_MS = 60_000;
 
+function isFeatureEnabled(rawValue, fallback = true) {
+  const normalized = typeof rawValue === "string" ? rawValue.trim() : "";
+  if (!normalized) {
+    return fallback;
+  }
+
+  return !["0", "false", "no", "off", "disabled"].includes(
+    normalized.toLowerCase(),
+  );
+}
+
+const OLLAMA_ENABLED = isFeatureEnabled(process.env.OLLAMA_ENABLED, true);
+
 class LookupError extends Error {
   constructor(message, status = 500) {
     super(message);
@@ -214,6 +227,10 @@ async function lookupWithGemini({ word, workTitle, apiKey }) {
 }
 
 async function lookupWithOllama({ word, workTitle }) {
+  if (!OLLAMA_ENABLED) {
+    throw new LookupError("Ollama lookup is disabled.", 503);
+  }
+
   if (!OLLAMA_HOST) {
     throw new LookupError("Ollama host is not configured.", 503);
   }

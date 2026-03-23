@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
   type KeyboardEvent,
 } from "react";
 
@@ -16,6 +17,7 @@ import {
   clearQuoteChat,
   fetchQuoteChat,
   fetchQuoteChatModels,
+  saveQuoteConversation,
   sendQuoteChatMessage,
   DEFAULT_QUOTE_CHAT_MODELS,
   type QuoteChatModelOption,
@@ -24,8 +26,8 @@ import {
 import "./QuoteConversationModal.css";
 
 const TOOL_OPTIONS = [
-  { value: "translate", label: "Translate" },
-  { value: "analyze", label: "Analyze" },
+  { value: "translate", label: "Translate", icon: "translate" as const },
+  { value: "analyze", label: "Analyze", icon: "analyze" as const },
 ] as const;
 
 const TRANSLATION_LANGUAGE_OPTIONS = [
@@ -43,8 +45,10 @@ type ActiveToolValue = ToolValue | null;
 type TranslationLanguageValue =
   | "browser"
   | (typeof TRANSLATION_LANGUAGE_OPTIONS)[number]["value"];
+type QuoteConversationTheme = "dark" | "light";
 
 const DEFAULT_QUOTE_CHAT_MODEL = DEFAULT_QUOTE_CHAT_MODELS[0].id;
+const QUOTE_CONVERSATION_THEME_STORAGE_KEY = "quote-conversation-theme";
 
 interface QuoteConversationModalProps {
   isOpen: boolean;
@@ -54,6 +58,17 @@ interface QuoteConversationModalProps {
   initialPageNumber?: string;
   onClose: () => void;
   onRefresh?: () => void;
+}
+
+function loadQuoteConversationTheme(): QuoteConversationTheme {
+  if (typeof window === "undefined") {
+    return "dark";
+  }
+
+  const stored = window.localStorage.getItem(
+    QUOTE_CONVERSATION_THEME_STORAGE_KEY,
+  );
+  return stored === "light" ? "light" : "dark";
 }
 
 function formatMessageContent(content: string) {
@@ -178,6 +193,15 @@ type AssistantMessageBlock =
 interface AssistantMessageSections {
   contentBlocks: AssistantMessageBlock[];
   translatorNoteBlocks: AssistantMessageBlock[] | null;
+}
+
+interface FailedConversationTurn {
+  userMessage: string;
+  errorMessage: string;
+  replaceLatestTurn: boolean;
+  tool: ActiveToolValue;
+  model: QuoteChatModel;
+  translationLanguage: TranslationLanguageValue;
 }
 
 function parseAssistantMessageBlocks(content: string): AssistantMessageBlock[] {
@@ -339,17 +363,164 @@ function parseAssistantMessageSections(content: string): AssistantMessageSection
   };
 }
 
-function renderAssistantInlineFormatting(text: string) {
-  return text.split(/(\*\*.*?\*\*)/g).filter(Boolean).map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+const INLINE_FORMAT_DELIMITERS = ["***", "___", "**", "__", "*", "_"] as const;
+
+type InlineFormatType = "text" | "strong" | "emphasis" | "strong-emphasis";
+
+interface InlineFormatSegment {
+  type: InlineFormatType;
+  content: string;
+}
+
+function resolveInlineFormatType(
+  delimiter: (typeof INLINE_FORMAT_DELIMITERS)[number],
+): InlineFormatType {
+  if (delimiter === "***" || delimiter === "___") {
+    return "strong-emphasis";
+  }
+
+  if (delimiter === "**" || delimiter === "__") {
+    return "strong";
+  }
+
+  return "emphasis";
+}
+
+function findNextInlineDelimiter(text: string, startIndex: number) {
+  let nextMatch: {
+    delimiter: (typeof INLINE_FORMAT_DELIMITERS)[number];
+    index: number;
+  } | null = null;
+
+  for (const delimiter of INLINE_FORMAT_DELIMITERS) {
+    const index = text.indexOf(delimiter, startIndex);
+    if (index < 0 || text[index - 1] === "\\") {
+      continue;
+    }
+
+    if (
+      !nextMatch ||
+      index < nextMatch.index ||
+      (index === nextMatch.index && delimiter.length > nextMatch.delimiter.length)
+    ) {
+      nextMatch = { delimiter, index };
+    }
+  }
+
+  return nextMatch;
+}
+
+function findClosingInlineDelimiter(
+  text: string,
+  delimiter: (typeof INLINE_FORMAT_DELIMITERS)[number],
+  startIndex: number,
+) {
+  let searchIndex = startIndex;
+
+  while (searchIndex < text.length) {
+    const matchIndex = text.indexOf(delimiter, searchIndex);
+    if (matchIndex < 0) {
+      return -1;
+    }
+
+    if (text[matchIndex - 1] !== "\\") {
+      return matchIndex;
+    }
+
+    searchIndex = matchIndex + delimiter.length;
+  }
+
+  return -1;
+}
+
+function parseAssistantInlineSegments(text: string): InlineFormatSegment[] {
+  const segments: InlineFormatSegment[] = [];
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const nextDelimiter = findNextInlineDelimiter(text, cursor);
+    if (!nextDelimiter) {
+      segments.push({ type: "text", content: text.slice(cursor) });
+      break;
+    }
+
+    if (nextDelimiter.index > cursor) {
+      segments.push({
+        type: "text",
+        content: text.slice(cursor, nextDelimiter.index),
+      });
+    }
+
+    const contentStart = nextDelimiter.index + nextDelimiter.delimiter.length;
+    const closingIndex = findClosingInlineDelimiter(
+      text,
+      nextDelimiter.delimiter,
+      contentStart,
+    );
+
+    if (closingIndex < 0) {
+      segments.push({
+        type: "text",
+        content: nextDelimiter.delimiter,
+      });
+      cursor = contentStart;
+      continue;
+    }
+
+    const content = text.slice(contentStart, closingIndex);
+    if (!content.trim()) {
+      segments.push({
+        type: "text",
+        content: `${nextDelimiter.delimiter}${content}${nextDelimiter.delimiter}`,
+      });
+      cursor = closingIndex + nextDelimiter.delimiter.length;
+      continue;
+    }
+
+    segments.push({
+      type: resolveInlineFormatType(nextDelimiter.delimiter),
+      content,
+    });
+    cursor = closingIndex + nextDelimiter.delimiter.length;
+  }
+
+  return segments;
+}
+
+function renderAssistantInlineFormatting(
+  text: string,
+  keyPrefix = "inline",
+): ReactNode[] {
+  return parseAssistantInlineSegments(text).map((segment, index) => {
+    const key = `${keyPrefix}-${index}`;
+
+    if (segment.type === "text") {
+      return <span key={key}>{segment.content}</span>;
+    }
+
+    const children = renderAssistantInlineFormatting(segment.content, key);
+
+    if (segment.type === "strong") {
       return (
-        <strong key={`strong-${index}`} className="quote-chat-message__strong">
-          {part.slice(2, -2)}
+        <strong key={key} className="quote-chat-message__strong">
+          {children}
         </strong>
       );
     }
 
-    return <span key={`text-${index}`}>{part}</span>;
+    if (segment.type === "strong-emphasis") {
+      return (
+        <strong key={key} className="quote-chat-message__strong">
+          <em className="quote-chat-message__emphasis">{children}</em>
+        </strong>
+      );
+    }
+
+    return (
+      <em key={key} className="quote-chat-message__emphasis">
+        {children}
+      </em>
+    );
   });
 }
 
@@ -421,6 +592,9 @@ export function QuoteConversationModal({
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(
     null,
   );
+  const [failedTurn, setFailedTurn] = useState<FailedConversationTurn | null>(
+    null,
+  );
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState("");
   const [selectedTool, setSelectedTool] = useState<ActiveToolValue>(null);
@@ -431,6 +605,9 @@ export function QuoteConversationModal({
     useState<QuoteChatModel>(DEFAULT_QUOTE_CHAT_MODEL);
   const [selectedTranslationLanguage, setSelectedTranslationLanguage] =
     useState<TranslationLanguageValue>("browser");
+  const [theme, setTheme] = useState<QuoteConversationTheme>(
+    loadQuoteConversationTheme,
+  );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
@@ -438,6 +615,7 @@ export function QuoteConversationModal({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isSavingConversation, setIsSavingConversation] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [bodyInsets, setBodyInsets] = useState({ top: 94, bottom: 186 });
@@ -460,6 +638,8 @@ export function QuoteConversationModal({
   const selectedToolLabel = TOOL_OPTIONS.find(
     (option) => option.value === selectedTool,
   )?.label;
+  const selectedToolOption =
+    TOOL_OPTIONS.find((option) => option.value === selectedTool) || null;
   const selectedModelOption =
     modelOptions.find((option) => option.id === selectedModel) ||
     DEFAULT_QUOTE_CHAT_MODELS.find((option) => option.id === selectedModel) ||
@@ -467,10 +647,6 @@ export function QuoteConversationModal({
   const selectedLanguageLabel = translationLanguageOptions.find(
     (option) => option.value === selectedTranslationLanguage,
   )?.label;
-  const resolvedTargetLanguage =
-    translationLanguageOptions.find(
-      (option) => option.value === selectedTranslationLanguage,
-    )?.targetLanguage || browserTranslationLanguage.targetLanguage;
   const shouldRenderQuoteBubble = useMemo(() => {
     if (!activeQuote?.quote) {
       return false;
@@ -478,20 +654,32 @@ export function QuoteConversationModal({
 
     const firstMessage = messages[0];
     if (!firstMessage || firstMessage.role !== "user") {
-      return true;
+      const transientUserMessage = pendingUserMessage || failedTurn?.userMessage;
+      if (!transientUserMessage) {
+        return true;
+      }
+
+      return (
+        normalizeConversationText(transientUserMessage) !==
+        normalizeConversationText(activeQuote.quote)
+      );
     }
 
     return (
       normalizeConversationText(firstMessage.content) !==
       normalizeConversationText(activeQuote.quote)
     );
-  }, [activeQuote?.quote, messages]);
+  }, [activeQuote?.quote, failedTurn?.userMessage, messages, pendingUserMessage]);
   const latestTurn = useMemo(() => getLatestConversationTurn(messages), [messages]);
   const latestUserMessageId = latestTurn.userEntry?.id ?? null;
   const isEditingMessageUnchanged =
     editingMessageId !== null &&
     normalizeConversationText(editingDraft) ===
       normalizeConversationText(latestTurn.userEntry?.content || "");
+
+  useEffect(() => {
+    window.localStorage.setItem(QUOTE_CONVERSATION_THEME_STORAGE_KEY, theme);
+  }, [theme]);
 
   const isNearBottom = () => {
     const body = bodyRef.current;
@@ -553,6 +741,7 @@ export function QuoteConversationModal({
     setMessages([]);
     setError(null);
     setPendingUserMessage(null);
+    setFailedTurn(null);
     setEditingMessageId(null);
     setEditingDraft("");
     setShowScrollToBottom(false);
@@ -564,6 +753,7 @@ export function QuoteConversationModal({
     setSelectedModel(DEFAULT_QUOTE_CHAT_MODEL);
     setSelectedTranslationLanguage("browser");
     setComposer(quote?.id ? "" : initialQuoteText);
+    setIsSavingConversation(false);
 
     if (!quote?.id) {
       setIsLoadingHistory(false);
@@ -579,6 +769,7 @@ export function QuoteConversationModal({
         setShowScrollToBottom(false);
         setActiveQuote(data.quote);
         setMessages(data.conversations);
+        setFailedTurn(null);
       })
       .catch((loadError) => {
         setError(
@@ -609,7 +800,7 @@ export function QuoteConversationModal({
         setModelOptions(data.models);
         setSelectedModel((current) => {
           const hasCurrentModel = data.models.some(
-            (option) => option.id === current,
+            (option) => option.id === current && !option.disabled,
           );
           return hasCurrentModel ? current : data.defaultModel;
         });
@@ -731,11 +922,26 @@ export function QuoteConversationModal({
   const handleSend = async ({
     messageText,
     replaceLatestTurn = false,
+    toolOverride,
+    modelOverride,
+    translationLanguageOverride,
   }: {
     messageText?: string;
     replaceLatestTurn?: boolean;
+    toolOverride?: ActiveToolValue;
+    modelOverride?: QuoteChatModel;
+    translationLanguageOverride?: TranslationLanguageValue;
   } = {}) => {
     const trimmedMessage = (messageText ?? composer).trim();
+    const effectiveTool =
+      toolOverride !== undefined ? toolOverride : selectedTool;
+    const effectiveModel = modelOverride ?? selectedModel;
+    const effectiveTranslationLanguage =
+      translationLanguageOverride ?? selectedTranslationLanguage;
+    const effectiveTargetLanguage =
+      translationLanguageOptions.find(
+        (option) => option.value === effectiveTranslationLanguage,
+      )?.targetLanguage || browserTranslationLanguage.targetLanguage;
 
     if (!trimmedMessage) {
       setError("Please enter a message.");
@@ -747,13 +953,16 @@ export function QuoteConversationModal({
       return;
     }
 
-    const wasNewQuote = !activeQuote?.id;
-    const previousMessages = messages;
     const nextVisibleMessages =
       replaceLatestTurn && latestTurn.userEntry ? latestTurn.remaining : messages;
+    const normalizedPageNumber = initialPageNumber.trim();
+    const parsedPageNumber = normalizedPageNumber
+      ? Number(normalizedPageNumber)
+      : null;
 
     setIsSending(true);
     setError(null);
+    setFailedTurn(null);
     setPendingUserMessage(trimmedMessage);
     setEditingMessageId(null);
     setEditingDraft("");
@@ -764,15 +973,40 @@ export function QuoteConversationModal({
     }
 
     try {
+      let quoteForRequest = activeQuote;
+      if (!quoteForRequest?.id) {
+        if (
+          normalizedPageNumber &&
+          (parsedPageNumber === null ||
+            !Number.isInteger(parsedPageNumber) ||
+            parsedPageNumber <= 0)
+        ) {
+          throw new Error("Page number must be a positive integer.");
+        }
+
+        setIsSavingConversation(true);
+        try {
+          const savedQuote = await saveQuoteConversation(workId, {
+            quote: trimmedMessage,
+            pageNumber: parsedPageNumber,
+          });
+          quoteForRequest = savedQuote;
+          setActiveQuote(savedQuote);
+          onRefresh?.();
+        } finally {
+          setIsSavingConversation(false);
+        }
+      }
+
       const data = await sendQuoteChatMessage(workId, {
-        quoteId: activeQuote?.id,
-        quote: activeQuote?.quote || trimmedMessage,
-        pageNumber: activeQuote?.page_number || null,
+        quoteId: quoteForRequest?.id,
+        quote: quoteForRequest?.quote || trimmedMessage,
+        pageNumber: quoteForRequest?.page_number || null,
         message: trimmedMessage,
-        tool: selectedTool || "chat",
-        model: selectedModel,
+        tool: effectiveTool || "chat",
+        model: effectiveModel,
         targetLanguage:
-          selectedTool === "translate" ? resolvedTargetLanguage : undefined,
+          effectiveTool === "translate" ? effectiveTargetLanguage : undefined,
         replaceLatestTurn,
       });
 
@@ -784,42 +1018,43 @@ export function QuoteConversationModal({
       }
       setActiveQuote(data.quote);
       setSelectedModel(data.model);
+      setFailedTurn(null);
       setMessages((prev) =>
         replaceLatestTurn ? [...nextVisibleMessages, ...data.conversations] : [...prev, ...data.conversations],
       );
       setComposer("");
-      if (wasNewQuote || replaceLatestTurn || selectedTool === "analyze") {
+      if (replaceLatestTurn || effectiveTool === "analyze") {
         onRefresh?.();
       }
     } catch (sendError) {
-      if (replaceLatestTurn) {
-        setMessages(previousMessages);
-        if (latestTurn.userEntry?.id) {
-          setEditingMessageId(latestTurn.userEntry.id);
-          setEditingDraft(trimmedMessage);
-        }
-      } else {
-        setComposer(trimmedMessage);
-      }
-      setError(
+      const errorMessage =
         sendError instanceof Error
           ? sendError.message
-          : "Failed to send quote chat.",
-      );
+          : "Failed to send quote chat.";
+      setFailedTurn({
+        userMessage: trimmedMessage,
+        errorMessage,
+        replaceLatestTurn,
+        tool: effectiveTool,
+        model: effectiveModel,
+        translationLanguage: effectiveTranslationLanguage,
+      });
     } finally {
       setPendingUserMessage(null);
       setIsSending(false);
+      setIsSavingConversation(false);
     }
   };
 
   const handleStartEditingLatestMessage = () => {
-    if (!latestTurn.userEntry || isSending) {
+    if (!latestTurn.userEntry || isSending || failedTurn) {
       return;
     }
 
     setEditingMessageId(latestTurn.userEntry.id);
     setEditingDraft(latestTurn.userEntry.content);
     setError(null);
+    setFailedTurn(null);
   };
 
   const handleCancelEditingLatestMessage = () => {
@@ -855,6 +1090,7 @@ export function QuoteConversationModal({
       lastSeenReplyIdRef.current = 0;
       setMessages([]);
       setPendingUserMessage(null);
+      setFailedTurn(null);
       setEditingMessageId(null);
       setEditingDraft("");
       setShowScrollToBottom(false);
@@ -884,10 +1120,28 @@ export function QuoteConversationModal({
     updateUnreadReplyState();
   };
 
+  const handleRetryFailedTurn = async () => {
+    if (!failedTurn || isSending || isSavingConversation) {
+      return;
+    }
+
+    setSelectedTool(failedTurn.tool);
+    setSelectedModel(failedTurn.model);
+    setSelectedTranslationLanguage(failedTurn.translationLanguage);
+
+    await handleSend({
+      messageText: failedTurn.userMessage,
+      replaceLatestTurn: failedTurn.replaceLatestTurn,
+      toolOverride: failedTurn.tool,
+      modelOverride: failedTurn.model,
+      translationLanguageOverride: failedTurn.translationLanguage,
+    });
+  };
+
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      if (!isSending) {
+      if (!isSending && !isSavingConversation) {
         void handleSend();
       }
     }
@@ -914,10 +1168,10 @@ export function QuoteConversationModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      cardClassName="quote-chat-modal-card"
+      cardClassName={`quote-chat-modal-card quote-chat-modal-card--${theme}`}
     >
       <div
-        className="quote-chat-modal"
+        className={`quote-chat-modal quote-chat-modal--${theme}`}
         onClick={() => {
           if (isMenuOpen) {
             setIsMenuOpen(false);
@@ -941,7 +1195,7 @@ export function QuoteConversationModal({
             }
           >
             {(isLoadingModels ? [] : modelOptions).map((option) => (
-              <option key={option.id} value={option.id}>
+              <option key={option.id} value={option.id} disabled={option.disabled}>
                 {option.label}
               </option>
             ))}
@@ -966,6 +1220,20 @@ export function QuoteConversationModal({
             </button>
             {isMenuOpen && (
               <div className="quote-chat-modal__menu-dropdown">
+                <button
+                  type="button"
+                  className="quote-chat-modal__menu-item"
+                  onClick={() => {
+                    setTheme((current) =>
+                      current === "dark" ? "light" : "dark",
+                    );
+                    setIsMenuOpen(false);
+                  }}
+                >
+                  {theme === "dark"
+                    ? "Switch to light theme"
+                    : "Switch to dark theme"}
+                </button>
                 {!!activeQuote?.id && !!messages.length && (
                   <button
                     type="button"
@@ -1053,7 +1321,10 @@ export function QuoteConversationModal({
                     }}
                     className={rowClassName}
                   >
-                    {isLatestEditableUser && !isEditingLatestUser && !pendingUserMessage ? (
+                    {isLatestEditableUser &&
+                    !isEditingLatestUser &&
+                    !pendingUserMessage &&
+                    !failedTurn ? (
                       <button
                         type="button"
                         className="quote-chat-message__hover-action"
@@ -1176,7 +1447,51 @@ export function QuoteConversationModal({
                   </div>
                 </div>
               ) : null}
-              {!messages.length && !pendingUserMessage ? (
+              {!isSending && failedTurn ? (
+                <>
+                  <div className="quote-chat-message quote-chat-message--user">
+                    <div className="quote-chat-message__bubble">
+                      {formatMessageContent(failedTurn.userMessage).map(
+                        (paragraph, index) => (
+                          <p
+                            key={`failed-user-${index}`}
+                            className="quote-chat-message__text"
+                          >
+                            {paragraph}
+                          </p>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                  <div className="quote-chat-message quote-chat-message--assistant quote-chat-message--retryable">
+                    <div className="quote-chat-message__bubble">
+                      <div className="quote-chat-message__error-card">
+                        {formatMessageContent(failedTurn.errorMessage).map(
+                          (paragraph, index) => (
+                            <p
+                              key={`failed-error-${index}`}
+                              className="quote-chat-message__error-text"
+                            >
+                              {paragraph}
+                            </p>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="quote-chat-message__retry-action"
+                      onClick={() => void handleRetryFailedTurn()}
+                      disabled={isSending || isSavingConversation}
+                      aria-label="Try again"
+                      title="Try again"
+                    >
+                      <AppIcon name="retry" size={20} />
+                    </button>
+                  </div>
+                </>
+              ) : null}
+              {!messages.length && !pendingUserMessage && !failedTurn ? (
                 <div className="quote-chat-modal__empty">
                   {activeQuote
                     ? "Start asking about this quote."
@@ -1222,6 +1537,9 @@ export function QuoteConversationModal({
               onChange={(event) => {
                 setComposer(event.target.value);
                 setError(null);
+                if (failedTurn) {
+                  setFailedTurn(null);
+                }
                 resizeTextarea(event.currentTarget, { maxLines: 5 });
               }}
               onKeyDown={handleComposerKeyDown}
@@ -1231,7 +1549,7 @@ export function QuoteConversationModal({
                   ? "Ask a follow-up about this quote..."
                   : "Paste your quote here..."
               }
-              disabled={isSending}
+              disabled={isSending || isSavingConversation}
               autoFocus
             />
 
@@ -1248,7 +1566,7 @@ export function QuoteConversationModal({
                       setIsToolMenuOpen((current) => !current);
                       setIsLanguageMenuOpen(false);
                     }}
-                    disabled={isSending}
+                    disabled={isSending || isSavingConversation}
                     aria-label="Choose tool"
                     title="Choose tool"
                   >
@@ -1266,14 +1584,20 @@ export function QuoteConversationModal({
                             setIsToolMenuOpen(false);
                           }}
                         >
-                          {option.label}
+                          <span className="quote-chat-modal__inline-item-content">
+                            <AppIcon name={option.icon} size={16} />
+                            <span>{option.label}</span>
+                          </span>
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
-                {selectedTool && (
+                {selectedTool && selectedTool !== "translate" && (
                   <span className="quote-chat-modal__mode-pill">
+                    {selectedToolOption ? (
+                      <AppIcon name={selectedToolOption.icon} size={14} />
+                    ) : null}
                     {selectedToolLabel}
                     <button
                       type="button"
@@ -1293,17 +1617,31 @@ export function QuoteConversationModal({
                     className="quote-chat-modal__inline-menu"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <button
-                      type="button"
-                      className="quote-chat-modal__composer-select"
-                      onClick={() => {
-                        setIsLanguageMenuOpen((current) => !current);
-                        setIsToolMenuOpen(false);
-                      }}
-                      disabled={isSending}
-                    >
-                      {selectedLanguageLabel}
-                    </button>
+                    <div className="quote-chat-modal__mode-pill quote-chat-modal__mode-pill--interactive">
+                      <button
+                        type="button"
+                        className="quote-chat-modal__mode-pill-trigger"
+                        onClick={() => {
+                          setIsLanguageMenuOpen((current) => !current);
+                          setIsToolMenuOpen(false);
+                        }}
+                        disabled={isSending || isSavingConversation}
+                      >
+                        <AppIcon name="translate" size={14} />
+                        <span>{selectedLanguageLabel}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="quote-chat-modal__mode-pill-close"
+                        onClick={() => {
+                          setSelectedTool(null);
+                          setIsLanguageMenuOpen(false);
+                        }}
+                        aria-label={`Clear ${selectedToolLabel} mode`}
+                      >
+                        <AppIcon name="close" size={12} />
+                      </button>
+                    </div>
                     {isLanguageMenuOpen && (
                       <div className="quote-chat-modal__inline-dropdown">
                         {translationLanguageOptions.map((option) => (
@@ -1331,7 +1669,7 @@ export function QuoteConversationModal({
                 type="button"
                 className="quote-chat-modal__send quote-chat-modal__send--icon"
                 onClick={() => void handleSend()}
-                disabled={isSending || !composer.trim()}
+                disabled={isSending || isSavingConversation || !composer.trim()}
                 aria-label={isSending ? "Sending message" : "Send message"}
                 title={isSending ? "Sending..." : "Send"}
               >

@@ -1,6 +1,7 @@
 import { useId, type CSSProperties, type SVGProps } from "react";
 
 export type AppIconName =
+  | "analyze"
   | "arrow-left"
   | "brush"
   | "clock"
@@ -24,12 +25,14 @@ export type AppIconName =
   | "logout"
   | "pdf"
   | "search"
+  | "retry"
   | "settings"
   | "star"
   | "star-filled"
   | "star-half"
   | "tag"
   | "trash"
+  | "translate"
   | "tools"
   | "upload"
   | "users"
@@ -82,6 +85,8 @@ function getSvgProps(
 export function AppIcon(props: AppIconProps) {
   const halfStarClipId = useId();
   const copyMaskId = useId();
+  const translateMaskId = useId();
+  const analyzeMaskId = useId();
 
   switch (props.name) {
     case "home":
@@ -139,6 +144,13 @@ export function AppIcon(props: AppIconProps) {
         </svg>
       );
 
+    case "retry":
+      return (
+        <svg {...getSvgProps(props, "0 0 24 24")} fill="currentColor">
+          <path d="M17.43 5.64A8.02 8.02 0 0 0 12 3.55a8.45 8.45 0 1 0 8.2 10.56 1.2 1.2 0 0 0-2.33-.53A6.05 6.05 0 1 1 12 5.95c1.3 0 2.52.4 3.53 1.14l-1.8 1.8a.95.95 0 0 0 .68 1.62h4.7a.95.95 0 0 0 .94-.95v-4.7a.95.95 0 0 0-1.62-.67l-1 .99Z" />
+        </svg>
+      );
+
     case "compass":
       return (
         <svg
@@ -189,6 +201,74 @@ export function AppIcon(props: AppIconProps) {
           <line x1="20" y1="7" x2="20" y2="7" />
           <circle cx="7.5" cy="17" r="2.5" />
           <line x1="12" y1="17" x2="20" y2="17" />
+        </svg>
+      );
+
+    case "translate":
+      return (
+        <svg
+          {...getSvgProps(props, "0 0 24 24")}
+          fill="none"
+        >
+          <defs>
+            <mask id={translateMaskId}>
+              <rect width="24" height="24" fill="white" />
+              <circle cx="9.3" cy="13.5" r="7.3" fill="black" />
+            </mask>
+          </defs>
+          <circle
+            cx="15.4"
+            cy="8.8"
+            r="6.5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            mask={`url(#${translateMaskId})`}
+          />
+          <circle
+            cx="9.3"
+            cy="13.5"
+            r="7.3"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          />
+          <path
+            d="M6.7 16.9 9.3 10l2.62 6.9M7.52 14.8h3.56"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+
+    case "analyze":
+      return (
+        <svg
+          {...getSvgProps(props, "0 0 24 24")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.15"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <defs>
+            <mask id={analyzeMaskId}>
+              <rect width="24" height="24" fill="white" />
+              <circle cx="16.2" cy="15.9" r="4.45" fill="black" />
+            </mask>
+          </defs>
+          <rect
+            x="4.6"
+            y="3.1"
+            width="11.6"
+            height="16.8"
+            rx="2.9"
+            mask={`url(#${analyzeMaskId})`}
+          />
+          <path d="M7.7 7.6h5.4" mask={`url(#${analyzeMaskId})`} />
+          <path d="M7.7 10.95h3.9" mask={`url(#${analyzeMaskId})`} />
+          <circle cx="16.2" cy="15.9" r="3.55" />
+          <path d="m18.75 18.45 2.05 2.05" />
         </svg>
       );
 
