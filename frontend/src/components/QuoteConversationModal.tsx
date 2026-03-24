@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
   type KeyboardEvent,
 } from "react";
 
@@ -13,6 +12,7 @@ import type { ConversationMessage, Quote } from "../types";
 import { AppIcon } from "./AppIcon";
 import { showToast } from "../utils/toast";
 import { Modal } from "./Modal";
+import { useAuth } from "./AuthContext";
 import {
   clearQuoteChat,
   fetchQuoteChat,
@@ -23,6 +23,10 @@ import {
   type QuoteChatModelOption,
   type QuoteChatModel,
 } from "../services/quoteConversationService";
+import {
+  parseAssistantMessageSections,
+  renderAssistantBlocks,
+} from "./quoteConversationMarkdown";
 import "./QuoteConversationModal.css";
 
 const TOOL_OPTIONS = [
@@ -61,6 +65,7 @@ interface QuoteConversationModalProps {
   quote?: Quote | null;
   initialQuoteText?: string;
   initialPageNumber?: string;
+  forceScrollToBottomOnOpen?: boolean;
   onClose: () => void;
   onRefresh?: () => void;
 }
@@ -194,11 +199,72 @@ function getLatestConversationTurn(messages: ConversationMessage[]) {
   }
 
   return {
+    userIndex,
+    assistantIndex,
     userEntry: userIndex >= 0 ? messages[userIndex] : null,
     assistantEntry:
       assistantIndex > userIndex ? messages[assistantIndex] : null,
     remaining: messages.filter((message) => !removableIds.has(message.id)),
   };
+}
+
+interface ConversationTurnReplacementTarget {
+  userEntryId: number;
+  assistantEntryId: number | null;
+  insertionIndex: number;
+}
+
+function applyOptimisticTurnReplacement(
+  messages: ConversationMessage[],
+  replacementTarget: ConversationTurnReplacementTarget,
+  userMessage: string,
+) {
+  return messages.flatMap((entry) => {
+    if (
+      replacementTarget.assistantEntryId !== null &&
+      entry.id === replacementTarget.assistantEntryId
+    ) {
+      return [];
+    }
+
+    if (entry.id === replacementTarget.userEntryId) {
+      return [{ ...entry, content: userMessage }];
+    }
+
+    return [entry];
+  });
+}
+
+function applyResolvedTurnReplacement(
+  messages: ConversationMessage[],
+  replacementTarget: ConversationTurnReplacementTarget,
+  replacementEntries: ConversationMessage[],
+) {
+  const filteredMessages = messages.filter((entry) => {
+    if (entry.id === replacementTarget.userEntryId) {
+      return false;
+    }
+
+    if (
+      replacementTarget.assistantEntryId !== null &&
+      entry.id === replacementTarget.assistantEntryId
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const boundedInsertionIndex = Math.max(
+    0,
+    Math.min(replacementTarget.insertionIndex, filteredMessages.length),
+  );
+
+  return [
+    ...filteredMessages.slice(0, boundedInsertionIndex),
+    ...replacementEntries,
+    ...filteredMessages.slice(boundedInsertionIndex),
+  ];
 }
 
 function getLatestConversationEntry(messages: ConversationMessage[]) {
@@ -252,15 +318,6 @@ function mergeTrailingMetaMessage(
   return [...leadingMessages, ...trailingMessages, nextMessage];
 }
 
-type AssistantMessageBlock =
-  | { type: "paragraph"; text: string }
-  | { type: "list"; ordered: boolean; items: string[]; start: number | null };
-
-interface AssistantMessageSections {
-  contentBlocks: AssistantMessageBlock[];
-  translatorNoteBlocks: AssistantMessageBlock[] | null;
-}
-
 interface FailedConversationTurn {
   userMessage: string;
   errorMessage: string;
@@ -270,388 +327,17 @@ interface FailedConversationTurn {
   translationLanguage: TranslationLanguageValue;
 }
 
-function parseAssistantMessageBlocks(content: string): AssistantMessageBlock[] {
-  const lines = String(content || "").replace(/\r\n/g, "\n").split("\n");
-  const blocks: AssistantMessageBlock[] = [];
-  let paragraphLines: string[] = [];
-  let listBlock: AssistantMessageBlock | null = null;
-
-  const flushParagraph = () => {
-    if (!paragraphLines.length) {
-      return;
-    }
-
-    blocks.push({
-      type: "paragraph",
-      text: paragraphLines.map((line) => line.trim()).join(" "),
-    });
-    paragraphLines = [];
-  };
-
-  const flushList = () => {
-    if (!listBlock) {
-      return;
-    }
-
-    blocks.push(listBlock);
-    listBlock = null;
-  };
-
-  for (const rawLine of lines) {
-    const trimmedLine = rawLine.trim();
-
-    if (!trimmedLine) {
-      flushParagraph();
-      flushList();
-      continue;
-    }
-
-    const unorderedMatch = trimmedLine.match(/^[-*+]\s+(.+)$/);
-    const orderedMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/);
-    if (unorderedMatch || orderedMatch) {
-      flushParagraph();
-      const ordered = Boolean(orderedMatch);
-      const itemText = (orderedMatch?.[2] || unorderedMatch?.[1] || "").trim();
-      const orderedStart = orderedMatch
-        ? Number.parseInt(orderedMatch[1], 10) || 1
-        : null;
-
-      if (!listBlock || listBlock.type !== "list" || listBlock.ordered !== ordered) {
-        flushList();
-        listBlock = {
-          type: "list",
-          ordered,
-          items: [],
-          start: ordered ? orderedStart : null,
-        };
-      }
-
-      listBlock.items.push(itemText);
-      continue;
-    }
-
-    flushList();
-    paragraphLines.push(rawLine);
-  }
-
-  flushParagraph();
-  flushList();
-
-  return blocks.length ? blocks : [{ type: "paragraph", text: String(content || "").trim() }];
-}
-
-function stripLeadingSectionLabel(content: string, label: string) {
-  const labelPattern = new RegExp(
-    `^\\s*${label}\\s*:?\\s*(?:\\n+)?`,
-    "i",
-  );
-
-  return String(content || "").replace(labelPattern, "").trim();
-}
-
-function splitAssistantMessageAtSeparator(content: string) {
-  const normalizedContent = String(content || "").replace(/\r\n/g, "\n").trim();
-  if (!normalizedContent) {
-    return null;
-  }
-
-  const blockSeparatorMatch = normalizedContent.match(
-    /(?:^|\n)\s*---+\s*(?:\n|$)/,
-  );
-  if (blockSeparatorMatch && typeof blockSeparatorMatch.index === "number") {
-    const separatorStart = blockSeparatorMatch.index;
-    const separatorEnd = separatorStart + blockSeparatorMatch[0].length;
-
-    return {
-      primaryContent: normalizedContent.slice(0, separatorStart).trim(),
-      secondaryContent: normalizedContent.slice(separatorEnd).trim(),
-    };
-  }
-
-  const inlineSeparatorIndex = normalizedContent.indexOf("---");
-  if (inlineSeparatorIndex >= 0) {
-    return {
-      primaryContent: normalizedContent.slice(0, inlineSeparatorIndex).trim(),
-      secondaryContent: normalizedContent
-        .slice(inlineSeparatorIndex + 3)
-        .trim(),
-    };
-  }
-
-  return null;
-}
-
-function parseAssistantMessageSections(content: string): AssistantMessageSections {
-  const normalizedContent = String(content || "").replace(/\r\n/g, "\n").trim();
-  if (!normalizedContent) {
-    return {
-      contentBlocks: [],
-      translatorNoteBlocks: null,
-    };
-  }
-
-  const translatorNoteMatch = normalizedContent.match(
-    /(?:^|\n{2,})(?:translator(?:'|’)s?\s+note|translator\s+note)\s*:?\s*(?:\n+)?/i,
-  );
-
-  let primaryContent = normalizedContent;
-  let translatorNoteContent: string | null = null;
-
-  const separatorSplit = splitAssistantMessageAtSeparator(normalizedContent);
-  if (separatorSplit && separatorSplit.secondaryContent) {
-    primaryContent = separatorSplit.primaryContent;
-    translatorNoteContent = separatorSplit.secondaryContent;
-  } else if (
-    translatorNoteMatch &&
-    typeof translatorNoteMatch.index === "number"
-  ) {
-    primaryContent = normalizedContent
-      .slice(0, translatorNoteMatch.index)
-      .trim();
-    translatorNoteContent = normalizedContent
-      .slice(translatorNoteMatch.index + translatorNoteMatch[0].length)
-      .trim();
-  }
-
-  const cleanedPrimaryContent = stripLeadingSectionLabel(
-    primaryContent,
-    "translation",
-  );
-  const cleanedTranslatorNoteContent = translatorNoteContent
-    ? stripLeadingSectionLabel(
-        stripLeadingSectionLabel(
-          translatorNoteContent,
-          "translator(?:'|’)s?\\s+note",
-        ),
-        "note",
-      )
-    : "";
-
-  return {
-    contentBlocks: parseAssistantMessageBlocks(
-      cleanedPrimaryContent || primaryContent || normalizedContent,
-    ),
-    translatorNoteBlocks: cleanedTranslatorNoteContent
-      ? parseAssistantMessageBlocks(cleanedTranslatorNoteContent)
-      : null,
-  };
-}
-
-const INLINE_FORMAT_DELIMITERS = ["***", "___", "**", "__", "*", "_"] as const;
-
-type InlineFormatType = "text" | "strong" | "emphasis" | "strong-emphasis";
-
-interface InlineFormatSegment {
-  type: InlineFormatType;
-  content: string;
-}
-
-function resolveInlineFormatType(
-  delimiter: (typeof INLINE_FORMAT_DELIMITERS)[number],
-): InlineFormatType {
-  if (delimiter === "***" || delimiter === "___") {
-    return "strong-emphasis";
-  }
-
-  if (delimiter === "**" || delimiter === "__") {
-    return "strong";
-  }
-
-  return "emphasis";
-}
-
-function findNextInlineDelimiter(text: string, startIndex: number) {
-  let nextMatch: {
-    delimiter: (typeof INLINE_FORMAT_DELIMITERS)[number];
-    index: number;
-  } | null = null;
-
-  for (const delimiter of INLINE_FORMAT_DELIMITERS) {
-    const index = text.indexOf(delimiter, startIndex);
-    if (index < 0 || text[index - 1] === "\\") {
-      continue;
-    }
-
-    if (
-      !nextMatch ||
-      index < nextMatch.index ||
-      (index === nextMatch.index && delimiter.length > nextMatch.delimiter.length)
-    ) {
-      nextMatch = { delimiter, index };
-    }
-  }
-
-  return nextMatch;
-}
-
-function findClosingInlineDelimiter(
-  text: string,
-  delimiter: (typeof INLINE_FORMAT_DELIMITERS)[number],
-  startIndex: number,
-) {
-  let searchIndex = startIndex;
-
-  while (searchIndex < text.length) {
-    const matchIndex = text.indexOf(delimiter, searchIndex);
-    if (matchIndex < 0) {
-      return -1;
-    }
-
-    if (text[matchIndex - 1] !== "\\") {
-      return matchIndex;
-    }
-
-    searchIndex = matchIndex + delimiter.length;
-  }
-
-  return -1;
-}
-
-function parseAssistantInlineSegments(text: string): InlineFormatSegment[] {
-  const segments: InlineFormatSegment[] = [];
-  let cursor = 0;
-
-  while (cursor < text.length) {
-    const nextDelimiter = findNextInlineDelimiter(text, cursor);
-    if (!nextDelimiter) {
-      segments.push({ type: "text", content: text.slice(cursor) });
-      break;
-    }
-
-    if (nextDelimiter.index > cursor) {
-      segments.push({
-        type: "text",
-        content: text.slice(cursor, nextDelimiter.index),
-      });
-    }
-
-    const contentStart = nextDelimiter.index + nextDelimiter.delimiter.length;
-    const closingIndex = findClosingInlineDelimiter(
-      text,
-      nextDelimiter.delimiter,
-      contentStart,
-    );
-
-    if (closingIndex < 0) {
-      segments.push({
-        type: "text",
-        content: nextDelimiter.delimiter,
-      });
-      cursor = contentStart;
-      continue;
-    }
-
-    const content = text.slice(contentStart, closingIndex);
-    if (!content.trim()) {
-      segments.push({
-        type: "text",
-        content: `${nextDelimiter.delimiter}${content}${nextDelimiter.delimiter}`,
-      });
-      cursor = closingIndex + nextDelimiter.delimiter.length;
-      continue;
-    }
-
-    segments.push({
-      type: resolveInlineFormatType(nextDelimiter.delimiter),
-      content,
-    });
-    cursor = closingIndex + nextDelimiter.delimiter.length;
-  }
-
-  return segments;
-}
-
-function renderAssistantInlineFormatting(
-  text: string,
-  keyPrefix = "inline",
-): ReactNode[] {
-  return parseAssistantInlineSegments(text).map((segment, index) => {
-    const key = `${keyPrefix}-${index}`;
-
-    if (segment.type === "text") {
-      return <span key={key}>{segment.content}</span>;
-    }
-
-    const children = renderAssistantInlineFormatting(segment.content, key);
-
-    if (segment.type === "strong") {
-      return (
-        <strong key={key} className="quote-chat-message__strong">
-          {children}
-        </strong>
-      );
-    }
-
-    if (segment.type === "strong-emphasis") {
-      return (
-        <strong key={key} className="quote-chat-message__strong">
-          <em className="quote-chat-message__emphasis">{children}</em>
-        </strong>
-      );
-    }
-
-    return (
-      <em key={key} className="quote-chat-message__emphasis">
-        {children}
-      </em>
-    );
-  });
-}
-
-function renderAssistantBlocks(
-  blocks: AssistantMessageBlock[],
-  keyPrefix: string,
-) {
-  return blocks.map((block, index) =>
-    block.type === "paragraph" ? (
-      <p
-        key={`${keyPrefix}-paragraph-${index}`}
-        className="quote-chat-message__text quote-chat-message__paragraph"
-      >
-        {renderAssistantInlineFormatting(block.text)}
-      </p>
-    ) : block.ordered ? (
-      <ol
-        key={`${keyPrefix}-list-${index}`}
-        className="quote-chat-message__list quote-chat-message__list--ordered"
-        start={block.start || undefined}
-      >
-        {block.items.map((item, itemIndex) => (
-          <li
-            key={`${keyPrefix}-list-item-${itemIndex}`}
-            className="quote-chat-message__list-item"
-          >
-            {renderAssistantInlineFormatting(item)}
-          </li>
-        ))}
-      </ol>
-    ) : (
-      <ul
-        key={`${keyPrefix}-list-${index}`}
-        className="quote-chat-message__list"
-      >
-        {block.items.map((item, itemIndex) => (
-          <li
-            key={`${keyPrefix}-list-item-${itemIndex}`}
-            className="quote-chat-message__list-item"
-          >
-            {renderAssistantInlineFormatting(item)}
-          </li>
-        ))}
-      </ul>
-    ),
-  );
-}
-
 export function QuoteConversationModal({
   isOpen,
   workId,
   quote,
   initialQuoteText = "",
   initialPageNumber = "",
+  forceScrollToBottomOnOpen = true,
   onClose,
   onRefresh,
 }: QuoteConversationModalProps) {
+  const { user } = useAuth();
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const composerAreaRef = useRef<HTMLDivElement | null>(null);
@@ -662,6 +348,8 @@ export function QuoteConversationModal({
   const lastSeenReplyIdRef = useRef(0);
   const pendingScrollBehaviorRef = useRef<ScrollBehavior | null>(null);
   const pendingUnreadCheckRef = useRef(false);
+  const didForceScrollOnOpenRef = useRef(false);
+  const isSendInFlightRef = useRef(false);
   const [activeQuote, setActiveQuote] = useState<Quote | null>(quote || null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [composer, setComposer] = useState("");
@@ -716,29 +404,19 @@ export function QuoteConversationModal({
   const selectedLanguageLabel = translationLanguageOptions.find(
     (option) => option.value === selectedTranslationLanguage,
   )?.label || browserTranslationLanguage.label;
-  const shouldRenderQuoteBubble = useMemo(() => {
-    if (!activeQuote?.quote) {
-      return false;
-    }
-
-    const firstMessage = messages[0];
-    if (!firstMessage || firstMessage.role !== "user") {
-      const transientUserMessage = pendingUserMessage || failedTurn?.userMessage;
-      if (!transientUserMessage) {
-        return true;
-      }
-
-      return (
-        normalizeConversationText(transientUserMessage) !==
-        normalizeConversationText(activeQuote.quote)
-      );
-    }
-
-    return (
-      normalizeConversationText(firstMessage.content) !==
-      normalizeConversationText(activeQuote.quote)
-    );
-  }, [activeQuote?.quote, failedTurn?.userMessage, messages, pendingUserMessage]);
+  const isViewerConversationOwner =
+    !activeQuote?.id ||
+    !activeQuote.user_id ||
+    activeQuote.user_id === user?.id;
+  const latestConversationEntryId = getLatestConversationEntryId(messages);
+  const shareConversationPath = activeQuote?.id
+    ? `/work/${encodeURIComponent(workId)}/conversation/${activeQuote.id}`
+    : null;
+  const shareConversationUrl =
+    typeof window !== "undefined" && shareConversationPath
+      ? `${window.location.origin}${shareConversationPath}`
+      : shareConversationPath;
+  const debugHeaderLabel = `Q:${activeQuote?.id || "-"} · C:${latestConversationEntryId || "-"}`;
   const latestTurn = useMemo(() => getLatestConversationTurn(messages), [messages]);
   const latestUserMessageId = latestTurn.userEntry?.id ?? null;
   const isEditingMessageUnchanged =
@@ -803,6 +481,7 @@ export function QuoteConversationModal({
   }, [messages]);
   useEffect(() => {
     if (!isOpen) {
+      didForceScrollOnOpenRef.current = false;
       return;
     }
 
@@ -823,6 +502,11 @@ export function QuoteConversationModal({
     setSelectedTranslationLanguage(getDefaultTranslationLanguageValue());
     setComposer(quote?.id ? "" : initialQuoteText);
     setIsSavingConversation(false);
+    if (!forceScrollToBottomOnOpen) {
+      window.requestAnimationFrame(() => {
+        bodyRef.current?.scrollTo({ top: 0, behavior: "auto" });
+      });
+    }
 
     if (!quote?.id) {
       setIsLoadingHistory(false);
@@ -835,7 +519,9 @@ export function QuoteConversationModal({
         lastSeenReplyIdRef.current = getLatestConversationEntryId(
           data.conversations,
         );
-        pendingScrollBehaviorRef.current = "auto";
+        pendingScrollBehaviorRef.current = forceScrollToBottomOnOpen
+          ? "auto"
+          : null;
         setShowScrollToBottom(false);
         setActiveQuote(data.quote);
         setMessages(data.conversations);
@@ -851,7 +537,7 @@ export function QuoteConversationModal({
       .finally(() => {
         setIsLoadingHistory(false);
       });
-  }, [initialPageNumber, initialQuoteText, isOpen, quote]);
+  }, [forceScrollToBottomOnOpen, initialPageNumber, initialQuoteText, isOpen, quote]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -932,6 +618,25 @@ export function QuoteConversationModal({
     }
   }, [isOpen, messages, updateUnreadReplyState]);
 
+  useEffect(() => {
+    if (
+      !isOpen ||
+      !forceScrollToBottomOnOpen ||
+      isLoadingHistory ||
+      didForceScrollOnOpenRef.current
+    ) {
+      return;
+    }
+
+    didForceScrollOnOpenRef.current = true;
+    lastSeenReplyIdRef.current = Math.max(
+      lastSeenReplyIdRef.current,
+      getLatestConversationEntryId(messages),
+    );
+    setShowScrollToBottom(false);
+    scrollToBottom("auto");
+  }, [forceScrollToBottomOnOpen, isLoadingHistory, isOpen, messages]);
+
   useLayoutEffect(() => {
     if (!isOpen) {
       return;
@@ -940,7 +645,9 @@ export function QuoteConversationModal({
     const updateInsets = () => {
       setBodyInsets({
         top: (headerRef.current?.offsetHeight || 0) + 24,
-        bottom: (composerAreaRef.current?.offsetHeight || 0) + 44,
+        bottom: isViewerConversationOwner
+          ? (composerAreaRef.current?.offsetHeight || 0) + 44
+          : 44,
       });
     };
 
@@ -968,7 +675,7 @@ export function QuoteConversationModal({
       resizeObserver?.disconnect();
       window.removeEventListener("resize", updateInsets);
     };
-  }, [isOpen]);
+  }, [isOpen, isViewerConversationOwner]);
 
   useEffect(() => {
     if (editingMessageId === null) {
@@ -999,6 +706,15 @@ export function QuoteConversationModal({
     modelOverride?: QuoteChatModel;
     translationLanguageOverride?: TranslationLanguageValue;
   } = {}) => {
+    if (isSendInFlightRef.current) {
+      return;
+    }
+
+    if (!isViewerConversationOwner) {
+      setError("This conversation is read-only for non-owners.");
+      return;
+    }
+
     const trimmedMessage = (messageText ?? composer).trim();
     const effectiveTool =
       toolOverride !== undefined ? toolOverride : selectedTool;
@@ -1020,21 +736,31 @@ export function QuoteConversationModal({
       return;
     }
 
-    const nextVisibleMessages =
-      replaceLatestTurn && latestTurn.userEntry ? latestTurn.remaining : messages;
+    const replacementTarget =
+      replaceLatestTurn && latestTurn.userEntry
+        ? {
+            userEntryId: latestTurn.userEntry.id,
+            assistantEntryId: latestTurn.assistantEntry?.id ?? null,
+            insertionIndex:
+              latestTurn.userIndex >= 0 ? latestTurn.userIndex : messages.length,
+          }
+        : null;
     const normalizedPageNumber = initialPageNumber.trim();
     const parsedPageNumber = normalizedPageNumber
       ? Number(normalizedPageNumber)
       : null;
 
     setIsSending(true);
+    isSendInFlightRef.current = true;
     setError(null);
     setFailedTurn(null);
-    setPendingUserMessage(trimmedMessage);
+    setPendingUserMessage(replaceLatestTurn ? null : trimmedMessage);
     setEditingMessageId(null);
     setEditingDraft("");
-    if (replaceLatestTurn) {
-      setMessages(nextVisibleMessages);
+    if (replaceLatestTurn && replacementTarget) {
+      setMessages((current) =>
+        applyOptimisticTurnReplacement(current, replacementTarget, trimmedMessage),
+      );
     } else {
       setComposer("");
     }
@@ -1087,7 +813,13 @@ export function QuoteConversationModal({
       setSelectedModel(data.model);
       setFailedTurn(null);
       setMessages((prev) =>
-        replaceLatestTurn ? [...nextVisibleMessages, ...data.conversations] : [...prev, ...data.conversations],
+        replaceLatestTurn && replacementTarget
+          ? applyResolvedTurnReplacement(
+              prev,
+              replacementTarget,
+              data.conversations,
+            )
+          : [...prev, ...data.conversations],
       );
       setComposer("");
       if (replaceLatestTurn || effectiveTool === "analyze") {
@@ -1107,6 +839,7 @@ export function QuoteConversationModal({
         translationLanguage: effectiveTranslationLanguage,
       });
     } finally {
+      isSendInFlightRef.current = false;
       setPendingUserMessage(null);
       setIsSending(false);
       setIsSavingConversation(false);
@@ -1114,7 +847,7 @@ export function QuoteConversationModal({
   };
 
   const handleStartEditingLatestMessage = () => {
-    if (!latestTurn.userEntry || isSending || failedTurn) {
+    if (!isViewerConversationOwner || !latestTurn.userEntry || isSending || failedTurn) {
       return;
     }
 
@@ -1142,7 +875,7 @@ export function QuoteConversationModal({
   };
 
   const handleClear = async () => {
-    if (!activeQuote?.id || !messages.length || isClearing) {
+    if (!isViewerConversationOwner || !activeQuote?.id || !messages.length || isClearing) {
       return;
     }
 
@@ -1183,11 +916,90 @@ export function QuoteConversationModal({
     }
   };
 
+  const handleShareConversation = async () => {
+    if (!isViewerConversationOwner) {
+      return;
+    }
+
+    if (!shareConversationUrl) {
+      showToast("Save the conversation first to share it.", { tone: "error" });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareConversationUrl);
+      showToast("Share link copied.", { tone: "success" });
+    } catch {
+      showToast("Failed to copy share link.", { tone: "error" });
+    }
+  };
+
+  const handleCopyConversationDebug = async () => {
+    if (!isViewerConversationOwner) {
+      return;
+    }
+
+    const debugPayload = {
+      generated_at: new Date().toISOString(),
+      current_url:
+        typeof window !== "undefined"
+          ? `${window.location.origin}${window.location.pathname}${window.location.search}`
+          : null,
+      share_url: shareConversationUrl,
+      work_id: workId,
+      quote: activeQuote
+        ? {
+            id: activeQuote.id,
+            page_number: activeQuote.page_number ?? null,
+            quote: activeQuote.quote,
+            explanation: activeQuote.explanation ?? null,
+            created_at: activeQuote.created_at,
+          }
+        : null,
+      ui_state: {
+        model: selectedModel,
+        tool: selectedTool || "chat",
+        translation_language: selectedTranslationLanguage,
+        theme,
+        is_loading_history: isLoadingHistory,
+        is_sending: isSending,
+        is_saving_conversation: isSavingConversation,
+      },
+      conversation_state: {
+        latest_conversation_id: latestConversationEntryId || null,
+        latest_user_id: latestTurn.userEntry?.id ?? null,
+        latest_assistant_id: latestTurn.assistantEntry?.id ?? null,
+        pending_user_message: pendingUserMessage,
+        failed_turn: failedTurn,
+      },
+      messages: messages.map((entry) => ({
+        id: entry.id,
+        role: entry.role,
+        content: entry.content,
+        created_at: entry.created_at,
+        quote_id: entry.quote_id,
+        meta_type: entry.meta_type || null,
+        meta_display: entry.meta_display || null,
+      })),
+    };
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(debugPayload, null, 2));
+      showToast("Conversation debug payload copied.", { tone: "success" });
+    } catch {
+      showToast("Failed to copy conversation debug payload.", { tone: "error" });
+    }
+  };
+
   const handleBodyScroll = () => {
     updateUnreadReplyState();
   };
 
   const handleModelSelectionChange = (nextModel: QuoteChatModel) => {
+    if (!isViewerConversationOwner) {
+      return;
+    }
+
     if (nextModel === selectedModel) {
       return;
     }
@@ -1216,7 +1028,7 @@ export function QuoteConversationModal({
   };
 
   const handleRetryFailedTurn = async () => {
-    if (!failedTurn || isSending || isSavingConversation) {
+    if (!isViewerConversationOwner || !failedTurn || isSending || isSavingConversation) {
       return;
     }
 
@@ -1280,26 +1092,33 @@ export function QuoteConversationModal({
         }}
       >
         <div ref={headerRef} className="quote-chat-modal__header">
-          <select
-            value={selectedModel}
-            disabled={isSending || isLoadingModels}
-            className="quote-chat-modal__model-select"
-            onClick={(event) => event.stopPropagation()}
-            onChange={(event) =>
-              handleModelSelectionChange(event.target.value as QuoteChatModel)
-            }
-          >
-            {(isLoadingModels ? [] : modelOptions).map((option) => (
-              <option key={option.id} value={option.id} disabled={option.disabled}>
-                {option.label}
-              </option>
-            ))}
-            {isLoadingModels ? (
-              <option value={selectedModel}>
-                {selectedModelOption?.label || "Loading models..."}
-              </option>
-            ) : null}
-          </select>
+          {isViewerConversationOwner ? (
+            <select
+              value={selectedModel}
+              disabled={isSending || isLoadingModels}
+              className="quote-chat-modal__model-select"
+              onClick={(event) => event.stopPropagation()}
+              onChange={(event) =>
+                handleModelSelectionChange(event.target.value as QuoteChatModel)
+              }
+            >
+              {(isLoadingModels ? [] : modelOptions).map((option) => (
+                <option key={option.id} value={option.id} disabled={option.disabled}>
+                  {option.label}
+                </option>
+              ))}
+              {isLoadingModels ? (
+                <option value={selectedModel}>
+                  {selectedModelOption?.label || "Loading models..."}
+                </option>
+              ) : null}
+            </select>
+          ) : (
+            <div />
+          )}
+          <span className="quote-chat-modal__header-debug-id" aria-hidden="true">
+            {debugHeaderLabel}
+          </span>
 
           <div
             className="quote-chat-modal__menu-wrap"
@@ -1329,7 +1148,32 @@ export function QuoteConversationModal({
                     ? "Switch to light theme"
                     : "Switch to dark theme"}
                 </button>
-                {!!activeQuote?.id && !!messages.length && (
+                {isViewerConversationOwner ? (
+                  <button
+                    type="button"
+                    className="quote-chat-modal__menu-item"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      void handleShareConversation();
+                    }}
+                    disabled={!shareConversationUrl}
+                  >
+                    Share this conversation
+                  </button>
+                ) : null}
+                {isViewerConversationOwner ? (
+                  <button
+                    type="button"
+                    className="quote-chat-modal__menu-item"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      void handleCopyConversationDebug();
+                    }}
+                  >
+                    Copy conversation (debug)
+                  </button>
+                ) : null}
+                {isViewerConversationOwner && !!activeQuote?.id && !!messages.length && (
                   <button
                     type="button"
                     className="quote-chat-modal__menu-item quote-chat-modal__menu-item--danger"
@@ -1369,22 +1213,6 @@ export function QuoteConversationModal({
             <div className="quote-chat-modal__empty">Loading conversation...</div>
           ) : (
             <>
-              {shouldRenderQuoteBubble && activeQuote?.quote ? (
-                <div className="quote-chat-message quote-chat-message--user">
-                  <div className="quote-chat-message__bubble">
-                    {formatMessageContent(activeQuote.quote).map(
-                      (paragraph, index) => (
-                        <p
-                          key={`quote-empty-${index}`}
-                          className="quote-chat-message__text"
-                        >
-                          {paragraph}
-                        </p>
-                      ),
-                    )}
-                  </div>
-                </div>
-              ) : null}
               {messages.map((message) => {
                 if (message.role === "meta") {
                   return (
@@ -1397,7 +1225,9 @@ export function QuoteConversationModal({
                 }
 
                 const isLatestEditableUser =
-                  message.role === "user" && message.id === latestUserMessageId;
+                  isViewerConversationOwner &&
+                  message.role === "user" &&
+                  message.id === latestUserMessageId;
                 const isEditingLatestUser =
                   isLatestEditableUser && editingMessageId === message.id;
                 const isAssistantMessage = message.role === "assistant";
@@ -1628,110 +1458,80 @@ export function QuoteConversationModal({
           </button>
         )}
 
-        <div ref={composerAreaRef} className="quote-chat-modal__composer">
-          <div className="quote-chat-modal__composer-frame">
-            <textarea
-              ref={(node) => {
-                composerRef.current = node;
-                resizeTextarea(node, { maxLines: 5 });
-              }}
-              value={composer}
-              onChange={(event) => {
-                setComposer(event.target.value);
-                setError(null);
-                if (failedTurn) {
-                  setFailedTurn(null);
+        {isViewerConversationOwner ? (
+          <div ref={composerAreaRef} className="quote-chat-modal__composer">
+            <div className="quote-chat-modal__composer-frame">
+              <textarea
+                ref={(node) => {
+                  composerRef.current = node;
+                  resizeTextarea(node, { maxLines: 5 });
+                }}
+                value={composer}
+                onChange={(event) => {
+                  setComposer(event.target.value);
+                  setError(null);
+                  if (failedTurn) {
+                    setFailedTurn(null);
+                  }
+                  resizeTextarea(event.currentTarget, { maxLines: 5 });
+                }}
+                onKeyDown={handleComposerKeyDown}
+                className="quote-chat-modal__textarea"
+                placeholder={
+                  activeQuote
+                    ? "Ask a follow-up about this quote..."
+                    : "Paste your quote here..."
                 }
-                resizeTextarea(event.currentTarget, { maxLines: 5 });
-              }}
-              onKeyDown={handleComposerKeyDown}
-              className="quote-chat-modal__textarea"
-              placeholder={
-                activeQuote
-                  ? "Ask a follow-up about this quote..."
-                  : "Paste your quote here..."
-              }
-              disabled={isSending || isSavingConversation}
-              autoFocus
-            />
+                disabled={isSending || isSavingConversation}
+                autoFocus
+              />
 
-            <div className="quote-chat-modal__controls">
-              <div className="quote-chat-modal__toolbox">
-                <div
-                  className="quote-chat-modal__inline-menu"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    className="quote-chat-modal__composer-select quote-chat-modal__composer-select--icon"
-                    onClick={() => {
-                      setIsToolMenuOpen((current) => !current);
-                      setIsLanguageMenuOpen(false);
-                    }}
-                    disabled={isSending || isSavingConversation}
-                    aria-label="Choose tool"
-                    title="Choose tool"
-                  >
-                    <AppIcon name="tools" size={18} />
-                  </button>
-                  {isToolMenuOpen && (
-                    <div className="quote-chat-modal__inline-dropdown">
-                      {TOOL_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className="quote-chat-modal__inline-item"
-                          onClick={() => {
-                            setSelectedTool(option.value);
-                            setIsToolMenuOpen(false);
-                          }}
-                        >
-                          <span className="quote-chat-modal__inline-item-content">
-                            <AppIcon name={option.icon} size={16} />
-                            <span>{option.label}</span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {selectedTool && selectedTool !== "translate" && (
-                  <span className="quote-chat-modal__mode-pill">
-                    {selectedToolOption ? (
-                      <AppIcon name={selectedToolOption.icon} size={14} />
-                    ) : null}
-                    {selectedToolLabel}
-                    <button
-                      type="button"
-                      className="quote-chat-modal__mode-pill-close"
-                      onClick={() => {
-                        setSelectedTool(null);
-                        setIsLanguageMenuOpen(false);
-                      }}
-                      aria-label={`Clear ${selectedToolLabel} mode`}
-                    >
-                      <AppIcon name="close" size={12} />
-                    </button>
-                  </span>
-                )}
-                {selectedTool === "translate" && (
+              <div className="quote-chat-modal__controls">
+                <div className="quote-chat-modal__toolbox">
                   <div
                     className="quote-chat-modal__inline-menu"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <div className="quote-chat-modal__mode-pill quote-chat-modal__mode-pill--interactive">
-                      <button
-                        type="button"
-                        className="quote-chat-modal__mode-pill-trigger"
-                        onClick={() => {
-                          setIsLanguageMenuOpen((current) => !current);
-                          setIsToolMenuOpen(false);
-                        }}
-                        disabled={isSending || isSavingConversation}
-                      >
-                        <AppIcon name="translate" size={14} />
-                        <span>{selectedLanguageLabel}</span>
-                      </button>
+                    <button
+                      type="button"
+                      className="quote-chat-modal__composer-select quote-chat-modal__composer-select--icon"
+                      onClick={() => {
+                        setIsToolMenuOpen((current) => !current);
+                        setIsLanguageMenuOpen(false);
+                      }}
+                      disabled={isSending || isSavingConversation}
+                      aria-label="Choose tool"
+                      title="Choose tool"
+                    >
+                      <AppIcon name="tools" size={18} />
+                    </button>
+                    {isToolMenuOpen && (
+                      <div className="quote-chat-modal__inline-dropdown">
+                        {TOOL_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className="quote-chat-modal__inline-item"
+                            onClick={() => {
+                              setSelectedTool(option.value);
+                              setIsToolMenuOpen(false);
+                            }}
+                          >
+                            <span className="quote-chat-modal__inline-item-content">
+                              <AppIcon name={option.icon} size={16} />
+                              <span>{option.label}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {selectedTool && selectedTool !== "translate" && (
+                    <span className="quote-chat-modal__mode-pill">
+                      {selectedToolOption ? (
+                        <AppIcon name={selectedToolOption.icon} size={14} />
+                      ) : null}
+                      {selectedToolLabel}
                       <button
                         type="button"
                         className="quote-chat-modal__mode-pill-close"
@@ -1743,45 +1543,77 @@ export function QuoteConversationModal({
                       >
                         <AppIcon name="close" size={12} />
                       </button>
-                    </div>
-                    {isLanguageMenuOpen && (
-                      <div className="quote-chat-modal__inline-dropdown">
-                        {translationLanguageOptions.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            className="quote-chat-modal__inline-item"
-                            onClick={() => {
-                              setSelectedTranslationLanguage(
-                                option.value as TranslationLanguageValue,
-                              );
-                              setIsLanguageMenuOpen(false);
-                            }}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
+                    </span>
+                  )}
+                  {selectedTool === "translate" && (
+                    <div
+                      className="quote-chat-modal__inline-menu"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <div className="quote-chat-modal__mode-pill quote-chat-modal__mode-pill--interactive">
+                        <button
+                          type="button"
+                          className="quote-chat-modal__mode-pill-trigger"
+                          onClick={() => {
+                            setIsLanguageMenuOpen((current) => !current);
+                            setIsToolMenuOpen(false);
+                          }}
+                          disabled={isSending || isSavingConversation}
+                        >
+                          <AppIcon name="translate" size={14} />
+                          <span>{selectedLanguageLabel}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="quote-chat-modal__mode-pill-close"
+                          onClick={() => {
+                            setSelectedTool(null);
+                            setIsLanguageMenuOpen(false);
+                          }}
+                          aria-label={`Clear ${selectedToolLabel} mode`}
+                        >
+                          <AppIcon name="close" size={12} />
+                        </button>
                       </div>
-                    )}
-                  </div>
-                )}
+                      {isLanguageMenuOpen && (
+                        <div className="quote-chat-modal__inline-dropdown">
+                          {translationLanguageOptions.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              className="quote-chat-modal__inline-item"
+                              onClick={() => {
+                                setSelectedTranslationLanguage(
+                                  option.value as TranslationLanguageValue,
+                                );
+                                setIsLanguageMenuOpen(false);
+                              }}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="quote-chat-modal__send quote-chat-modal__send--icon"
+                  onClick={() => void handleSend()}
+                  disabled={isSending || isSavingConversation || !composer.trim()}
+                  aria-label={isSending ? "Sending message" : "Send message"}
+                  title={isSending ? "Sending..." : "Send"}
+                >
+                  <AppIcon name="send" size={22} />
+                </button>
               </div>
-
-              <button
-                type="button"
-                className="quote-chat-modal__send quote-chat-modal__send--icon"
-                onClick={() => void handleSend()}
-                disabled={isSending || isSavingConversation || !composer.trim()}
-                aria-label={isSending ? "Sending message" : "Send message"}
-                title={isSending ? "Sending..." : "Send"}
-              >
-                <AppIcon name="send" size={22} />
-              </button>
             </div>
-          </div>
 
-          {error && <p className="quote-chat-modal__error">{error}</p>}
-        </div>
+            {error && <p className="quote-chat-modal__error">{error}</p>}
+          </div>
+        ) : null}
       </div>
     </Modal>
   );

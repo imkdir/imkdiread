@@ -83,6 +83,10 @@ export default class App extends React.Component<Record<string, never>> {
                 />
                 <Route path="/work/:id" element={<DetailPageWrapper />} />
                 <Route
+                  path="/work/:id/conversation/:quoteId"
+                  element={<DetailPageWrapper />}
+                />
+                <Route
                   path="/authors"
                   element={
                     <ProtectedRoute requireAdmin={true}>

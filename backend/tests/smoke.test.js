@@ -2026,6 +2026,12 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
     quoteChatTranslate.json?.conversations?.[1]?.content,
     "Translation (English): A well-formatted sentence.",
   );
+  const translatedUserConversationId =
+    quoteChatTranslate.json?.conversations?.[0]?.id;
+  const translatedAssistantConversationId =
+    quoteChatTranslate.json?.conversations?.[1]?.id;
+  assert.equal(typeof translatedUserConversationId, "number");
+  assert.equal(typeof translatedAssistantConversationId, "number");
 
   const quoteChatReplaceLatest = await requestJson(
     "POST",
@@ -2050,8 +2056,67 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
     "A close reading of the passage.",
   );
   assert.equal(
+    quoteChatReplaceLatest.json?.conversations?.[0]?.id,
+    translatedUserConversationId,
+  );
+  assert.equal(
+    quoteChatReplaceLatest.json?.conversations?.[1]?.id,
+    translatedAssistantConversationId,
+  );
+  assert.equal(
     quoteChatReplaceLatest.json?.quote?.explanation,
     "A close reading of the passage.",
+  );
+
+  const canonicalQuoteCreate = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/quotes/chat`,
+    {
+      quote: "Original canonical passage.",
+      message: "Original canonical passage.",
+      tool: "chat",
+      model: "gemini-2.5-flash",
+    },
+    guestToken,
+  );
+  assert.equal(canonicalQuoteCreate.status, 200);
+  assert.equal(canonicalQuoteCreate.json?.success, true);
+  const canonicalQuoteId = canonicalQuoteCreate.json?.quote?.id;
+  const canonicalUserId = canonicalQuoteCreate.json?.conversations?.[0]?.id;
+  const canonicalAssistantId = canonicalQuoteCreate.json?.conversations?.[1]?.id;
+  assert.equal(typeof canonicalQuoteId, "number");
+  assert.equal(typeof canonicalUserId, "number");
+  assert.equal(typeof canonicalAssistantId, "number");
+
+  const canonicalQuoteReplaceLatest = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/quotes/chat`,
+    {
+      quoteId: canonicalQuoteId,
+      message: "Edited canonical passage.",
+      tool: "chat",
+      model: "gemini-2.5-flash",
+      replaceLatestTurn: true,
+    },
+    guestToken,
+  );
+  assert.equal(canonicalQuoteReplaceLatest.status, 200);
+  assert.equal(canonicalQuoteReplaceLatest.json?.success, true);
+  assert.equal(
+    canonicalQuoteReplaceLatest.json?.quote?.quote,
+    "Edited canonical passage.",
+  );
+  assert.equal(
+    canonicalQuoteReplaceLatest.json?.conversations?.[0]?.id,
+    canonicalUserId,
+  );
+  assert.equal(
+    canonicalQuoteReplaceLatest.json?.conversations?.[1]?.id,
+    canonicalAssistantId,
+  );
+  assert.equal(
+    canonicalQuoteReplaceLatest.json?.conversations?.[0]?.content,
+    "Edited canonical passage.",
   );
 
   const quoteChatHistoryAfterReplace = await requestJson(

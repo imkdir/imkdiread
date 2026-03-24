@@ -502,7 +502,13 @@ Do not add any headings like "Translator note:" or any preamble before the trans
 
 The user has selected the analyze tool.
 Explain the passage's tone, imagery, syntax, subtext, or references with specificity.
-If the latest user message is only the passage text, treat it as a request to analyze that passage directly.`;
+If the latest user message is only the passage text, treat it as a request to analyze that passage directly.
+
+CRITICAL RULE FOR MISSING CONTEXT & CORRECTIONS:
+1. If the text is too short, vague, or ambiguous to analyze accurately, do not guess or invent lore. State plainly that you lack context.
+2. If the user says your previous analysis was wrong, do not be defensive and do not loop on apologies.
+3. Immediately acknowledge that you were making an educated guess because surrounding context was missing.
+4. Ask targeted follow-up questions to gather context, such as: "Could you paste the preceding paragraph?", "Which character is speaking here?", or "Are they indoors or outdoors?"`;
     }
 
     return `${sharedContext}
@@ -1410,11 +1416,12 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
   router.get("/api/quotes/:id/chat", authenticateToken, (req, res) => {
     try {
       const quoteId = Number(req.params.id);
-      const quote = getAccessibleQuote({
-        quoteId,
-        userId: req.user.id,
-        isAdmin: req.user.role === "admin",
-      });
+      if (!quoteId) {
+        return jsonError(res, 400, "Invalid quote id.");
+      }
+
+      // Share links need read access for authenticated viewers, regardless of ownership.
+      const quote = db.prepare("SELECT * FROM work_quotes WHERE id = ?").get(quoteId);
 
       if (!quote) {
         return jsonError(res, 404, "Quote not found.");
@@ -1551,6 +1558,8 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
 
         const existingConversations =
           ensureLegacyExplanationConversation(quote);
+        const firstUserConversationEntry =
+          existingConversations.find((entry) => entry.role === "user") || null;
         const latestTurn = replaceLatestTurn
           ? getLatestReplaceableQuoteTurn(existingConversations)
           : null;
@@ -1586,39 +1595,76 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
             `INSERT INTO conversations (role, content, quote_id)
              VALUES (?, ?, ?)`,
           );
+          let persistedUserId = null;
+          let persistedAssistantId = null;
 
-          if (replaceLatestTurn && latestTurn?.userEntry?.id) {
-            const removableIds = [latestTurn.userEntry.id];
-            if (latestTurn.assistantEntry?.id) {
-              removableIds.push(latestTurn.assistantEntry.id);
-            }
-
-            const placeholders = removableIds.map(() => "?").join(", ");
+          if (
+            replaceLatestTurn &&
+            quote.explanation &&
+            latestTurn?.assistantEntry?.content === quote.explanation &&
+            tool !== "analyze"
+          ) {
             db.prepare(
-              `DELETE FROM conversations
-               WHERE quote_id = ? AND id IN (${placeholders})`,
-            ).run(quote.id, ...removableIds);
-
-            if (
-              quote.explanation &&
-              latestTurn.assistantEntry?.content === quote.explanation
-            ) {
-              db.prepare(
-                "UPDATE work_quotes SET explanation = NULL WHERE id = ?",
-              ).run(quote.id);
-            }
+              "UPDATE work_quotes SET explanation = NULL WHERE id = ?",
+            ).run(quote.id);
           }
 
-          const userResult = insertConversation.run(
-            "user",
-            userMessage,
-            quote.id,
-          );
-          const assistantResult = insertConversation.run(
-            "assistant",
-            assistantContent,
-            quote.id,
-          );
+          if (replaceLatestTurn && latestTurn?.userEntry?.id) {
+            const updatedUser = db
+              .prepare(
+                `UPDATE conversations
+                 SET content = ?
+                 WHERE id = ? AND quote_id = ?`,
+              )
+              .run(userMessage, latestTurn.userEntry.id, quote.id);
+            if (updatedUser.changes === 0) {
+              throw new Error("Failed to update the latest user conversation.");
+            }
+
+            persistedUserId = latestTurn.userEntry.id;
+
+            if (firstUserConversationEntry?.id === latestTurn.userEntry.id) {
+              db.prepare(
+                "UPDATE work_quotes SET quote = ? WHERE id = ?",
+              ).run(userMessage, quote.id);
+            }
+
+            if (latestTurn.assistantEntry?.id) {
+              const updatedAssistant = db
+                .prepare(
+                  `UPDATE conversations
+                   SET content = ?
+                   WHERE id = ? AND quote_id = ?`,
+                )
+                .run(assistantContent, latestTurn.assistantEntry.id, quote.id);
+              if (updatedAssistant.changes === 0) {
+                throw new Error(
+                  "Failed to update the latest assistant conversation.",
+                );
+              }
+              persistedAssistantId = latestTurn.assistantEntry.id;
+            } else {
+              const assistantResult = insertConversation.run(
+                "assistant",
+                assistantContent,
+                quote.id,
+              );
+              persistedAssistantId = assistantResult.lastInsertRowid;
+            }
+          } else {
+            const userResult = insertConversation.run(
+              "user",
+              userMessage,
+              quote.id,
+            );
+            const assistantResult = insertConversation.run(
+              "assistant",
+              assistantContent,
+              quote.id,
+            );
+            persistedUserId = userResult.lastInsertRowid;
+            persistedAssistantId = assistantResult.lastInsertRowid;
+          }
 
           if (tool === "analyze") {
             db.prepare(
@@ -1633,7 +1679,7 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
                WHERE id IN (?, ?)
                ORDER BY id ASC`,
             )
-            .all(userResult.lastInsertRowid, assistantResult.lastInsertRowid);
+            .all(persistedUserId, persistedAssistantId);
         });
 
         const entries = persistEntries();
@@ -1866,6 +1912,12 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
               Task 2: Provide an insightful explanation of the passage.
 
               CRITICAL RULE: You are in a continuous session. DO NOT repeat the overarching themes, basic plot summaries, or general character bios of the book. Assume the user already knows the premise. Focus strictly on the unique subtext, metaphors, and specific word choices of the immediate passage provided.
+
+              CRITICAL RULE FOR MISSING CONTEXT & CORRECTIONS:
+              1. If the provided text is too short, vague, or ambiguous to analyze accurately, DO NOT confidently guess or invent lore. State frankly in your note that you lack context.
+              2. If the user points out that your previous analysis was wrong, DO NOT be defensive and do not endlessly apologize.
+              3. Immediately and frankly admit that you were making an educated guess because you are missing the surrounding text.
+              4. Actively guide the user on how to help you. Ask specific questions like: "Could you paste the preceding paragraph?", "Which character is speaking here?", or "Are they indoors or outdoors?" Treat the user as your collaborative research partner.
 
               Always output valid JSON matching this schema:
               {

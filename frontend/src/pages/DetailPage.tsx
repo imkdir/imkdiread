@@ -45,6 +45,7 @@ interface Props {
   workId: string;
   initialWork?: Work;
   useEntrySharedLayout?: boolean;
+  initialConversationQuoteId?: number | null;
 }
 
 interface TagDraft {
@@ -196,16 +197,22 @@ function parseDraftList(value: string): string[] {
 }
 
 export function DetailPageWrapper() {
-  const { id } = useParams<{ id: string }>();
+  const { id, quoteId } = useParams<{ id: string; quoteId?: string }>();
   const location = useLocation();
   const initialWork = location.state?.work as Work | undefined;
   const useEntrySharedLayout = location.state?.from === "search-drawer";
+  const parsedQuoteId = quoteId ? Number.parseInt(quoteId, 10) : null;
+  const initialConversationQuoteId =
+    parsedQuoteId && Number.isInteger(parsedQuoteId) && parsedQuoteId > 0
+      ? parsedQuoteId
+      : null;
 
   return (
     <DetailPage
       workId={id || ""}
       initialWork={initialWork}
       useEntrySharedLayout={useEntrySharedLayout}
+      initialConversationQuoteId={initialConversationQuoteId}
     />
   );
 }
@@ -214,6 +221,7 @@ function DetailPage({
   workId,
   initialWork,
   useEntrySharedLayout = false,
+  initialConversationQuoteId = null,
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -309,13 +317,47 @@ function DetailPage({
     setActiveConversationQuote(null);
   }, [workId]);
 
+  useEffect(() => {
+    if (!initialConversationQuoteId) {
+      return;
+    }
+
+    const routeConversationQuotes = detail.work?.quotes || [];
+    const matchedQuote = routeConversationQuotes.find(
+      (entry) => entry.id === initialConversationQuoteId,
+    );
+
+    setActiveConversationQuote((current) => {
+      if (current?.id === initialConversationQuoteId) {
+        return current;
+      }
+
+      if (matchedQuote) {
+        return matchedQuote;
+      }
+
+      return {
+        id: initialConversationQuoteId,
+        work_id: workId,
+        user_id: "__unknown_owner__",
+        quote: "",
+        page_number: null,
+        created_at: new Date().toISOString(),
+        explanation: null,
+      };
+    });
+  }, [detail.work?.quotes, initialConversationQuoteId, workId]);
+
   const openQuoteConversation = useCallback((quote: Quote) => {
     setActiveConversationQuote(quote);
   }, []);
 
   const closeQuoteConversation = useCallback(() => {
     setActiveConversationQuote(null);
-  }, []);
+    if (initialConversationQuoteId) {
+      navigate(`/work/${encodeURIComponent(workId)}`, { replace: true });
+    }
+  }, [initialConversationQuoteId, navigate, workId]);
 
   const openSearchDrawer = (query: string) => {
     window.dispatchEvent(
@@ -1654,6 +1696,7 @@ function DetailPage({
         workId={work.id}
         initialQuoteText={editingForm.quote}
         initialPageNumber={editingForm.pageNumber}
+        forceScrollToBottomOnOpen={true}
         onClose={closeAddQuoteModal}
         onRefresh={fetchData}
       />
@@ -1661,6 +1704,7 @@ function DetailPage({
         isOpen={!!activeConversationQuote}
         workId={work.id}
         quote={activeConversationQuote}
+        forceScrollToBottomOnOpen={!initialConversationQuoteId}
         onClose={closeQuoteConversation}
         onRefresh={fetchData}
       />
