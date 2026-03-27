@@ -1,6 +1,5 @@
 import type React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AppIcon } from "../AppIcon";
 import "../QuoteCard.css";
 
 export type DetailEditTarget = "quote" | "progress";
@@ -15,7 +14,6 @@ export interface DetailEditingForm {
 interface DetailQuoteModalProps {
   isOpen: boolean;
   isSaving: boolean;
-  isExplaining: boolean;
   editingForm: DetailEditingForm;
   pageCount?: number;
   onClose: () => void;
@@ -24,20 +22,17 @@ interface DetailQuoteModalProps {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
   onProgressFinished: () => void;
-  onExplainPassage: (e: React.MouseEvent) => void;
 }
 
 export function DetailQuoteModal({
   isOpen,
   isSaving,
-  isExplaining,
   editingForm,
   pageCount,
   onClose,
   onSubmit,
   onInputChange,
   onProgressFinished,
-  onExplainPassage,
 }: DetailQuoteModalProps) {
   const isEditProgress = editingForm.target === "progress";
 
@@ -137,24 +132,6 @@ export function DetailQuoteModal({
                             className="detail-input detail-input--page"
                           />
                         </div>
-                        <button
-                          type="button"
-                          onClick={onExplainPassage}
-                          disabled={isExplaining || !editingForm.quote}
-                          className={`detail-explain-btn ${isExplaining ? "detail-explain-btn--loading" : ""}`}
-                        >
-                          <AppIcon
-                            name="gemini"
-                            title="Gemini"
-                            width={14}
-                            height={14}
-                          />
-                          {isExplaining
-                            ? "Thinking..."
-                            : editingForm.explanation
-                              ? "Regenerate Explanation"
-                              : "Explain Passage"}
-                        </button>
                       </>
                     )}
                   </div>

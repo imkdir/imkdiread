@@ -2,7 +2,6 @@ import type { Work } from "../types";
 import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 
-const AI_REQUEST_TIMEOUT_MS = 70_000;
 const FILE_UPLOAD_REQUEST_TIMEOUT_MS = 120_000;
 
 export type DetailToggleAction = "read" | "liked" | "shelved";
@@ -30,13 +29,6 @@ interface CreateWorkPayload {
 
 interface ProgressResponse extends ApiSuccessResponse {
   read?: boolean;
-}
-
-interface ExplainResponse extends ApiSuccessResponse {
-  result?: {
-    cleaned_quote?: string;
-    explanation?: string;
-  };
 }
 
 type WorkResponse = Work & {
@@ -106,25 +98,6 @@ export async function updateWorkRating(
   }
 }
 
-export async function saveQuote(
-  workId: string,
-  payload: {
-    quote: string;
-    pageNumber: number | null;
-    explanation: string;
-  },
-): Promise<boolean> {
-  const res = await request(`/api/works/${encodeURIComponent(workId)}/quotes`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  const data = await readJsonSafe<ApiSuccessResponse>(res);
-  if (!res.ok) {
-    throw new Error(getApiErrorMessage(data, "Failed to save quote."));
-  }
-  return !!data?.success;
-}
-
 export async function saveProgress(
   workId: string,
   payload: {
@@ -162,30 +135,6 @@ export async function finishWorkProgress(
     throw new Error(getApiErrorMessage(data, "Failed to finish work."));
   }
   return !!data?.success;
-}
-
-export async function explainPassage(
-  workId: string,
-  text: string,
-): Promise<{
-  success: boolean;
-  error?: string;
-  cleanedQuote?: string;
-  explanation?: string;
-}> {
-  const res = await request(`/api/works/${workId}/quotes/analyze`, {
-    method: "POST",
-    body: JSON.stringify({ text }),
-    timeoutMs: AI_REQUEST_TIMEOUT_MS,
-  });
-  const data = await readJsonSafe<ExplainResponse>(res);
-
-  return {
-    success: !!data?.success && res.ok,
-    error: getApiErrorMessage(data, "Failed to analyze passage."),
-    cleanedQuote: data?.result?.cleaned_quote,
-    explanation: data?.result?.explanation,
-  };
 }
 
 export function buildLocalPdfUrl(

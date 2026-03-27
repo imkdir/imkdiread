@@ -4,11 +4,9 @@ import type React from "react";
 import type { Quote, Work } from "../types";
 import {
   buildLocalPdfUrl,
-  explainPassage,
   fetchWorkById,
   finishWorkProgress,
   saveProgress,
-  saveQuote,
   saveDropboxLink,
   uploadWorkFile,
   updateWorkAction,
@@ -60,7 +58,6 @@ function openQuoteFromPastedText(
   pastedText: string,
   options: {
     setIsAddQuoteModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    setIsSavingQuote: React.Dispatch<React.SetStateAction<boolean>>;
     setEditingForm: React.Dispatch<React.SetStateAction<DetailEditingForm>>;
   },
 ) {
@@ -82,7 +79,6 @@ function openQuoteFromPastedText(
   }
 
   options.setIsAddQuoteModalOpen(true);
-  options.setIsSavingQuote(false);
   options.setEditingForm({
     target: "quote",
     quote: cleanedText,
@@ -106,12 +102,11 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const [editingForm, setEditingForm] = useState<DetailEditingForm>(
     createEmptyForm("quote"),
   );
-  const [isSavingQuote, setIsSavingQuote] = useState(false);
+  const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [isPDFViewerOpen, setIsPDFViewerOpen] = useState(false);
   const [viewerInitialUrl, setViewerInitialUrl] = useState<string | null>(null);
   const [isFinderDropdownOpen, setIsFinderDropdownOpen] = useState(false);
   const [isActionDrawerOpen, setIsActionDrawerOpen] = useState(false);
-  const [isExplaining, setIsExplaining] = useState(false);
   const [isDropboxLinkModalOpen, setIsDropboxLinkModalOpen] = useState(false);
   const [dropboxLinkDraft, setDropboxLinkDraft] = useState("");
   const [dropboxLinkError, setDropboxLinkError] = useState<string | null>(null);
@@ -201,7 +196,6 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
 
     void openQuoteFromPastedText(e.clipboardData?.getData("text/plain") || "", {
       setIsAddQuoteModalOpen,
-      setIsSavingQuote,
       setEditingForm,
     });
   }, []);
@@ -226,7 +220,6 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
       const clipboardText = await navigator.clipboard.readText();
       const opened = openQuoteFromPastedText(clipboardText, {
         setIsAddQuoteModalOpen,
-        setIsSavingQuote,
         setEditingForm,
       });
 
@@ -303,7 +296,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     (target: EditTarget) => {
       setIsAddQuoteModalOpen(true);
       setEditingForm(getEditEmptyForm(target));
-      setIsSavingQuote(false);
+      setIsSavingProgress(false);
     },
     [getEditEmptyForm],
   );
@@ -324,44 +317,10 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     setEditingForm(getEditEmptyForm("quote"));
   }, [getEditEmptyForm]);
 
-  const submitQuoteToDB = useCallback(
-    async (form: DetailEditingForm) => {
-      const quote = form.quote.trim();
-      const parsedPageNumber = form.pageNumber.trim().length
-        ? Number(form.pageNumber)
-        : null;
-
-      try {
-        const success = await saveQuote(workId, {
-          quote,
-          pageNumber: parsedPageNumber,
-          explanation: form.explanation,
-        });
-
-        if (!success) {
-          setIsSavingQuote(false);
-          return;
-        }
-
-        setEditingForm(getEditEmptyForm("quote"));
-        setIsAddQuoteModalOpen(false);
-        setIsSavingQuote(false);
-        void fetchData();
-      } catch (err) {
-        console.error("Failed to save quote:", err);
-        showToast(
-          err instanceof Error ? err.message : "Failed to save quote.",
-          { tone: "error" },
-        );
-        setIsSavingQuote(false);
-      }
-    },
-    [fetchData, getEditEmptyForm, workId],
-  );
-
   const submitProgressToDB = useCallback(
     async (form: DetailEditingForm) => {
       const parsedPageNumber = Number(form.pageNumber);
+      setIsSavingProgress(true);
       try {
         const data = await saveProgress(workId, {
           note: form.quote.trim(),
@@ -381,6 +340,8 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
           err instanceof Error ? err.message : "Failed to save progress.",
           { tone: "error" },
         );
+      } finally {
+        setIsSavingProgress(false);
       }
     },
     [fetchData, getEditEmptyForm, workId],
@@ -389,19 +350,9 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const handleAddQuote = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      const form = editingFormRef.current;
-
-      if (form.target === "quote") {
-        setIsSavingQuote(true);
-        setTimeout(() => {
-          void submitQuoteToDB(form);
-        }, 1200);
-        return;
-      }
-
-      void submitProgressToDB(form);
+      void submitProgressToDB(editingFormRef.current);
     },
-    [submitProgressToDB, submitQuoteToDB],
+    [submitProgressToDB],
   );
 
   const handleProgressFinished = useCallback(async () => {
@@ -423,35 +374,6 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
       );
     }
   }, [fetchData, getEditEmptyForm, workId]);
-
-  const handleExplainPassage = useCallback(
-    async (e: React.MouseEvent) => {
-      e.preventDefault();
-      const text = editingFormRef.current.quote;
-      if (!text) return;
-
-      setIsExplaining(true);
-      try {
-        const data = await explainPassage(workId, text);
-        if (data.success) {
-          setEditingForm((prev) => ({
-            ...prev,
-            quote: data.cleanedQuote || text,
-            explanation: data.explanation || "",
-          }));
-        } else {
-          showToast(data.error || "Failed to analyze passage.", {
-            tone: "error",
-          });
-        }
-      } catch {
-        showToast("Network error while analyzing passage.", { tone: "error" });
-      } finally {
-        setIsExplaining(false);
-      }
-    },
-    [workId],
-  );
 
   const openPDFViewer = useCallback(
     (initialUrl: string | null) => {
@@ -683,13 +605,12 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     hoverRating,
     isAddQuoteModalOpen,
     editingForm,
-    isSavingQuote,
+    isSavingProgress,
     isPDFViewerOpen,
     viewerInitialUrl,
     isFinderDropdownOpen,
     finderFiles,
     isActionDrawerOpen,
-    isExplaining,
     displayRating,
     displayQuotes,
     fetchData,
@@ -704,7 +625,6 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     handleAddQuote,
     handleProgressFinished,
     closeAddQuoteModal,
-    handleExplainPassage,
     triggerClipboardQuoteCapture,
     togglePDFViewer,
     closePDFViewer,

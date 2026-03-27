@@ -376,13 +376,12 @@ function DetailPage({
     shelved,
     isAddQuoteModalOpen,
     editingForm,
-    isSavingQuote,
+    isSavingProgress,
     isPDFViewerOpen,
     viewerInitialUrl,
     isFinderDropdownOpen,
     finderFiles,
     isActionDrawerOpen,
-    isExplaining,
     displayRating,
     displayQuotes,
     fetchData,
@@ -397,7 +396,6 @@ function DetailPage({
     handleAddQuote,
     handleProgressFinished,
     closeAddQuoteModal,
-    handleExplainPassage,
     triggerClipboardQuoteCapture,
     togglePDFViewer,
     closePDFViewer,
@@ -1681,15 +1679,13 @@ function DetailPage({
 
       <DetailQuoteModal
         isOpen={isAddQuoteModalOpen && editingForm.target === "progress"}
-        isSaving={isSavingQuote}
-        isExplaining={isExplaining}
+        isSaving={isSavingProgress}
         editingForm={editingForm}
         pageCount={work.page_count}
         onClose={closeAddQuoteModal}
         onSubmit={handleAddQuote}
         onInputChange={handleQuoteInputChange}
         onProgressFinished={handleProgressFinished}
-        onExplainPassage={handleExplainPassage}
       />
       <QuoteConversationModal
         isOpen={isAddQuoteModalOpen && editingForm.target === "quote"}

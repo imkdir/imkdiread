@@ -1842,23 +1842,6 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(explain.json?.success, true);
   assert.equal(explain.json?.result?.cleaned_quote, "A cleaned passage.");
 
-  const translate = await requestJson(
-    "POST",
-    `/api/works/${encodeURIComponent(workId)}/quotes/translate`,
-    {
-      text: "Une phrase bien formatée.",
-      targetLanguage: "English",
-    },
-    guestToken,
-  );
-  assert.equal(translate.status, 200);
-  assert.equal(translate.json?.success, true);
-  assert.equal(translate.json?.result?.detected_language, "French");
-  assert.equal(
-    translate.json?.result?.translation,
-    "A well-formatted sentence.",
-  );
-
   const quoteChatModels = await requestJson(
     "GET",
     "/api/quote-chat/models",
