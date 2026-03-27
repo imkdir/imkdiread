@@ -479,42 +479,45 @@ function createWorksRouter({ db, workService, inboxService }) {
     targetLanguage,
   }) {
     const sharedContext = `You are an insightful literary reading companion helping someone read "${workTitle}".
-The canonical quoted passage for this conversation is:
-"${quoteText}"
+  The canonical quoted passage for this conversation is:
+  "${quoteText}"
 
-Ground every reply in the quoted passage and the immediate scene around it.
-Do not repeat generic plot summaries or broad character bios unless the user explicitly asks.
-Keep replies clear, specific, and helpful.`;
+  Ground every reply in the quoted passage and the immediate scene around it.
+  Do not repeat generic plot summaries or broad character bios unless the user explicitly asks.
+  Keep replies clear, specific, and helpful.`;
 
     if (tool === "translate") {
       return `${sharedContext}
 
-The user has selected the translate tool.
-Translate the latest user message into ${targetLanguage || "English"} with literary sensitivity.
-If the latest user message is just the original passage, translate that passage.
-Respond with the translated passage first.
-If useful, add a separate explanatory note after a line containing exactly "---".
-Do not add any headings like "Translator note:" or any preamble before the translation.`;
+  The user has selected the translate tool.
+  CRITICAL RULES FOR TRANSLATION:
+  1. Translate the latest user message into ${targetLanguage || "English"} with literary sensitivity.
+  2. COMMAND OVERRIDE: If the user's message is a short command like "Translate again", "Try again", "Another version", or "Explain", DO NOT translate the command itself. Instead, treat it as an instruction to provide a new/alternate translation of the canonical quoted passage.
+  3. If the latest user message is just the original passage, translate that passage.
+  4. Respond with the translated text first.
+  5. If useful, add a separate explanatory note after a line containing exactly "---".
+  6. Do not add any headings like "Translator note:" or any preamble before the translation.`;
     }
 
     if (tool === "analyze") {
       return `${sharedContext}
 
-The user has selected the analyze tool.
-Explain the passage's tone, imagery, syntax, subtext, or references with specificity.
-If the latest user message is only the passage text, treat it as a request to analyze that passage directly.
+  The user has selected the analyze tool.
+  Explain the passage's tone, imagery, syntax, subtext, or references with specificity.
+  If the latest user message is only the passage text, treat it as a request to analyze that passage directly.
 
-CRITICAL RULE FOR MISSING CONTEXT & CORRECTIONS:
-1. If the text is too short, vague, or ambiguous to analyze accurately, do not guess or invent lore. State plainly that you lack context.
-2. If the user says your previous analysis was wrong, do not be defensive and do not loop on apologies.
-3. Immediately acknowledge that you were making an educated guess because surrounding context was missing.
-4. Ask targeted follow-up questions to gather context, such as: "Could you paste the preceding paragraph?", "Which character is speaking here?", or "Are they indoors or outdoors?"`;
+  CRITICAL RULE FOR MISSING CONTEXT & CORRECTIONS:
+  1. If the text is too short, vague, or ambiguous to analyze accurately, do not guess or invent lore. State plainly that you lack context.
+  2. If the user says your previous analysis was wrong, do not be defensive and do not loop on apologies.
+  3. Immediately acknowledge that you were making an educated guess because surrounding context was missing.
+  4. Ask targeted follow-up questions to gather context, such as: "Could you paste the preceding paragraph?", "Which character is speaking here?", or "Are they indoors or outdoors?"`;
     }
 
     return `${sharedContext}
 
-The user is in a running chat about this quote.
-Answer conversationally, continue the thread naturally, and stay focused on the text.`;
+  The user is in a running chat about this quote.
+  Answer conversationally, continue the thread naturally, and stay focused on the text.
+  If the user says "Try again" or "Rephrase", apply that command to the canonical quoted passage.`;
   }
 
   async function generateGeminiQuoteChatReply({
@@ -532,15 +535,18 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
     }));
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction: buildQuoteChatSystemInstruction({
-        workTitle,
-        quoteText,
-        tool,
-        targetLanguage,
-      }),
-    }, { timeout: AI_REQUEST_TIMEOUT_MS });
+    const model = genAI.getGenerativeModel(
+      {
+        model: modelName,
+        systemInstruction: buildQuoteChatSystemInstruction({
+          workTitle,
+          quoteText,
+          tool,
+          targetLanguage,
+        }),
+      },
+      { timeout: AI_REQUEST_TIMEOUT_MS },
+    );
 
     const chat = model.startChat({ history });
     const result = await chat.sendMessage(userMessage);
@@ -1421,7 +1427,9 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
       }
 
       // Share links need read access for authenticated viewers, regardless of ownership.
-      const quote = db.prepare("SELECT * FROM work_quotes WHERE id = ?").get(quoteId);
+      const quote = db
+        .prepare("SELECT * FROM work_quotes WHERE id = ?")
+        .get(quoteId);
 
       if (!quote) {
         return jsonError(res, 404, "Quote not found.");
@@ -1624,9 +1632,10 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
             persistedUserId = latestTurn.userEntry.id;
 
             if (firstUserConversationEntry?.id === latestTurn.userEntry.id) {
-              db.prepare(
-                "UPDATE work_quotes SET quote = ? WHERE id = ?",
-              ).run(userMessage, quote.id);
+              db.prepare("UPDATE work_quotes SET quote = ? WHERE id = ?").run(
+                userMessage,
+                quote.id,
+              );
             }
 
             if (latestTurn.assistantEntry?.id) {
@@ -1708,99 +1717,6 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
   // ============================================================================
   // DOMAIN: CONTEXT LOOKUP
   // ============================================================================
-  router.post(
-    "/api/works/:id/quotes/translate",
-    authenticateToken,
-    async (req, res) => {
-      try {
-        const workId = req.params.id;
-        const userId = req.user.id;
-        const text = asNonEmptyString(req.body?.text);
-        const targetLanguage =
-          asOptionalString(req.body?.targetLanguage) || "modern English";
-
-        if (!text) return res.status(400).json({ error: "Text is required" });
-
-        const work = db
-          .prepare("SELECT title FROM works WHERE id = ?")
-          .get(workId);
-        if (!work) return res.status(404).json({ error: "Work not found" });
-
-        const pastQuotes = db
-          .prepare(
-            `
-            SELECT quote, explanation
-            FROM work_quotes
-            WHERE user_id = ? AND work_id = ?
-            ORDER BY created_at DESC
-            LIMIT 4
-          `,
-          )
-          .all(userId, workId)
-          .reverse();
-
-        const chatHistory = pastQuotes.flatMap((row) => [
-          {
-            role: "user",
-            parts: [{ text: `Context passage: "${row.quote}"` }],
-          },
-          {
-            role: "model",
-            parts: [
-              {
-                text: row.explanation
-                  ? `Noted. This passage sits in the reading context as: ${row.explanation}`
-                  : "Noted. I will retain this as nearby reading context.",
-              },
-            ],
-          },
-        ]);
-
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({
-          model: "gemini-2.5-flash",
-          generationConfig: { responseMimeType: "application/json" },
-          systemInstruction: `You are an expert literary translator and cultural historian. The user is currently reading the book "${work.title}".
-              They will provide a passage, phrase, or idiom that they need translated into ${targetLanguage}.
-
-              Your tasks:
-              1. Identify the original language of the passage.
-              2. Provide a highly accurate, beautifully written literary translation in ${targetLanguage}.
-              3. Explain difficult idioms, historical references, or unusual syntax in "translator_note" when needed.
-              4. If the text is archaic English and the target language is English, translate it into modern, readable English.
-
-              CRITICAL RULE: You are part of a continuous reading session. Use the provided recent quote context only to understand the immediate scene and tone.
-
-              You must respond with only a valid JSON object matching this schema:
-              {
-                "detected_language": "The language of the original text",
-                "original_text": "The perfectly formatted original text.",
-                "translation": "Your literary translation in ${targetLanguage}.",
-                "translator_note": "Helpful context in ${targetLanguage}, or null if the passage is straightforward."
-              }`,
-        }, { timeout: AI_REQUEST_TIMEOUT_MS });
-
-        const chat = model.startChat({ history: chatHistory });
-        const result = await chat.sendMessage(
-          `Translate this passage: "${text}"`,
-        );
-        const responseText = result.response.text();
-
-        try {
-          const data = JSON.parse(responseText);
-          return res.json({ success: true, result: data });
-        } catch (parseError) {
-          console.error("Gemini Translation JSON Error:", responseText);
-          return res
-            .status(500)
-            .json({ error: "Failed to parse translation." });
-        }
-      } catch (error) {
-        console.error("Translation Error:", error);
-        res.status(500).json({ error: "Failed to translate passage." });
-      }
-    },
-  );
 
   router.post(
     "/api/works/:id/context/lookup",
@@ -1904,10 +1820,11 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
         ]);
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({
-          model: "gemini-2.5-flash",
-          generationConfig: { responseMimeType: "application/json" },
-          systemInstruction: `You are an expert literary analyst helping a user read "${work.title}".
+        const model = genAI.getGenerativeModel(
+          {
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" },
+            systemInstruction: `You are an expert literary analyst helping a user read "${work.title}".
               Task 1: Clean up the user's copied PDF text (fix broken line breaks and hyphenations) without changing the author's words.
               Task 2: Provide an insightful explanation of the passage.
 
@@ -1924,7 +1841,9 @@ Answer conversationally, continue the thread naturally, and stay focused on the 
                 "cleaned_quote": "The perfectly formatted original text.",
                 "explanation": "Your highly specific, non-repetitive analysis here."
               }`,
-        }, { timeout: AI_REQUEST_TIMEOUT_MS });
+          },
+          { timeout: AI_REQUEST_TIMEOUT_MS },
+        );
 
         const chat = model.startChat({
           history: chatHistory,
