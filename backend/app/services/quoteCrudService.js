@@ -28,12 +28,95 @@ function createQuoteCrudService({ db, workService }) {
     return { pageNumber, hasExplicitPageNumber };
   }
 
+  function normalizeQuoteTags(rawTags) {
+    if (rawTags === undefined) {
+      return null;
+    }
+
+    if (!Array.isArray(rawTags)) {
+      throw asQuoteServiceError(400, "tags must be an array of strings.");
+    }
+
+    const normalized = [];
+    const seen = new Set();
+
+    for (const entry of rawTags) {
+      if (typeof entry !== "string") {
+        throw asQuoteServiceError(400, "tags must be an array of strings.");
+      }
+
+      const compact = entry.replace(/\s+/g, " ").trim();
+      if (!compact) {
+        continue;
+      }
+
+      const dedupeKey = compact.toLowerCase();
+      if (seen.has(dedupeKey)) {
+        continue;
+      }
+
+      seen.add(dedupeKey);
+      normalized.push(compact);
+
+      if (normalized.length > 30) {
+        throw asQuoteServiceError(400, "At most 30 tags are allowed.");
+      }
+    }
+
+    return normalized;
+  }
+
+  function getQuoteTags(quoteId) {
+    return db
+      .prepare(
+        `SELECT name
+         FROM quote_tags
+         WHERE quote_id = ?
+         ORDER BY rowid ASC`,
+      )
+      .all(quoteId)
+      .map((row) => row.name);
+  }
+
+  function withQuoteTags(quoteRow) {
+    if (!quoteRow?.id) {
+      return quoteRow || null;
+    }
+
+    return {
+      ...quoteRow,
+      tags: getQuoteTags(quoteRow.id),
+    };
+  }
+
+  function replaceQuoteTags(quoteId, tags) {
+    db.prepare("DELETE FROM quote_tags WHERE quote_id = ?").run(quoteId);
+
+    if (!Array.isArray(tags) || !tags.length) {
+      return;
+    }
+
+    const insertTag = db.prepare(
+      "INSERT OR IGNORE INTO quote_tags (quote_id, name) VALUES (?, ?)",
+    );
+    for (const tag of tags) {
+      insertTag.run(quoteId, tag);
+    }
+  }
+
   function getAccessibleQuote({ quoteId, userId, isAdmin }) {
-    return isAdmin
+    const quote = isAdmin
       ? db.prepare("SELECT * FROM work_quotes WHERE id = ?").get(quoteId)
       : db
           .prepare("SELECT * FROM work_quotes WHERE id = ? AND user_id = ?")
           .get(quoteId, userId);
+
+    return withQuoteTags(quote);
+  }
+
+  function getQuoteById(quoteId) {
+    const quote = db.prepare("SELECT * FROM work_quotes WHERE id = ?").get(quoteId);
+    return withQuoteTags(quote);
   }
 
   function getQuoteConversations(quoteId) {
@@ -139,8 +222,17 @@ function createQuoteCrudService({ db, workService }) {
     };
   }
 
-  function createQuote({ workId, userId, rawQuote, pageNumberRaw, explanation }) {
+  function createQuote({
+    workId,
+    userId,
+    rawQuote,
+    pageNumberRaw,
+    explanation,
+    tags,
+  }) {
     const quote = typeof rawQuote === "string" ? rawQuote.trim() : "";
+    const normalizedExplanation = asOptionalString(explanation);
+    const normalizedTags = normalizeQuoteTags(tags) || [];
     const { pageNumber, hasExplicitPageNumber } =
       normalizePageNumberInput(pageNumberRaw);
 
@@ -151,15 +243,19 @@ function createQuoteCrudService({ db, workService }) {
       throw asQuoteServiceError(400, "pageNumber must be a positive integer.");
     }
 
-    const result = db
-      .prepare(
-        "INSERT INTO work_quotes (work_id, user_id, quote, page_number, explanation) VALUES (?, ?, ?, ?, ?)",
-      )
-      .run(workId, userId, quote, pageNumber, explanation || null);
+    const saveQuote = db.transaction(() => {
+      const result = db
+        .prepare(
+          "INSERT INTO work_quotes (work_id, user_id, quote, page_number, explanation) VALUES (?, ?, ?, ?, ?)",
+        )
+        .run(workId, userId, quote, pageNumber, normalizedExplanation || null);
 
-    return db
-      .prepare("SELECT * FROM work_quotes WHERE id = ?")
-      .get(result.lastInsertRowid);
+      const quoteId = Number(result.lastInsertRowid);
+      replaceQuoteTags(quoteId, normalizedTags);
+      return quoteId;
+    });
+
+    return getQuoteById(saveQuote());
   }
 
   function updateQuote({
@@ -169,9 +265,16 @@ function createQuoteCrudService({ db, workService }) {
     quote,
     explanation,
     pageNumberRaw,
+    tags,
   }) {
+    const parsedQuoteId = Number(quoteId);
+    if (!parsedQuoteId) {
+      throw asQuoteServiceError(400, "Invalid quote id.");
+    }
+
     const normalizedQuote = asOptionalString(quote);
     const normalizedExplanation = asOptionalString(explanation);
+    const normalizedTags = normalizeQuoteTags(tags);
     const { pageNumber } = normalizePageNumberInput(pageNumberRaw);
 
     if (!normalizedQuote) {
@@ -185,35 +288,55 @@ function createQuoteCrudService({ db, workService }) {
       throw asQuoteServiceError(400, "pageNumber must be a positive integer.");
     }
 
-    const result = isAdmin
-      ? db
-          .prepare(
-            "UPDATE work_quotes SET quote = ?, page_number = ?, explanation = ? WHERE id = ?",
-          )
-          .run(normalizedQuote, pageNumber, normalizedExplanation || null, quoteId)
-      : db
-          .prepare(
-            "UPDATE work_quotes SET quote = ?, page_number = ?, explanation = ? WHERE id = ? AND user_id = ?",
-          )
-          .run(
-            normalizedQuote,
-            pageNumber,
-            normalizedExplanation || null,
-            quoteId,
-            userId,
-          );
+    const saveUpdatedQuote = db.transaction(() => {
+      const result = isAdmin
+        ? db
+            .prepare(
+              "UPDATE work_quotes SET quote = ?, page_number = ?, explanation = ? WHERE id = ?",
+            )
+            .run(
+              normalizedQuote,
+              pageNumber,
+              normalizedExplanation || null,
+              parsedQuoteId,
+            )
+        : db
+            .prepare(
+              "UPDATE work_quotes SET quote = ?, page_number = ?, explanation = ? WHERE id = ? AND user_id = ?",
+            )
+            .run(
+              normalizedQuote,
+              pageNumber,
+              normalizedExplanation || null,
+              parsedQuoteId,
+              userId,
+            );
 
-    if (result.changes === 0) {
-      throw asQuoteServiceError(403, "Unauthorized or quote not found");
-    }
+      if (result.changes === 0) {
+        throw asQuoteServiceError(403, "Unauthorized or quote not found");
+      }
+
+      if (normalizedTags !== null) {
+        replaceQuoteTags(parsedQuoteId, normalizedTags);
+      }
+
+      return parsedQuoteId;
+    });
+
+    return getQuoteById(saveUpdatedQuote());
   }
 
   function deleteQuote({ quoteId, userId, isAdmin }) {
+    const parsedQuoteId = Number(quoteId);
+    if (!parsedQuoteId) {
+      throw asQuoteServiceError(400, "Invalid quote id.");
+    }
+
     const result = isAdmin
-      ? db.prepare("DELETE FROM work_quotes WHERE id = ?").run(quoteId)
+      ? db.prepare("DELETE FROM work_quotes WHERE id = ?").run(parsedQuoteId)
       : db
           .prepare("DELETE FROM work_quotes WHERE id = ? AND user_id = ?")
-          .run(quoteId, userId);
+          .run(parsedQuoteId, userId);
 
     if (result.changes === 0) {
       throw asQuoteServiceError(403, "Unauthorized or quote not found");
@@ -226,9 +349,7 @@ function createQuoteCrudService({ db, workService }) {
       throw asQuoteServiceError(400, "Invalid quote id.");
     }
 
-    const quote = db
-      .prepare("SELECT * FROM work_quotes WHERE id = ?")
-      .get(parsedQuoteId);
+    const quote = getQuoteById(parsedQuoteId);
 
     if (!quote) {
       throw asQuoteServiceError(404, "Quote not found.");
@@ -240,6 +361,10 @@ function createQuoteCrudService({ db, workService }) {
 
   function clearQuoteChat({ quoteId, userId, isAdmin }) {
     const parsedQuoteId = Number(quoteId);
+    if (!parsedQuoteId) {
+      throw asQuoteServiceError(400, "Invalid quote id.");
+    }
+
     const quote = getAccessibleQuote({
       quoteId: parsedQuoteId,
       userId,
@@ -258,6 +383,9 @@ function createQuoteCrudService({ db, workService }) {
 
   return {
     normalizePageNumberInput,
+    normalizeQuoteTags,
+    getQuoteTags,
+    getQuoteById,
     getAccessibleQuote,
     ensureLegacyExplanationConversation,
     getLatestReplaceableQuoteTurn,

@@ -17,6 +17,7 @@ if [[ "${OLLAMA_ENABLED:-1}" =~ ^(0|false|FALSE|no|NO|off|OFF|disabled|DISABLED)
   printf '==> Ollama disabled via OLLAMA_ENABLED=%s\n' "${OLLAMA_ENABLED:-0}"
 else
   printf '==> Ollama enabled via OLLAMA_ENABLED=%s\n' "${OLLAMA_ENABLED:-1}"
+  ollama pull "${OLLAMA_MODEL:-}"
 fi
 
 cd "$ROOT_DIR"

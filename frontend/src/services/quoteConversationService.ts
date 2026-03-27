@@ -125,12 +125,24 @@ export async function clearQuoteChat(quoteId: number) {
   }
 }
 
+export async function deleteQuoteConversation(quoteId: number) {
+  const res = await request(`/api/quotes/${quoteId}`, {
+    method: "DELETE",
+  });
+  const data = await readJsonSafe<QuoteChatResponse>(res);
+
+  if (!res.ok || !data?.success) {
+    throw new Error(getApiErrorMessage(data, "Failed to delete quote."));
+  }
+}
+
 export async function saveQuoteConversation(
   workId: string,
   payload: {
     quote: string;
     pageNumber?: number | null;
     explanation?: string;
+    tags?: string[];
   },
 ) {
   const res = await request(`/api/works/${encodeURIComponent(workId)}/quotes`, {
@@ -146,12 +158,35 @@ export async function saveQuoteConversation(
   return data.quote;
 }
 
+export async function updateQuoteConversation(
+  quoteId: number,
+  payload: {
+    quote: string;
+    pageNumber?: number | null;
+    explanation?: string | null;
+    tags?: string[];
+  },
+) {
+  const res = await request(`/api/quotes/${quoteId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  const data = await readJsonSafe<QuoteSaveResponse>(res);
+
+  if (!res.ok || !data?.success || !data.quote) {
+    throw new Error(getApiErrorMessage(data, "Failed to update conversation."));
+  }
+
+  return data.quote;
+}
+
 export async function sendQuoteChatMessage(
   workId: string,
   payload: {
     quoteId?: number | null;
     quote?: string;
     pageNumber?: number | null;
+    tags?: string[];
     message: string;
     tool: QuoteChatTool;
     model: QuoteChatModel;

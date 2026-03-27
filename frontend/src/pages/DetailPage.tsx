@@ -10,6 +10,7 @@ import { DropboxButton } from "../components/DropboxButton";
 import { ProgressBar } from "../components/ProgressBar";
 import { KindleButton } from "../components/KindleButton";
 import { QuoteCard } from "../components/QuoteCard";
+import type { QuoteConversationOpenOptions } from "../components/QuoteCard";
 import { FinderButton } from "../components/FinderButton";
 import { QuoteConversationModal } from "../components/QuoteConversationModal";
 import { DetailActionPanel } from "../components/detail/DetailActionPanel";
@@ -276,6 +277,8 @@ function DetailPage({
   );
   const [activeConversationQuote, setActiveConversationQuote] =
     useState<Quote | null>(null);
+  const [isConversationDrawerOpen, setIsConversationDrawerOpen] =
+    useState(false);
   const [isSharedLayoutActive, setIsSharedLayoutActive] =
     useState(useEntrySharedLayout);
   const [pdfFrameHeight, setPdfFrameHeight] = useState(0);
@@ -348,12 +351,17 @@ function DetailPage({
     });
   }, [detail.work?.quotes, initialConversationQuoteId, workId]);
 
-  const openQuoteConversation = useCallback((quote: Quote) => {
-    setActiveConversationQuote(quote);
-  }, []);
+  const openQuoteConversation = useCallback(
+    (quote: Quote, options?: QuoteConversationOpenOptions) => {
+      setIsConversationDrawerOpen(options?.openDrawer === true);
+      setActiveConversationQuote(quote);
+    },
+    [],
+  );
 
   const closeQuoteConversation = useCallback(() => {
     setActiveConversationQuote(null);
+    setIsConversationDrawerOpen(false);
     if (initialConversationQuoteId) {
       navigate(`/work/${encodeURIComponent(workId)}`, { replace: true });
     }
@@ -1700,6 +1708,7 @@ function DetailPage({
         isOpen={!!activeConversationQuote}
         workId={work.id}
         quote={activeConversationQuote}
+        initialDrawerOpen={isConversationDrawerOpen}
         forceScrollToBottomOnOpen={!initialConversationQuoteId}
         onClose={closeQuoteConversation}
         onRefresh={fetchData}

@@ -334,7 +334,7 @@ function createWorkService({ db, BACKEND_URL }) {
       .all(workRow.id)
       .map((r) => r.name);
 
-    const quotes = userId
+    const quoteRows = userId
       ? db
           .prepare(
             "SELECT * FROM work_quotes WHERE work_id = ? AND user_id = ? ORDER BY created_at DESC",
@@ -345,6 +345,16 @@ function createWorkService({ db, BACKEND_URL }) {
             "SELECT * FROM work_quotes WHERE work_id = ? ORDER BY created_at DESC",
           )
           .all(workRow.id);
+    const selectQuoteTags = db.prepare(
+      `SELECT name
+       FROM quote_tags
+       WHERE quote_id = ?
+       ORDER BY rowid ASC`,
+    );
+    const quotes = quoteRows.map((quoteRow) => ({
+      ...quoteRow,
+      tags: selectQuoteTags.all(quoteRow.id).map((row) => row.name),
+    }));
 
     let userStats = { read: 0, liked: 0, shelved: 0, rating: 0 };
     let latestReadingActivity = null;

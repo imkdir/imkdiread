@@ -3,6 +3,7 @@ export interface Quote {
   work_id: string;
   user_id?: string | null;
   quote: string;
+  tags?: string[];
   page_number?: number | null;
   created_at: string;
   work?: Work | null;

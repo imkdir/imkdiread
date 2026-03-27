@@ -1946,6 +1946,28 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
   assert.equal(quoteChatCreate.json?.quote?.quote, "A passage to discuss.");
   assert.equal(quoteChatCreate.json?.conversations?.length, 2);
 
+  const quoteChatCreateFromFirstMessage = await requestJson(
+    "POST",
+    `/api/works/${encodeURIComponent(workId)}/quotes/chat`,
+    {
+      quote: "Drawer draft that should not become canonical.",
+      message: "Canonical text comes from the first user message.",
+      tool: "chat",
+      model: "gemini-2.5-flash",
+    },
+    guestToken,
+  );
+  assert.equal(quoteChatCreateFromFirstMessage.status, 200);
+  assert.equal(quoteChatCreateFromFirstMessage.json?.success, true);
+  assert.equal(
+    quoteChatCreateFromFirstMessage.json?.quote?.quote,
+    "Canonical text comes from the first user message.",
+  );
+  assert.equal(
+    quoteChatCreateFromFirstMessage.json?.conversations?.[0]?.content,
+    "Canonical text comes from the first user message.",
+  );
+
   const chatQuoteId = quoteChatCreate.json?.quote?.id;
   assert.equal(typeof chatQuoteId, "number");
 

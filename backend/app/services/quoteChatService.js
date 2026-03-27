@@ -441,7 +441,7 @@ function createQuoteChatService({ db, workService, quoteCrudService }) {
       throw asQuoteServiceError(400, "Quote does not belong to this work.");
     }
 
-    if (!quote && !quoteText) {
+    if (!quote && !quoteText && !message) {
       throw asQuoteServiceError(400, "Quote text is required.");
     }
     if (replaceLatestTurn && !quote?.id) {
@@ -460,15 +460,29 @@ function createQuoteChatService({ db, workService, quoteCrudService }) {
       quote = quoteCrud.createQuote({
         workId,
         userId,
-        rawQuote: quoteText,
+        rawQuote: userMessage,
         pageNumberRaw: payload?.pageNumber,
         explanation: null,
+        tags: payload?.tags,
       });
     }
 
-    const existingConversations = quoteCrud.ensureLegacyExplanationConversation(quote);
+    let existingConversations = quoteCrud.ensureLegacyExplanationConversation(quote);
     const firstUserConversationEntry =
       existingConversations.find((entry) => entry.role === "user") || null;
+
+    if (!firstUserConversationEntry && quote.quote !== userMessage) {
+      db.prepare("UPDATE work_quotes SET quote = ? WHERE id = ?").run(
+        userMessage,
+        quote.id,
+      );
+      quote = {
+        ...quote,
+        quote: userMessage,
+      };
+      existingConversations = quoteCrud.ensureLegacyExplanationConversation(quote);
+    }
+
     const latestTurn = replaceLatestTurn
       ? quoteCrud.getLatestReplaceableQuoteTurn(existingConversations)
       : null;
@@ -584,9 +598,7 @@ function createQuoteChatService({ db, workService, quoteCrudService }) {
     });
 
     const entries = persistEntries();
-    const freshQuote = db
-      .prepare("SELECT * FROM work_quotes WHERE id = ?")
-      .get(quote.id);
+    const freshQuote = quoteCrud.getQuoteById(quote.id);
 
     return {
       quote: freshQuote,

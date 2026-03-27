@@ -6,6 +6,7 @@ export type AppIconName =
   | "brush"
   | "clock"
   | "clock-filled"
+  | "check"
   | "close"
   | "compass"
   | "copy"
@@ -27,6 +28,10 @@ export type AppIconName =
   | "search"
   | "retry"
   | "settings"
+  | "share"
+  | "ellipsis"
+  | "sun"
+  | "moon"
   | "star"
   | "star-filled"
   | "star-half"
@@ -299,6 +304,90 @@ export function AppIcon(props: AppIconProps) {
           </defs>
           <rect x="5" y="7" width="9" height="11" rx="2.2" mask={`url(#${copyMaskId})`} />
           <rect x="10" y="4" width="9" height="11" rx="2.2" />
+        </svg>
+      );
+
+    case "share":
+      return (
+        <svg
+          {...getSvgProps(props, "0 0 24 24")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="18" cy="5" r="2.5" />
+          <circle cx="6" cy="12" r="2.5" />
+          <circle cx="18" cy="19" r="2.5" />
+          <path d="m8.25 10.95 7.45-4.08" />
+          <path d="m8.25 13.05 7.45 4.08" />
+        </svg>
+      );
+
+    case "ellipsis":
+      return (
+        <svg
+          {...getSvgProps(props, "0 0 24 24")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="6" cy="12" r="1.35" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="12" r="1.35" fill="currentColor" stroke="none" />
+          <circle cx="18" cy="12" r="1.35" fill="currentColor" stroke="none" />
+        </svg>
+      );
+
+    case "check":
+      return (
+        <svg
+          {...getSvgProps(props, "0 0 24 24")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m5.2 12.3 4.5 4.5L18.8 7.8" />
+        </svg>
+      );
+
+    case "sun":
+      return (
+        <svg
+          {...getSvgProps(props, "0 0 24 24")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="4.1" />
+          <path d="M12 2.8v2.3" />
+          <path d="M12 18.9v2.3" />
+          <path d="m4.9 4.9 1.6 1.6" />
+          <path d="m17.5 17.5 1.6 1.6" />
+          <path d="M2.8 12h2.3" />
+          <path d="M18.9 12h2.3" />
+          <path d="m4.9 19.1 1.6-1.6" />
+          <path d="m17.5 6.5 1.6-1.6" />
+        </svg>
+      );
+
+    case "moon":
+      return (
+        <svg
+          {...getSvgProps(props, "0 0 24 24")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M20.2 14.5a8.5 8.5 0 1 1-10.7-10.7 7.2 7.2 0 1 0 10.7 10.7Z" />
         </svg>
       );
 

@@ -24,6 +24,7 @@ function registerWorkQuoteRoutes({ router, db, workService }) {
         rawQuote: req.body?.quote,
         pageNumberRaw: req.body?.pageNumber,
         explanation: req.body?.explanation,
+        tags: req.body?.tags,
       });
 
       res.json({ success: true, quote: savedQuote });
@@ -40,16 +41,17 @@ function registerWorkQuoteRoutes({ router, db, workService }) {
 
   router.put("/api/quotes/:id", authenticateToken, (req, res) => {
     try {
-      quoteCrudService.updateQuote({
+      const updatedQuote = quoteCrudService.updateQuote({
         quoteId: req.params.id,
         userId: req.user.id,
         isAdmin: req.user.role === "admin",
         quote: req.body?.quote,
         explanation: req.body?.explanation,
         pageNumberRaw: req.body?.pageNumber,
+        tags: req.body?.tags,
       });
 
-      res.json({ success: true });
+      res.json({ success: true, quote: updatedQuote });
     } catch (error) {
       if (error instanceof QuoteServiceError || error?.statusCode) {
         return jsonError(res, error.statusCode, error.message);
