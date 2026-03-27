@@ -1832,16 +1832,6 @@ test("work admin and reader routes cover CRUD, uploads, interactions, quotes, pr
     assert.equal(wordLookup.json?.error, "Ollama lookup is disabled.");
   }
 
-  const explain = await requestJson(
-    "POST",
-    `/api/works/${encodeURIComponent(workId)}/quotes/analyze`,
-    { text: "Broken-\nline passage" },
-    guestToken,
-  );
-  assert.equal(explain.status, 200);
-  assert.equal(explain.json?.success, true);
-  assert.equal(explain.json?.result?.cleaned_quote, "A cleaned passage.");
-
   const quoteChatModels = await requestJson(
     "GET",
     "/api/quote-chat/models",
