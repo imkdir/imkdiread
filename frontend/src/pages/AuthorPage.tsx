@@ -189,7 +189,7 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
   };
 
   renderQuoteCard = (entry: Quote) => {
-    return <QuoteCard quote={entry} displaySource onRefresh={() => {}} />;
+    return <QuoteCard quote={entry} onRefresh={() => {}} />;
   };
 
   render() {

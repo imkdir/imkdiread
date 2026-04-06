@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
 
 import type { Quote, User } from "../types";
 import { AppIcon } from "./AppIcon";
@@ -14,7 +13,6 @@ export interface QuoteConversationOpenOptions {
 
 interface Props {
   quote: Quote;
-  displaySource?: boolean;
   onRefresh: () => void;
   onOpenConversation?: (
     quote: Quote,
@@ -23,17 +21,11 @@ interface Props {
   user: User | null;
 }
 
-function QuoteCardClass({
-  quote,
-  displaySource,
-  onRefresh,
-  onOpenConversation,
-  user,
-}: Props) {
+function QuoteCardClass({ quote, onRefresh, onOpenConversation, user }: Props) {
   const [isConversationOpen, setIsConversationOpen] = useState(false);
   const [openConversationDrawer, setOpenConversationDrawer] = useState(false);
 
-  const canEditOrDelete = () => {
+  const isQuoteOwner = () => {
     if (!user) {
       return false;
     }
@@ -63,8 +55,7 @@ function QuoteCardClass({
     setOpenConversationDrawer(false);
   };
 
-  const hasPermission = canEditOrDelete();
-  const showQuoteMeta = true;
+  const hasPermission = isQuoteOwner();
 
   return (
     <>
@@ -72,35 +63,17 @@ function QuoteCardClass({
         <div className="quote-face-front quote-face-front--visible">
           <blockquote className="quote-text">{quote.quote}</blockquote>
 
-          {showQuoteMeta && (
-            <div className="quote-meta quote-meta--card">
-              {quote.page_number && <span className="quote-number">P{quote.page_number}</span>}
-              {displaySource && quote.work && (
-                <Link
-                  to={`/work/${quote.work.id}`}
-                  className="quote-source"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  {quote.work.title}
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={(event) => openConversation(false, event)}
-                className="quote-explain-button"
-              >
-                <AppIcon name="gemini" className="quote-explain-icon" title="Gemini" />
-              </button>
-            </div>
-          )}
-
           {hasPermission ? (
             <button
               type="button"
-              className="quote-edit-hint"
-              onClick={(event) => openConversation(true, event)}
+              onClick={(event) => openConversation(false, event)}
+              className="quote-explain-button"
             >
-              <AppIcon name="edit" size={16} />
+              <AppIcon
+                name="gemini"
+                className="quote-explain-icon"
+                title="Gemini"
+              />
             </button>
           ) : null}
         </div>
