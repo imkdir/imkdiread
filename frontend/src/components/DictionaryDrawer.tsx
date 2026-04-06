@@ -264,10 +264,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [
-    initialQuery,
-    isOpen,
-  ]);
+  }, [initialQuery, isOpen]);
 
   const fetchVocabularies = useCallback(async () => {
     try {
@@ -502,6 +499,12 @@ export const DictionaryDrawer: React.FC<Props> = ({
 
   if (!isOpen || !workId) return null;
 
+  const filteredVocabs = searchQuery
+    ? savedVocabs.filter((v) =>
+        v.word.toLowerCase().startsWith(searchQuery.toLowerCase()),
+      )
+    : savedVocabs;
+
   return (
     <FloatingDrawer
       isOpen={isOpen}
@@ -531,7 +534,8 @@ export const DictionaryDrawer: React.FC<Props> = ({
           style={{
             ...styles.searchBtn,
             opacity:
-              isSearching || (lookupMode === "ollama" && isOllamaEnabled !== true)
+              isSearching ||
+              (lookupMode === "ollama" && isOllamaEnabled !== true)
                 ? 0.7
                 : 1,
           }}
@@ -558,9 +562,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
             }
           }}
           disabled={isOllamaEnabled !== true}
-          title={
-            isOllamaEnabled === false ? "Ollama is disabled." : undefined
-          }
+          title={isOllamaEnabled === false ? "Ollama is disabled." : undefined}
         >
           Ollama
         </button>
@@ -633,10 +635,10 @@ export const DictionaryDrawer: React.FC<Props> = ({
           </div>
         )}
 
-        {!!savedVocabs.length && (
+        {!!filteredVocabs.length && (
           <div style={styles.savedVocabList}>
             <h3 style={styles.listTitle}>Did you know?</h3>
-            {savedVocabs.map((vocab) => (
+            {filteredVocabs.map((vocab) => (
               <div
                 key={vocab.id}
                 style={styles.localTagCard}
