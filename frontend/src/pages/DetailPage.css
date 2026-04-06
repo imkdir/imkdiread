@@ -218,9 +218,38 @@
     border-radius: 12px;
     box-shadow: 0 15px 35px var(--overlay-black-40);
     z-index: var(--z-content-sticky);
+
+    /* ADD THIS: Forces a strict boundary so the drop-shadow and
+       sticky positioning don't trigger repaints inside the PDF */
+    isolation: isolate;
+
     transition:
         background-color 0.3s ease,
         padding 0.3s ease;
+}
+
+.detail-pdf-frame-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px; /* Give it a hard pixel radius instead of inherit */
+
+    /* ADD THIS: An opaque background stops Chrome from calculating transparency */
+    background-color: #ffffff;
+}
+
+.detail-pdf-iframe {
+    border: none;
+    display: block; /* Removes the tiny gap below inline elements */
+
+    /* ADD THIS: The Hardware Acceleration trinity */
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+
+    /* ADD THIS: Tells Chrome the layout inside doesn't affect the outside */
+    contain: strict;
+    background-color: #ffffff;
 }
 
 /* Force Right Column to Wrap when PDF Viewer is side-by-side */
@@ -302,6 +331,10 @@
         background-color: var(--overlay-black-85);
         backdrop-filter: blur(5px);
         -webkit-backdrop-filter: blur(5px);
+
+        /* ADD THIS: Forces Chrome to separate the blur from the children */
+        isolation: isolate;
+
         border: none;
         border-radius: 0;
         padding: 60px 60px 20px 60px;
@@ -892,8 +925,16 @@
     border-radius: 18px;
     overflow: hidden;
     background:
-        linear-gradient(180deg, rgba(136, 107, 75, 0.18), rgba(97, 73, 49, 0.08)),
-        linear-gradient(180deg, rgba(254, 252, 248, 0.98), rgba(241, 233, 220, 0.98));
+        linear-gradient(
+            180deg,
+            rgba(136, 107, 75, 0.18),
+            rgba(97, 73, 49, 0.08)
+        ),
+        linear-gradient(
+            180deg,
+            rgba(254, 252, 248, 0.98),
+            rgba(241, 233, 220, 0.98)
+        );
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.56),
         0 10px 24px rgba(63, 38, 17, 0.08);
@@ -908,8 +949,11 @@
     top: 0;
     left: 0;
     right: 0;
-    background:
-        linear-gradient(180deg, rgba(245, 239, 231, 0.96), rgba(222, 210, 191, 0.96));
+    background: linear-gradient(
+        180deg,
+        rgba(245, 239, 231, 0.96),
+        rgba(222, 210, 191, 0.96)
+    );
     border-bottom: 1px solid rgba(123, 92, 58, 0.12);
     z-index: 1;
 }
@@ -917,8 +961,11 @@
 .detail-reading-focus-preview__page {
     position: absolute;
     inset: 0;
-    background:
-        linear-gradient(180deg, rgba(123, 92, 58, 0.035), rgba(123, 92, 58, 0.02));
+    background: linear-gradient(
+        180deg,
+        rgba(123, 92, 58, 0.035),
+        rgba(123, 92, 58, 0.02)
+    );
     padding: 10px 16px 18px;
     transform: translateY(-98px);
 }
@@ -1218,17 +1265,6 @@
     margin-top: 32px;
 }
 
-.detail-pdf-frame-wrapper {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    border-radius: inherit;
-}
-
-.detail-pdf-iframe {
-    border: none;
-}
-
 .detail-reading-focus-overlay {
     position: absolute;
     inset: 0;
@@ -1259,8 +1295,10 @@
         inset 0 -1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.detail-reading-focus-overlay__action-zone:hover .detail-reading-focus-overlay__action,
-.detail-reading-focus-overlay__action-zone:focus-within .detail-reading-focus-overlay__action {
+.detail-reading-focus-overlay__action-zone:hover
+    .detail-reading-focus-overlay__action,
+.detail-reading-focus-overlay__action-zone:focus-within
+    .detail-reading-focus-overlay__action {
     opacity: 1;
     transform: translateY(0);
 }
