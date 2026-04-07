@@ -68,6 +68,7 @@ interface QuoteConversationModalProps {
   initialQuoteText?: string;
   initialPageNumber?: string;
   initialDrawerOpen?: boolean;
+  initialSelectedTool?: ToolValue | null;
   forceScrollToBottomOnOpen?: boolean;
   onClose: () => void;
   onRefresh?: () => void;
@@ -385,6 +386,7 @@ export function QuoteConversationModal({
   initialQuoteText = "",
   initialPageNumber = "",
   initialDrawerOpen = false,
+  initialSelectedTool = null,
   forceScrollToBottomOnOpen = true,
   onClose,
   onRefresh,
@@ -581,6 +583,7 @@ export function QuoteConversationModal({
 
     setShowScrollToBottom(latestReply.id > lastSeenReplyIdRef.current);
   }, [messages]);
+
   useEffect(() => {
     if (!isOpen) {
       didForceScrollOnOpenRef.current = false;
@@ -617,7 +620,7 @@ export function QuoteConversationModal({
     setIsPageNumberInputActive(false);
     setIsToolMenuOpen(false);
     setIsLanguageMenuOpen(false);
-    setSelectedTool(null);
+    setSelectedTool(initialSelectedTool);
     setModelOptions(DEFAULT_QUOTE_CHAT_MODELS);
     setSelectedModel(DEFAULT_QUOTE_CHAT_MODEL);
     setSelectedTranslationLanguage(getDefaultTranslationLanguageValue());
@@ -668,6 +671,7 @@ export function QuoteConversationModal({
     initialDrawerOpen,
     initialPageNumber,
     initialQuoteText,
+    initialSelectedTool,
     isOpen,
     quote,
   ]);

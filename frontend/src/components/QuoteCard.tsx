@@ -9,6 +9,7 @@ import "./QuoteCard.css";
 
 export interface QuoteConversationOpenOptions {
   openDrawer?: boolean;
+  selectTool?: "translate" | "analyze";
 }
 
 interface Props {

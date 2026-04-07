@@ -14,7 +14,7 @@ import type { QuoteConversationOpenOptions } from "../components/QuoteCard";
 import { FinderButton } from "../components/FinderButton";
 import { QuoteConversationModal } from "../components/QuoteConversationModal";
 import { DetailActionPanel } from "../components/detail/DetailActionPanel";
-import { DetailQuoteModal } from "../components/detail/DetailQuoteModal";
+import { DetailProgressModal } from "../components/detail/DetailProgressModal";
 import { DetailDropboxLinkModal } from "../components/detail/DetailDropboxLinkModal";
 import { DetailFileUploadModal } from "../components/detail/DetailFileUploadModal";
 import {
@@ -346,7 +346,6 @@ function DetailPage({
         quote: "",
         page_number: null,
         created_at: new Date().toISOString(),
-        explanation: null,
       };
     });
   }, [detail.work?.quotes, initialConversationQuoteId, workId]);
@@ -383,7 +382,9 @@ function DetailPage({
     liked,
     shelved,
     isAddQuoteModalOpen,
-    editingForm,
+    addQuoteWithTool,
+    isProgressModalOpen,
+    progressEditingForm,
     isSavingProgress,
     isPDFViewerOpen,
     viewerInitialUrl,
@@ -400,10 +401,10 @@ function DetailPage({
     handleStarClick,
     setHoverRating,
     openEditFormModal,
-    handleQuoteInputChange,
-    handleAddQuote,
+    closeEditFormModal,
+    handleProgressInputChange,
+    handleUpdateProgress,
     handleProgressFinished,
-    closeAddQuoteModal,
     triggerClipboardQuoteCapture,
     togglePDFViewer,
     closePDFViewer,
@@ -435,8 +436,15 @@ function DetailPage({
     readingFocusDraft.maskColor,
     readingFocusDraft.maskOpacity,
   );
-  const effectiveToolbarHeight = clampNumber(pdfToolbarReserve, 0, pdfFrameHeight);
-  const availableFocusHeight = Math.max(0, pdfFrameHeight - effectiveToolbarHeight);
+  const effectiveToolbarHeight = clampNumber(
+    pdfToolbarReserve,
+    0,
+    pdfFrameHeight,
+  );
+  const availableFocusHeight = Math.max(
+    0,
+    pdfFrameHeight - effectiveToolbarHeight,
+  );
   const effectiveFocusHeight =
     availableFocusHeight <= 0
       ? 0
@@ -984,7 +992,10 @@ function DetailPage({
             0,
             usableHeight - startHeight,
           );
-          setReadingFocusDraftWindow(nextTop / usableHeight, startHeight / usableHeight);
+          setReadingFocusDraftWindow(
+            nextTop / usableHeight,
+            startHeight / usableHeight,
+          );
           return;
         }
 
@@ -995,7 +1006,10 @@ function DetailPage({
             startBottom - minWindowHeight,
           );
           const nextHeight = startBottom - nextTop;
-          setReadingFocusDraftWindow(nextTop / usableHeight, nextHeight / usableHeight);
+          setReadingFocusDraftWindow(
+            nextTop / usableHeight,
+            nextHeight / usableHeight,
+          );
           return;
         }
 
@@ -1005,7 +1019,10 @@ function DetailPage({
           usableHeight,
         );
         const nextHeight = nextBottom - startTop;
-        setReadingFocusDraftWindow(startTop / usableHeight, nextHeight / usableHeight);
+        setReadingFocusDraftWindow(
+          startTop / usableHeight,
+          nextHeight / usableHeight,
+        );
       };
 
       const handlePointerUp = () => {
@@ -1103,11 +1120,7 @@ function DetailPage({
                 <div className="detail-missing-work__form detail-quote-form">
                   <label className="detail-page-count-modal__field">
                     <span className="detail-label">Work ID</span>
-                    <input
-                      className="detail-input"
-                      value={workId}
-                      readOnly
-                    />
+                    <input className="detail-input" value={workId} readOnly />
                   </label>
 
                   <label className="detail-page-count-modal__field">
@@ -1548,7 +1561,8 @@ function DetailPage({
                       <DropboxButton
                         onClick={() => togglePDFViewer("dropbox")}
                         style={{
-                          backgroundColor: "var(--detail-page-dropbox-button-bg)",
+                          backgroundColor:
+                            "var(--detail-page-dropbox-button-bg)",
                         }}
                       />
                     )}
@@ -1561,11 +1575,14 @@ function DetailPage({
                         void fetchData();
                       }}
                       style={{
-                        backgroundColor: "var(--detail-page-goodreads-button-bg)",
+                        backgroundColor:
+                          "var(--detail-page-goodreads-button-bg)",
                       }}
                     />
 
-                    {work.amazon_asin && <KindleButton asin={work.amazon_asin} />}
+                    {work.amazon_asin && (
+                      <KindleButton asin={work.amazon_asin} />
+                    )}
                   </div>
                 </div>
               </motion.main>
@@ -1646,7 +1663,10 @@ function DetailPage({
                     className="detail-reading-focus-overlay__mask detail-reading-focus-overlay__mask--top"
                     style={{
                       top: effectiveToolbarHeight,
-                      height: Math.max(0, effectiveFocusTop - effectiveToolbarHeight),
+                      height: Math.max(
+                        0,
+                        effectiveFocusTop - effectiveToolbarHeight,
+                      ),
                       backgroundColor: readingFocusOverlayColor,
                     }}
                   />
@@ -1662,11 +1682,19 @@ function DetailPage({
                         type="button"
                         className="detail-reading-focus-overlay__action"
                         onClick={() => {
-                          void triggerClipboardQuoteCapture();
+                          void triggerClipboardQuoteCapture("analyze");
                         }}
                       >
                         <AppIcon name="analyze" size={14} />
-                        <span>Explain</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="detail-reading-focus-overlay__action"
+                        onClick={() => {
+                          void triggerClipboardQuoteCapture("translate");
+                        }}
+                      >
+                        <AppIcon name="translate" size={14} />
                       </button>
                     </div>
                   </div>
@@ -1685,23 +1713,23 @@ function DetailPage({
         )}
       </div>
 
-      <DetailQuoteModal
-        isOpen={isAddQuoteModalOpen && editingForm.target === "progress"}
+      <DetailProgressModal
+        isOpen={isProgressModalOpen}
         isSaving={isSavingProgress}
-        editingForm={editingForm}
+        editingForm={progressEditingForm}
         pageCount={work.page_count}
-        onClose={closeAddQuoteModal}
-        onSubmit={handleAddQuote}
-        onInputChange={handleQuoteInputChange}
+        onClose={() => closeEditFormModal("progress")}
+        onSubmit={handleUpdateProgress}
+        onInputChange={handleProgressInputChange}
         onProgressFinished={handleProgressFinished}
       />
       <QuoteConversationModal
-        isOpen={isAddQuoteModalOpen && editingForm.target === "quote"}
+        isOpen={isAddQuoteModalOpen}
         workId={work.id}
-        initialQuoteText={editingForm.quote}
-        initialPageNumber={editingForm.pageNumber}
+        initialQuoteText={addQuoteWithTool.quote}
+        initialSelectedTool={addQuoteWithTool.tool}
         forceScrollToBottomOnOpen={true}
-        onClose={closeAddQuoteModal}
+        onClose={() => closeEditFormModal("quote")}
         onRefresh={fetchData}
       />
       <QuoteConversationModal
@@ -1792,7 +1820,10 @@ function DetailPage({
                     className="detail-reading-focus-overlay__mask detail-reading-focus-overlay__mask--top"
                     style={{
                       top: previewToolbarHeight,
-                      height: Math.max(0, previewFocusTop - previewToolbarHeight),
+                      height: Math.max(
+                        0,
+                        previewFocusTop - previewToolbarHeight,
+                      ),
                       backgroundColor: previewReadingFocusOverlayColor,
                     }}
                   />
@@ -1844,7 +1875,9 @@ function DetailPage({
               <div className="detail-reading-focus-controls__header">Mask</div>
               <label className="detail-reading-focus-field">
                 <span className="detail-reading-focus-field__row">
-                  <span className="detail-reading-focus-field__label">Color</span>
+                  <span className="detail-reading-focus-field__label">
+                    Color
+                  </span>
                   <span className="detail-reading-focus-field__value">
                     {readingFocusDraft.maskColor.toUpperCase()}
                   </span>

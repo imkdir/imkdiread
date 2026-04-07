@@ -15,28 +15,17 @@ import {
   type DetailToggleAction,
   type WorkFileIssueType,
 } from "../services/detailPageService";
-import type { DetailEditingForm } from "../components/detail/DetailQuoteModal";
 import { showToast } from "../utils/toast";
+import { type DetailProgressEdtingForm } from "../components/detail/DetailProgressModal";
 
 interface UseDetailPageOptions {
   workId: string;
   initialWork?: Work;
 }
 
-type EditTarget = "quote" | "progress";
-const DICTIONARY_PASTE_PATTERN = /^[\p{L}\p{M}\s]+$/u;
+type EditFormTarget = "quote" | "progress";
 
-function createEmptyForm(
-  target: EditTarget,
-  currentPage?: number,
-): DetailEditingForm {
-  return {
-    target,
-    quote: "",
-    pageNumber: target === "progress" && currentPage ? String(currentPage) : "",
-    explanation: "",
-  };
-}
+const DICTIONARY_PASTE_PATTERN = /^[\p{L}\p{M}\s]+$/u;
 
 function normalizeDropboxLink(rawLink: string): string {
   const trimmed = rawLink.trim();
@@ -58,8 +47,11 @@ function openQuoteFromPastedText(
   pastedText: string,
   options: {
     setIsAddQuoteModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-    setEditingForm: React.Dispatch<React.SetStateAction<DetailEditingForm>>;
+    setAddQuoteWithTool: React.Dispatch<
+      React.SetStateAction<{ quote: string; tool?: "analyze" | "translate" }>
+    >;
   },
+  tool?: "analyze" | "translate",
 ) {
   const normalizedInput = pastedText.trim();
   if (!normalizedInput) {
@@ -79,12 +71,7 @@ function openQuoteFromPastedText(
   }
 
   options.setIsAddQuoteModalOpen(true);
-  options.setEditingForm({
-    target: "quote",
-    quote: cleanedText,
-    pageNumber: "",
-    explanation: "",
-  });
+  options.setAddQuoteWithTool({ quote: cleanedText, tool });
 
   return true;
 }
@@ -99,9 +86,13 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const [rating, setRating] = useState(initialWork?.rating || 0);
   const [hoverRating, setHoverRating] = useState(0);
   const [isAddQuoteModalOpen, setIsAddQuoteModalOpen] = useState(false);
-  const [editingForm, setEditingForm] = useState<DetailEditingForm>(
-    createEmptyForm("quote"),
-  );
+  const [addQuoteWithTool, setAddQuoteWithTool] = useState<{
+    quote: string;
+    tool?: "analyze" | "translate";
+  }>({ quote: "" });
+  const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
+  const [progressEditingForm, setProgressEditingForm] =
+    useState<DetailProgressEdtingForm>({ note: "", pageNumber: "" });
   const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [isPDFViewerOpen, setIsPDFViewerOpen] = useState(false);
   const [viewerInitialUrl, setViewerInitialUrl] = useState<string | null>(null);
@@ -118,15 +109,15 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const [isReportingFileIssue, setIsReportingFileIssue] = useState(false);
 
   const workRef = useRef(work);
-  const editingFormRef = useRef(editingForm);
+  const progressEditingFormRef = useRef(progressEditingForm);
 
   useEffect(() => {
     workRef.current = work;
   }, [work]);
 
   useEffect(() => {
-    editingFormRef.current = editingForm;
-  }, [editingForm]);
+    progressEditingFormRef.current = progressEditingForm;
+  }, [progressEditingForm]);
 
   useEffect(() => {
     if (!initialWork || initialWork.id !== workId) return;
@@ -140,13 +131,6 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     setRating(initialWork.rating || 0);
     setHoverRating(0);
   }, [initialWork, workId]);
-
-  const getEditEmptyForm = useCallback(
-    (target: EditTarget): DetailEditingForm => {
-      return createEmptyForm(target, workRef.current?.current_page);
-    },
-    [],
-  );
 
   const fetchData = useCallback(async () => {
     if (!workId) return;
@@ -196,7 +180,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
 
     void openQuoteFromPastedText(e.clipboardData?.getData("text/plain") || "", {
       setIsAddQuoteModalOpen,
-      setEditingForm,
+      setAddQuoteWithTool,
     });
   }, []);
 
@@ -205,37 +189,44 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     return () => window.removeEventListener("paste", handleGlobalPaste);
   }, [handleGlobalPaste]);
 
-  const triggerClipboardQuoteCapture = useCallback(async () => {
-    if (
-      typeof navigator === "undefined" ||
-      typeof navigator.clipboard?.readText !== "function"
-    ) {
-      showToast("Clipboard access is unavailable in this browser.", {
-        tone: "error",
-      });
-      return false;
-    }
-
-    try {
-      const clipboardText = await navigator.clipboard.readText();
-      const opened = openQuoteFromPastedText(clipboardText, {
-        setIsAddQuoteModalOpen,
-        setEditingForm,
-      });
-
-      if (!opened) {
-        showToast("Clipboard did not contain a quote passage to explain.", {
+  const triggerClipboardQuoteCapture = useCallback(
+    async (tool: "analyze" | "translate") => {
+      if (
+        typeof navigator === "undefined" ||
+        typeof navigator.clipboard?.readText !== "function"
+      ) {
+        showToast("Clipboard access is unavailable in this browser.", {
           tone: "error",
         });
+        return false;
       }
 
-      return opened;
-    } catch (error) {
-      console.error("Failed to read clipboard:", error);
-      showToast("Clipboard access failed.", { tone: "error" });
-      return false;
-    }
-  }, []);
+      try {
+        const clipboardText = await navigator.clipboard.readText();
+        const opened = openQuoteFromPastedText(
+          clipboardText,
+          {
+            setIsAddQuoteModalOpen,
+            setAddQuoteWithTool,
+          },
+          tool,
+        );
+
+        if (!opened) {
+          showToast("Clipboard did not contain a quote passage to explain.", {
+            tone: "error",
+          });
+        }
+
+        return opened;
+      } catch (error) {
+        console.error("Failed to read clipboard:", error);
+        showToast("Clipboard access failed.", { tone: "error" });
+        return false;
+      }
+    },
+    [],
+  );
 
   const toggleActionDrawer = useCallback(() => {
     setIsActionDrawerOpen((prev) => !prev);
@@ -292,19 +283,26 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     });
   }, [hoverRating, workId]);
 
-  const openEditFormModal = useCallback(
-    (target: EditTarget) => {
+  const openEditFormModal = useCallback((target: EditFormTarget) => {
+    if (target === "quote") {
       setIsAddQuoteModalOpen(true);
-      setEditingForm(getEditEmptyForm(target));
-      setIsSavingProgress(false);
-    },
-    [getEditEmptyForm],
-  );
+    } else if (target === "progress") {
+      setIsProgressModalOpen(true);
+    }
+  }, []);
 
-  const handleQuoteInputChange = useCallback(
+  const closeEditFormModal = useCallback((target: EditFormTarget) => {
+    if (target === "quote") {
+      setIsAddQuoteModalOpen(false);
+    } else if (target === "progress") {
+      setIsProgressModalOpen(false);
+    }
+  }, []);
+
+  const handleProgressInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const { name, value } = e.target;
-      setEditingForm((prev) => ({
+      setProgressEditingForm((prev) => ({
         ...prev,
         [name]: value,
       }));
@@ -312,18 +310,13 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     [],
   );
 
-  const closeAddQuoteModal = useCallback(() => {
-    setIsAddQuoteModalOpen(false);
-    setEditingForm(getEditEmptyForm("quote"));
-  }, [getEditEmptyForm]);
-
   const submitProgressToDB = useCallback(
-    async (form: DetailEditingForm) => {
+    async (form: DetailProgressEdtingForm) => {
       const parsedPageNumber = Number(form.pageNumber);
       setIsSavingProgress(true);
       try {
         const data = await saveProgress(workId, {
-          note: form.quote.trim(),
+          note: form.note.trim(),
           pageNumber: parsedPageNumber,
         });
 
@@ -331,7 +324,6 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
 
         setRead(!!data.read);
         setShelved(false);
-        setEditingForm(getEditEmptyForm("quote"));
         setIsAddQuoteModalOpen(false);
         void fetchData();
       } catch (err) {
@@ -344,36 +336,33 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
         setIsSavingProgress(false);
       }
     },
-    [fetchData, getEditEmptyForm, workId],
+    [fetchData, workId],
   );
 
-  const handleAddQuote = useCallback(
+  const handleUpdateProgress = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      void submitProgressToDB(editingFormRef.current);
+      void submitProgressToDB(progressEditingFormRef.current);
     },
     [submitProgressToDB],
   );
 
   const handleProgressFinished = useCallback(async () => {
-    const note = editingFormRef.current.quote.trim();
+    const note = progressEditingFormRef.current.note.trim();
     try {
       const success = await finishWorkProgress(workId, note);
       if (!success) return;
 
       setRead(true);
       setShelved(false);
-      setEditingForm(getEditEmptyForm("quote"));
-      setIsAddQuoteModalOpen(false);
       void fetchData();
     } catch (err) {
       console.error("Failed to finish work:", err);
-      showToast(
-        err instanceof Error ? err.message : "Failed to finish work.",
-        { tone: "error" },
-      );
+      showToast(err instanceof Error ? err.message : "Failed to finish work.", {
+        tone: "error",
+      });
     }
-  }, [fetchData, getEditEmptyForm, workId]);
+  }, [fetchData, workId]);
 
   const openPDFViewer = useCallback(
     (initialUrl: string | null) => {
@@ -539,46 +528,51 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     [openLocalPdfViewer],
   );
 
-  const handleReportWorkIssue = useCallback(async ({
-    issueType,
-    pageNumber,
-    details,
-  }: {
-    issueType: WorkFileIssueType;
-    pageNumber?: number;
-    details?: string;
-  }) => {
-    setIsReportingFileIssue(true);
-    try {
-      const response = await reportWorkFileIssue(workId, {
-        issueType,
-        pageNumber,
-        details,
-      });
-      if (!response.success) {
-        throw new Error(response.error || "Failed to report the issue.");
-      }
+  const handleReportWorkIssue = useCallback(
+    async ({
+      issueType,
+      pageNumber,
+      details,
+    }: {
+      issueType: WorkFileIssueType;
+      pageNumber?: number;
+      details?: string;
+    }) => {
+      setIsReportingFileIssue(true);
+      try {
+        const response = await reportWorkFileIssue(workId, {
+          issueType,
+          pageNumber,
+          details,
+        });
+        if (!response.success) {
+          throw new Error(response.error || "Failed to report the issue.");
+        }
 
-      showToast(
-        issueType === "other_issue"
-          ? "Reported the issue to admin."
-          : `Reported the PDF issue on page ${pageNumber} to admin.`,
-        {
-          tone: "success",
-        },
-      );
-      return true;
-    } catch (error) {
-      console.error("Failed to report work issue:", error);
-      showToast(
-        error instanceof Error ? error.message : "Failed to report the issue.",
-        { tone: "error" },
-      );
-      return false;
-    } finally {
-      setIsReportingFileIssue(false);
-    }
-  }, [workId]);
+        showToast(
+          issueType === "other_issue"
+            ? "Reported the issue to admin."
+            : `Reported the PDF issue on page ${pageNumber} to admin.`,
+          {
+            tone: "success",
+          },
+        );
+        return true;
+      } catch (error) {
+        console.error("Failed to report work issue:", error);
+        showToast(
+          error instanceof Error
+            ? error.message
+            : "Failed to report the issue.",
+          { tone: "error" },
+        );
+        return false;
+      } finally {
+        setIsReportingFileIssue(false);
+      }
+    },
+    [workId],
+  );
 
   const finderFiles = useMemo(
     () =>
@@ -604,7 +598,9 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     shelved,
     hoverRating,
     isAddQuoteModalOpen,
-    editingForm,
+    addQuoteWithTool,
+    isProgressModalOpen,
+    progressEditingForm,
     isSavingProgress,
     isPDFViewerOpen,
     viewerInitialUrl,
@@ -621,10 +617,10 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     handleStarClick,
     setHoverRating,
     openEditFormModal,
-    handleQuoteInputChange,
-    handleAddQuote,
+    closeEditFormModal,
+    handleProgressInputChange,
+    handleUpdateProgress,
     handleProgressFinished,
-    closeAddQuoteModal,
     triggerClipboardQuoteCapture,
     togglePDFViewer,
     closePDFViewer,
