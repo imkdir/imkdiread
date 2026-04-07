@@ -324,7 +324,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
 
         setRead(!!data.read);
         setShelved(false);
-        setIsAddQuoteModalOpen(false);
+        setIsProgressModalOpen(false);
         void fetchData();
       } catch (err) {
         console.error("Failed to save progress:", err);
