@@ -512,7 +512,7 @@ export const DictionaryDrawer: React.FC<Props> = ({
       onClose={onClose}
       variant="paper"
       anchorRect={anchorRect}
-      defaultSize={{ width: 440, height: 1200 }}
+      defaultSize={{ width: 440, height: 900 }}
       minSize={{ width: 340, height: 320 }}
       bodyStyle={styles.drawerBody}
     >
@@ -881,15 +881,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "14px 15px",
     borderRadius: "12px",
     border: "1px solid rgba(123, 92, 58, 0.22)",
-    background:
-      "linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(241, 231, 214, 0.92)), rgba(255, 250, 243, 0.9)",
     color: "#2f241a",
     outline: "none",
     fontFamily: "var(--font-primary-stack)",
     fontSize: "14px",
     boxSizing: "border-box",
-    boxShadow:
-      "inset 0 1px 3px rgba(121, 89, 53, 0.08), 0 1px 0 rgba(255, 255, 255, 0.4)",
   },
   searchBtn: {
     padding: "0 18px",

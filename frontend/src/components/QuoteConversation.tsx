@@ -11,7 +11,6 @@ import {
 import type { ConversationMessage, Quote } from "../types";
 import { AppIcon } from "./AppIcon";
 import { showToast } from "../utils/toast";
-import { Modal } from "./Modal";
 import { useAuth } from "./AuthContext";
 import {
   deleteQuoteConversation,
@@ -28,7 +27,7 @@ import {
   parseAssistantMessageSections,
   renderAssistantBlocks,
 } from "./quoteConversationMarkdown";
-import "./QuoteConversationModal.css";
+import "./QuoteConversation.css";
 
 const TOOL_OPTIONS = [
   { value: "translate", label: "Translate", icon: "translate" as const },
@@ -55,14 +54,15 @@ type TranslationLanguageOption = {
   label: string;
   targetLanguage: string;
 };
-type QuoteConversationTheme = "dark" | "light";
+export type QuoteConversationTheme = "dark" | "light";
+export type QuoteConversationRenderMode = "modal" | "embedded";
 
 const DEFAULT_QUOTE_CHAT_MODEL = DEFAULT_QUOTE_CHAT_MODELS[0].id;
 const QUOTE_CONVERSATION_THEME_STORAGE_KEY = "quote-conversation-theme";
 const MAX_QUOTE_TAGS = 30;
 
-interface QuoteConversationModalProps {
-  isOpen: boolean;
+export interface QuoteConversationProps {
+  isOpen?: boolean;
   workId: string;
   quote?: Quote | null;
   initialQuoteText?: string;
@@ -70,8 +70,22 @@ interface QuoteConversationModalProps {
   initialDrawerOpen?: boolean;
   initialSelectedTool?: ToolValue | null;
   forceScrollToBottomOnOpen?: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   onRefresh?: () => void;
+  renderMode?: QuoteConversationRenderMode;
+  theme?: QuoteConversationTheme;
+  onThemeChange?: (theme: QuoteConversationTheme) => void;
+  readOnly?: boolean;
+  forceDrawerClosed?: boolean;
+  onDrawerOpenChange?: (isOpen: boolean) => void;
+  useExternalWorkspaceDrawer?: boolean;
+  onWorkspaceDrawerToggle?: () => void;
+  workspaceDrawerHasPendingChanges?: boolean;
+  workspaceDrawerActionDisabled?: boolean;
+  onWorkspaceInfoAction?: () => void;
+  onWorkspaceDeleteAction?: () => void;
+  workspaceDeleteArmed?: boolean;
+  workspaceDeleteBusy?: boolean;
 }
 
 function loadQuoteConversationTheme(): QuoteConversationTheme {
@@ -379,8 +393,8 @@ interface FailedConversationTurn {
   translationLanguage: TranslationLanguageValue;
 }
 
-export function QuoteConversationModal({
-  isOpen,
+export function QuoteConversation({
+  isOpen = true,
   workId,
   quote,
   initialQuoteText = "",
@@ -390,7 +404,21 @@ export function QuoteConversationModal({
   forceScrollToBottomOnOpen = true,
   onClose,
   onRefresh,
-}: QuoteConversationModalProps) {
+  renderMode = "embedded",
+  theme: controlledTheme,
+  onThemeChange,
+  readOnly = false,
+  forceDrawerClosed = false,
+  onDrawerOpenChange,
+  useExternalWorkspaceDrawer = false,
+  onWorkspaceDrawerToggle,
+  workspaceDrawerHasPendingChanges = false,
+  workspaceDrawerActionDisabled = false,
+  onWorkspaceInfoAction,
+  onWorkspaceDeleteAction,
+  workspaceDeleteArmed = false,
+  workspaceDeleteBusy = false,
+}: QuoteConversationProps) {
   const { user } = useAuth();
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
@@ -433,7 +461,7 @@ export function QuoteConversationModal({
   );
   const [selectedTranslationLanguage, setSelectedTranslationLanguage] =
     useState<TranslationLanguageValue>(getDefaultTranslationLanguageValue);
-  const [theme, setTheme] = useState<QuoteConversationTheme>(
+  const [internalTheme, setInternalTheme] = useState<QuoteConversationTheme>(
     loadQuoteConversationTheme,
   );
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -455,6 +483,16 @@ export function QuoteConversationModal({
   const [error, setError] = useState<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [bodyInsets, setBodyInsets] = useState({ top: 94, bottom: 186 });
+  const theme = controlledTheme ?? internalTheme;
+  const handleThemeChange = useCallback(
+    (nextTheme: QuoteConversationTheme) => {
+      if (controlledTheme === undefined) {
+        setInternalTheme(nextTheme);
+      }
+      onThemeChange?.(nextTheme);
+    },
+    [controlledTheme, onThemeChange],
+  );
 
   const browserTranslationLanguage = useMemo(
     () => resolveBrowserTranslationLanguage(),
@@ -478,9 +516,10 @@ export function QuoteConversationModal({
       (option) => option.value === selectedTranslationLanguage,
     )?.label || browserTranslationLanguage.label;
   const isViewerConversationOwner =
-    !activeQuote?.id ||
-    !activeQuote.user_id ||
-    activeQuote.user_id === user?.id;
+    !readOnly &&
+    (!activeQuote?.id ||
+      !activeQuote.user_id ||
+      activeQuote.user_id === user?.id);
   const latestConversationEntryId = getLatestConversationEntryId(messages);
   const shareConversationPath = activeQuote?.id
     ? `/work/${encodeURIComponent(workId)}/conversation/${activeQuote.id}`
@@ -489,7 +528,6 @@ export function QuoteConversationModal({
     typeof window !== "undefined" && shareConversationPath
       ? `${window.location.origin}${shareConversationPath}`
       : shareConversationPath;
-  const debugHeaderLabel = `Q:${activeQuote?.id || "-"} · C:${latestConversationEntryId || "-"}`;
   const hasConversationId = latestConversationEntryId > 0;
   const latestTurn = useMemo(
     () => getLatestConversationTurn(messages),
@@ -531,6 +569,16 @@ export function QuoteConversationModal({
   useEffect(() => {
     window.localStorage.setItem(QUOTE_CONVERSATION_THEME_STORAGE_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (forceDrawerClosed && isDrawerOpen) {
+      setIsDrawerOpen(false);
+    }
+  }, [forceDrawerClosed, isDrawerOpen]);
+
+  useEffect(() => {
+    onDrawerOpenChange?.(isDrawerOpen);
+  }, [isDrawerOpen, onDrawerOpenChange]);
 
   const isNearBottom = () => {
     const body = bodyRef.current;
@@ -852,7 +900,8 @@ export function QuoteConversationModal({
       return;
     }
 
-    const trimmedMessage = (messageText ?? composer).trim();
+    const effectiveRawMessage = String((messageText ?? composer) || "");
+    const trimmedMessage = effectiveRawMessage.trim();
     const normalizedDrawerQuote = String(drawerQuoteText || "").trim();
     const effectiveTool =
       toolOverride !== undefined ? toolOverride : selectedTool;
@@ -864,7 +913,16 @@ export function QuoteConversationModal({
         (option) => option.value === effectiveTranslationLanguage,
       )?.targetLanguage || browserTranslationLanguage.targetLanguage;
 
-    if (!trimmedMessage) {
+    const shouldAutoSendQuoteTranslation =
+      !trimmedMessage &&
+      effectiveTool === "translate" &&
+      Boolean(activeQuote?.id) &&
+      Boolean(String(activeQuote?.quote || "").trim());
+    const messageForRequest = shouldAutoSendQuoteTranslation
+      ? "translate the quote"
+      : trimmedMessage;
+
+    if (!messageForRequest) {
       setError("Please enter a message.");
       return;
     }
@@ -889,7 +947,7 @@ export function QuoteConversationModal({
     isSendInFlightRef.current = true;
     setError(null);
     setFailedTurn(null);
-    setPendingUserMessage(replaceLatestTurn ? null : trimmedMessage);
+    setPendingUserMessage(replaceLatestTurn ? null : messageForRequest);
     setEditingMessageId(null);
     setEditingDraft("");
     if (replaceLatestTurn && replacementTarget) {
@@ -897,7 +955,7 @@ export function QuoteConversationModal({
         applyOptimisticTurnReplacement(
           current,
           replacementTarget,
-          trimmedMessage,
+          messageForRequest,
         ),
       );
     } else {
@@ -920,10 +978,10 @@ export function QuoteConversationModal({
       const data = await sendQuoteChatMessage(workId, {
         quoteId: quoteForRequest?.id,
         quote:
-          quoteForRequest?.quote || normalizedDrawerQuote || trimmedMessage,
+          quoteForRequest?.quote || normalizedDrawerQuote || messageForRequest,
         pageNumber: quoteForRequest?.page_number ?? parsedPageNumber,
         tags: drawerTags,
-        message: trimmedMessage,
+        message: messageForRequest,
         tool: effectiveTool || "chat",
         model: effectiveModel,
         targetLanguage:
@@ -968,7 +1026,7 @@ export function QuoteConversationModal({
           ? sendError.message
           : "Failed to send quote chat.";
       setFailedTurn({
-        userMessage: trimmedMessage,
+        userMessage: messageForRequest,
         errorMessage,
         replaceLatestTurn,
         tool: effectiveTool,
@@ -1031,7 +1089,7 @@ export function QuoteConversationModal({
       await deleteQuoteConversation(activeQuote.id);
       onRefresh?.();
       showToast("Conversation deleted.", { tone: "success" });
-      onClose();
+      onClose?.();
     } catch (clearError) {
       setError(
         clearError instanceof Error
@@ -1291,6 +1349,8 @@ export function QuoteConversationModal({
       `Quote: ${activeQuote?.quote || "(unsaved quote)"}`,
       `Page: ${activeQuote?.page_number || "N/A"}`,
       `Tags: ${(activeQuote?.tags || []).join(", ") || "None"}`,
+      `Quote ID: ${activeQuote?.id || "-"}`,
+      `Conversation ID: ${latestConversationEntryId || "-"}`,
       shareConversationUrl ? `Share URL: ${shareConversationUrl}` : null,
     ]
       .filter(Boolean)
@@ -1389,125 +1449,185 @@ export function QuoteConversationModal({
     }
   };
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      cardClassName={`quote-chat-modal-card quote-chat-modal-card--${theme}`}
+  const cardClassName = `quote-chat-card quote-chat-card--${theme}`;
+  const isInternalDrawerEnabled = !useExternalWorkspaceDrawer;
+  const showWorkspaceQuoteActions =
+    useExternalWorkspaceDrawer &&
+    isViewerConversationOwner &&
+    !readOnly &&
+    Boolean(activeQuote?.id);
+  const modalContent = (
+    <div
+      className={`quote-chat quote-chat--${theme} ${
+        isInternalDrawerEnabled && isDrawerOpen ? "quote-chat--drawer-open" : ""
+      }`}
+      onClick={() => {
+        if (isToolMenuOpen) {
+          setIsToolMenuOpen(false);
+        }
+        if (isLanguageMenuOpen) {
+          setIsLanguageMenuOpen(false);
+        }
+      }}
     >
-      <div
-        className={`quote-chat-modal quote-chat-modal--${theme} ${
-          isDrawerOpen ? "quote-chat-modal--drawer-open" : ""
-        }`}
-        onClick={() => {
-          if (isToolMenuOpen) {
-            setIsToolMenuOpen(false);
-          }
-          if (isLanguageMenuOpen) {
-            setIsLanguageMenuOpen(false);
-          }
-        }}
-      >
-        <div ref={headerRef} className="quote-chat-modal__header">
-          {isViewerConversationOwner ? (
-            <select
-              value={selectedModel}
-              disabled={isSending || isLoadingModels}
-              className="quote-chat-modal__model-select"
-              onClick={(event) => event.stopPropagation()}
-              onChange={(event) =>
-                handleModelSelectionChange(event.target.value as QuoteChatModel)
-              }
-            >
-              {(isLoadingModels ? [] : modelOptions).map((option) => (
-                <option
-                  key={option.id}
-                  value={option.id}
-                  disabled={option.disabled}
-                >
-                  {option.label}
-                </option>
-              ))}
-              {isLoadingModels ? (
-                <option value={selectedModel}>
-                  {selectedModelOption?.label || "Loading models..."}
-                </option>
-              ) : null}
-            </select>
-          ) : (
-            <div />
-          )}
-          <span
-            className="quote-chat-modal__header-debug-id"
-            aria-hidden="true"
-          >
-            {debugHeaderLabel}
-          </span>
-
-          <div
-            className="quote-chat-modal__header-actions"
+      <div ref={headerRef} className="quote-chat__header">
+        {isViewerConversationOwner ? (
+          <select
+            value={selectedModel}
+            disabled={isSending || isLoadingModels}
+            className="quote-chat__model-select"
             onClick={(event) => event.stopPropagation()}
+            onChange={(event) =>
+              handleModelSelectionChange(event.target.value as QuoteChatModel)
+            }
           >
-            {isViewerConversationOwner ? (
-              <>
-                <button
-                  type="button"
-                  className="quote-chat-modal__header-action"
-                  onClick={() => void handleShareConversation()}
-                  disabled={!shareConversationUrl || !hasConversationId}
-                  aria-label="Share this conversation"
-                >
-                  <AppIcon name="share" size={15} />
-                </button>
-
-                <button
-                  type="button"
-                  className="quote-chat-modal__header-action"
-                  onClick={() => void handleCopyConversation()}
-                  aria-label="Copy conversation"
-                  disabled={!hasConversationId}
-                >
-                  <AppIcon name="copy" size={15} />
-                </button>
-              </>
+            {(isLoadingModels ? [] : modelOptions).map((option) => (
+              <option
+                key={option.id}
+                value={option.id}
+                disabled={option.disabled}
+              >
+                {option.label}
+              </option>
+            ))}
+            {isLoadingModels ? (
+              <option value={selectedModel}>
+                {selectedModelOption?.label || "Loading models..."}
+              </option>
             ) : null}
+          </select>
+        ) : (
+          <div />
+        )}
 
+        <div
+          className="quote-chat__header-actions"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {isViewerConversationOwner ? (
+            <>
+              <button
+                type="button"
+                className="quote-chat__header-action"
+                onClick={() => void handleShareConversation()}
+                disabled={!shareConversationUrl || !hasConversationId}
+                aria-label="Share this conversation"
+              >
+                <AppIcon name="share" size={16} />
+              </button>
+
+              <button
+                type="button"
+                className="quote-chat__header-action"
+                onClick={() => void handleCopyConversation()}
+                aria-label="Copy conversation"
+                disabled={!hasConversationId}
+              >
+                <AppIcon name="copy" size={16} />
+              </button>
+
+              {showWorkspaceQuoteActions ? (
+                <button
+                  type="button"
+                  className="quote-chat__header-action"
+                  onClick={onWorkspaceInfoAction}
+                  aria-label="Show quote info"
+                  title="Show quote info"
+                >
+                  <AppIcon name="info-circle" size={16} />
+                </button>
+              ) : null}
+
+              {showWorkspaceQuoteActions ? (
+                <button
+                  type="button"
+                  className="quote-chat__header-action"
+                  onClick={onWorkspaceDeleteAction}
+                  aria-label={
+                    workspaceDeleteArmed
+                      ? "Confirm delete conversation"
+                      : "Delete conversation"
+                  }
+                  title={
+                    workspaceDeleteArmed
+                      ? "Confirm delete conversation"
+                      : "Delete conversation"
+                  }
+                  disabled={workspaceDeleteBusy}
+                >
+                  <AppIcon
+                    name={workspaceDeleteArmed ? "check" : "trash"}
+                    size={16}
+                  />
+                </button>
+              ) : null}
+            </>
+          ) : null}
+
+          {!readOnly ? (
             <button
               type="button"
-              className="quote-chat-modal__header-action"
-              onClick={() => void handleDrawerAction()}
+              className="quote-chat__header-action"
+              onClick={() => {
+                if (isInternalDrawerEnabled) {
+                  void handleDrawerAction();
+                  return;
+                }
+                onWorkspaceDrawerToggle?.();
+              }}
               aria-label={
-                isDrawerOpen && isDrawerDirty
-                  ? "Save changes and close drawer"
-                  : isDrawerOpen
-                    ? "Close options drawer"
-                    : "Open options drawer"
+                isInternalDrawerEnabled
+                  ? isDrawerOpen && isDrawerDirty
+                    ? "Save changes and close drawer"
+                    : isDrawerOpen
+                      ? "Close options drawer"
+                      : "Open options drawer"
+                  : workspaceDrawerHasPendingChanges
+                    ? "Save quote changes"
+                    : "Open quote drawer"
               }
               title="Conversation options"
-              aria-expanded={isDrawerOpen}
-              aria-controls="quote-chat-options-drawer"
-              disabled={isMetadataSaving || isSavingConversation}
+              aria-expanded={isInternalDrawerEnabled ? isDrawerOpen : false}
+              aria-controls={
+                isInternalDrawerEnabled
+                  ? "quote-chat-options-drawer"
+                  : undefined
+              }
+              disabled={
+                isInternalDrawerEnabled
+                  ? isMetadataSaving || isSavingConversation
+                  : workspaceDrawerActionDisabled
+              }
             >
               <AppIcon
-                name={isDrawerOpen && isDrawerDirty ? "check" : "ellipsis"}
-                size={18}
+                name={
+                  isInternalDrawerEnabled && isDrawerOpen && isDrawerDirty
+                    ? "check"
+                    : !isInternalDrawerEnabled &&
+                        workspaceDrawerHasPendingChanges
+                      ? "check"
+                      : "ellipsis"
+                }
+                size={16}
               />
             </button>
-          </div>
+          ) : null}
         </div>
+      </div>
 
+      {isInternalDrawerEnabled ? (
         <aside
           id="quote-chat-options-drawer"
-          className={`quote-chat-modal__drawer ${
-            isDrawerOpen ? "quote-chat-modal__drawer--open" : ""
+          className={`quote-chat__drawer ${
+            isDrawerOpen ? "quote-chat__drawer--open" : ""
           }`}
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="quote-chat-modal__drawer-content">
-            <div className="quote-chat-modal__drawer-section">
-              <p className="quote-chat-modal__drawer-label">Quote</p>
+          <div className="quote-chat__drawer-content">
+            <div className="quote-chat__drawer-section">
+              <p className="quote-chat__drawer-label">Quote</p>
               <textarea
-                className="quote-chat-modal__drawer-quote-input"
+                className="quote-chat__drawer-quote-input"
                 value={drawerQuoteText}
                 disabled={!isViewerConversationOwner || isMetadataSaving}
                 placeholder="Quote text"
@@ -1521,8 +1641,8 @@ export function QuoteConversationModal({
               />
             </div>
 
-            <div className="quote-chat-modal__drawer-section">
-              <p className="quote-chat-modal__drawer-label">Page Number</p>
+            <div className="quote-chat__drawer-section">
+              <p className="quote-chat__drawer-label">Page Number</p>
               <input
                 type="text"
                 inputMode="numeric"
@@ -1537,7 +1657,7 @@ export function QuoteConversationModal({
                 data-lpignore="true"
                 data-bwignore="true"
                 data-form-type="other"
-                className="quote-chat-modal__drawer-input"
+                className="quote-chat__drawer-input"
                 value={drawerPageNumber}
                 placeholder="Add page number"
                 disabled={!isViewerConversationOwner || isMetadataSaving}
@@ -1562,21 +1682,21 @@ export function QuoteConversationModal({
               />
             </div>
 
-            <div className="quote-chat-modal__drawer-section">
-              <p className="quote-chat-modal__drawer-label">Tags</p>
-              <div className="quote-chat-modal__tag-list">
+            <div className="quote-chat__drawer-section">
+              <p className="quote-chat__drawer-label">Tags</p>
+              <div className="quote-chat__tag-list">
                 {drawerTags.map((tag, index) => {
                   const isEditingTag = editingTagIndex === index;
 
                   return (
                     <div
-                      className="quote-chat-modal__tag-chip"
+                      className="quote-chat__tag-chip"
                       key={`${tag}-${index}`}
                     >
                       {isEditingTag ? (
                         <input
                           type="text"
-                          className="quote-chat-modal__tag-chip-input"
+                          className="quote-chat__tag-chip-input"
                           value={editingTagDraft}
                           autoFocus
                           onChange={(event) =>
@@ -1598,7 +1718,7 @@ export function QuoteConversationModal({
                       ) : (
                         <button
                           type="button"
-                          className="quote-chat-modal__tag-chip-label"
+                          className="quote-chat__tag-chip-label"
                           onClick={() => {
                             if (!isViewerConversationOwner) {
                               return;
@@ -1613,7 +1733,7 @@ export function QuoteConversationModal({
                       )}
                       <button
                         type="button"
-                        className="quote-chat-modal__tag-chip-remove"
+                        className="quote-chat__tag-chip-remove"
                         aria-label={`Remove ${tag} tag`}
                         onClick={() => handleRemoveTag(index)}
                         disabled={
@@ -1628,7 +1748,7 @@ export function QuoteConversationModal({
 
                 <input
                   type="text"
-                  className="quote-chat-modal__tag-input"
+                  className="quote-chat__tag-input"
                   value={tagDraft}
                   disabled={!isViewerConversationOwner || isMetadataSaving}
                   placeholder="Add tag..."
@@ -1649,236 +1769,274 @@ export function QuoteConversationModal({
             </div>
           </div>
         </aside>
+      ) : null}
 
-        {isDrawerOpen ? (
-          <div
-            className="quote-chat-modal__drawer-bottom-controls"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div
-              className="quote-chat-modal__theme-toggle quote-chat-modal__theme-toggle--compact"
-              role="group"
-              aria-label="Theme"
-            >
-              <button
-                type="button"
-                className={`quote-chat-modal__theme-option ${
-                  theme === "dark"
-                    ? "quote-chat-modal__theme-option--active"
-                    : ""
-                }`}
-                onClick={() => setTheme("dark")}
-                aria-label="Dark theme"
-                title="Dark theme"
-              >
-                <AppIcon name="moon" size={12} />
-              </button>
-              <button
-                type="button"
-                className={`quote-chat-modal__theme-option ${
-                  theme === "light"
-                    ? "quote-chat-modal__theme-option--active"
-                    : ""
-                }`}
-                onClick={() => setTheme("light")}
-                aria-label="Light theme"
-                title="Light theme"
-              >
-                <AppIcon name="sun" size={12} />
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {activeQuote?.id && isDrawerOpen ? (
-          <button
-            type="button"
-            className="quote-chat-modal__delete-fab"
-            onClick={() => void handleClear()}
-            disabled={!isViewerConversationOwner || isClearing}
-            aria-label="Delete conversation"
-            title="Delete conversation"
-          >
-            <AppIcon name="trash" size={14} />
-          </button>
-        ) : null}
-
+      {isInternalDrawerEnabled && isDrawerOpen ? (
         <div
-          ref={bodyRef}
-          className="quote-chat-modal__body"
-          onScroll={handleBodyScroll}
-          style={{
-            paddingTop: `${bodyInsets.top}px`,
-            paddingBottom: `${bodyInsets.bottom}px`,
-          }}
+          className="quote-chat__drawer-bottom-controls"
+          onClick={(event) => event.stopPropagation()}
         >
-          {isLoadingHistory ? (
-            <div className="quote-chat-modal__empty">
-              Loading conversation...
-            </div>
-          ) : (
-            <>
-              {messages.map((message) => {
-                if (message.role === "meta") {
-                  return (
-                    <div
-                      key={message.id}
-                      className="quote-chat-message quote-chat-message--meta"
-                    >
-                      <div className="quote-chat-message__meta-divider">
-                        <span>{message.content}</span>
-                      </div>
-                    </div>
-                  );
-                }
+          <div
+            className="quote-chat__theme-toggle quote-chat__theme-toggle--compact"
+            role="group"
+            aria-label="Theme"
+          >
+            <button
+              type="button"
+              className={`quote-chat__theme-option ${
+                theme === "dark" ? "quote-chat__theme-option--active" : ""
+              }`}
+              onClick={() => handleThemeChange("dark")}
+              aria-label="Dark theme"
+              title="Dark theme"
+            >
+              <AppIcon name="moon" size={12} />
+            </button>
+            <button
+              type="button"
+              className={`quote-chat__theme-option ${
+                theme === "light" ? "quote-chat__theme-option--active" : ""
+              }`}
+              onClick={() => handleThemeChange("light")}
+              aria-label="Light theme"
+              title="Light theme"
+            >
+              <AppIcon name="sun" size={12} />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
-                const isLatestEditableUser =
-                  isViewerConversationOwner &&
-                  message.role === "user" &&
-                  message.id === latestUserMessageId;
-                const isEditingLatestUser =
-                  isLatestEditableUser && editingMessageId === message.id;
-                const isAssistantMessage = message.role === "assistant";
-                const assistantSections = isAssistantMessage
-                  ? parseAssistantMessageSections(message.content)
-                  : null;
-                const rowClassName = [
-                  "quote-chat-message",
-                  `quote-chat-message--${message.role}`,
-                  isLatestEditableUser ? "quote-chat-message--editable" : "",
-                  isAssistantMessage ? "quote-chat-message--copyable" : "",
-                  isEditingLatestUser ? "quote-chat-message--editing" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ");
+      {isInternalDrawerEnabled && activeQuote?.id && isDrawerOpen ? (
+        <button
+          type="button"
+          className="quote-chat__delete-fab"
+          onClick={() => void handleClear()}
+          disabled={!isViewerConversationOwner || isClearing}
+          aria-label="Delete conversation"
+          title="Delete conversation"
+        >
+          <AppIcon name="trash" size={14} />
+        </button>
+      ) : null}
 
+      <div
+        ref={bodyRef}
+        className="quote-chat__body"
+        onScroll={handleBodyScroll}
+        style={{
+          paddingTop: `${bodyInsets.top}px`,
+          paddingBottom: `${bodyInsets.bottom}px`,
+        }}
+      >
+        {isLoadingHistory ? (
+          <div className="quote-chat__empty">Loading conversation...</div>
+        ) : (
+          <>
+            {messages.map((message) => {
+              if (message.role === "meta") {
                 return (
                   <div
                     key={message.id}
-                    ref={(node) => {
-                      if (node) {
-                        replyRefs.current.set(message.id, node);
-                      } else {
-                        replyRefs.current.delete(message.id);
-                      }
-                    }}
-                    className={rowClassName}
+                    className="quote-chat-message quote-chat-message--meta"
                   >
-                    {isLatestEditableUser &&
-                    !isEditingLatestUser &&
-                    !pendingUserMessage &&
-                    !failedTurn ? (
-                      <button
-                        type="button"
-                        className="quote-chat-message__hover-action"
-                        onClick={handleStartEditingLatestMessage}
-                        disabled={isSending}
-                        aria-label="Edit latest message"
-                        title="Edit latest message"
-                      >
-                        <AppIcon name="edit" size={18} />
-                      </button>
-                    ) : null}
-                    <div className="quote-chat-message__bubble">
-                      {isEditingLatestUser ? (
-                        <>
-                          <div className="quote-chat-message__edit-shell">
-                            <textarea
-                              ref={(node) => {
-                                editingTextareaRef.current = node;
-                                resizeTextarea(node);
-                              }}
-                              value={editingDraft}
-                              onChange={(event) => {
-                                setEditingDraft(event.target.value);
-                                resizeTextarea(event.currentTarget);
-                              }}
-                              onKeyDown={handleLatestMessageEditKeyDown}
-                              className="quote-chat-message__edit-input"
-                              autoFocus
-                            />
-                          </div>
-                          <div className="quote-chat-message__edit-actions">
-                            <button
-                              type="button"
-                              className="quote-chat-message__edit-button quote-chat-message__edit-button--ghost"
-                              onClick={handleCancelEditingLatestMessage}
-                              disabled={isSending}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              className="quote-chat-message__edit-button quote-chat-message__edit-button--primary"
-                              onClick={() =>
-                                void handleDoneEditingLatestMessage()
-                              }
-                              disabled={
-                                isSending ||
-                                !editingDraft.trim() ||
-                                isEditingMessageUnchanged
-                              }
-                            >
-                              Update
-                            </button>
-                          </div>
-                        </>
-                      ) : isAssistantMessage ? (
-                        <div className="quote-chat-message__rich-content">
-                          {renderAssistantBlocks(
-                            assistantSections?.contentBlocks || [],
-                            `${message.id}-content`,
-                          )}
-                          {assistantSections?.translatorNoteBlocks?.length ? (
-                            <div className="quote-chat-message__note-card">
-                              <p className="quote-chat-message__note-label">
-                                Translator note
-                              </p>
-                              <div className="quote-chat-message__note-content">
-                                {renderAssistantBlocks(
-                                  assistantSections.translatorNoteBlocks,
-                                  `${message.id}-note`,
-                                )}
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <>
-                          {formatMessageContent(message.content).map(
-                            (paragraph, index) => (
-                              <p
-                                key={`${message.id}-${index}`}
-                                className="quote-chat-message__text"
-                              >
-                                {paragraph}
-                              </p>
-                            ),
-                          )}
-                        </>
-                      )}
+                    <div className="quote-chat-message__meta-divider">
+                      <span>{message.content}</span>
                     </div>
-                    {isAssistantMessage ? (
+                  </div>
+                );
+              }
+
+              const isLatestEditableUser =
+                isViewerConversationOwner &&
+                message.role === "user" &&
+                message.id === latestUserMessageId;
+              const isEditingLatestUser =
+                isLatestEditableUser && editingMessageId === message.id;
+              const isUserMessage = message.role === "user";
+              const isAssistantMessage = message.role === "assistant";
+              const assistantSections = isAssistantMessage
+                ? parseAssistantMessageSections(message.content)
+                : null;
+              const rowClassName = [
+                "quote-chat-message",
+                `quote-chat-message--${message.role}`,
+                isLatestEditableUser ? "quote-chat-message--editable" : "",
+                isAssistantMessage ? "quote-chat-message--copyable" : "",
+                isEditingLatestUser ? "quote-chat-message--editing" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+
+              return (
+                <div
+                  key={message.id}
+                  ref={(node) => {
+                    if (node) {
+                      replyRefs.current.set(message.id, node);
+                    } else {
+                      replyRefs.current.delete(message.id);
+                    }
+                  }}
+                  className={rowClassName}
+                >
+                  {isUserMessage && !isEditingLatestUser ? (
+                    <div className="quote-chat-message__hover-actions">
                       <button
                         type="button"
-                        className="quote-chat-message__copy-action"
+                        className="quote-chat-message__hover-button"
                         onClick={() => void handleCopyMessage(message.content)}
-                        aria-label="Copy response"
-                        title="Copy response"
+                        disabled={isSending}
+                        aria-label="Copy message"
+                        title="Copy message"
                       >
                         <AppIcon name="copy" size={22} />
                       </button>
-                    ) : null}
+                      {isLatestEditableUser &&
+                      !pendingUserMessage &&
+                      !failedTurn ? (
+                        <button
+                          type="button"
+                          className="quote-chat-message__hover-button"
+                          onClick={handleStartEditingLatestMessage}
+                          disabled={isSending}
+                          aria-label="Edit latest message"
+                          title="Edit latest message"
+                        >
+                          <AppIcon name="edit" size={18} />
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <div className="quote-chat-message__bubble">
+                    {isEditingLatestUser ? (
+                      <>
+                        <div className="quote-chat-message__edit-shell">
+                          <textarea
+                            ref={(node) => {
+                              editingTextareaRef.current = node;
+                              resizeTextarea(node);
+                            }}
+                            value={editingDraft}
+                            onChange={(event) => {
+                              setEditingDraft(event.target.value);
+                              resizeTextarea(event.currentTarget);
+                            }}
+                            onKeyDown={handleLatestMessageEditKeyDown}
+                            className="quote-chat-message__edit-input"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="quote-chat-message__edit-actions">
+                          <button
+                            type="button"
+                            className="quote-chat-message__edit-button quote-chat-message__edit-button--ghost"
+                            onClick={handleCancelEditingLatestMessage}
+                            disabled={isSending}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            className="quote-chat-message__edit-button quote-chat-message__edit-button--primary"
+                            onClick={() =>
+                              void handleDoneEditingLatestMessage()
+                            }
+                            disabled={
+                              isSending ||
+                              !editingDraft.trim() ||
+                              isEditingMessageUnchanged
+                            }
+                          >
+                            Update
+                          </button>
+                        </div>
+                      </>
+                    ) : isAssistantMessage ? (
+                      <div className="quote-chat-message__rich-content">
+                        {renderAssistantBlocks(
+                          assistantSections?.contentBlocks || [],
+                          `${message.id}-content`,
+                        )}
+                        {assistantSections?.translatorNoteBlocks?.length ? (
+                          <div className="quote-chat-message__note-card">
+                            <p className="quote-chat-message__note-label">
+                              Translator note
+                            </p>
+                            <div className="quote-chat-message__note-content">
+                              {renderAssistantBlocks(
+                                assistantSections.translatorNoteBlocks,
+                                `${message.id}-note`,
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <>
+                        {formatMessageContent(message.content).map(
+                          (paragraph, index) => (
+                            <p
+                              key={`${message.id}-${index}`}
+                              className="quote-chat-message__text"
+                            >
+                              {paragraph}
+                            </p>
+                          ),
+                        )}
+                      </>
+                    )}
                   </div>
-                );
-              })}
-              {pendingUserMessage ? (
+                  {isAssistantMessage ? (
+                    <button
+                      type="button"
+                      className="quote-chat-message__copy-action"
+                      onClick={() => void handleCopyMessage(message.content)}
+                      aria-label="Copy response"
+                      title="Copy response"
+                    >
+                      <AppIcon name="copy" size={22} />
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+            {pendingUserMessage ? (
+              <div className="quote-chat-message quote-chat-message--user">
+                <div className="quote-chat-message__bubble">
+                  {formatMessageContent(pendingUserMessage).map(
+                    (paragraph, index) => (
+                      <p
+                        key={`pending-${index}`}
+                        className="quote-chat-message__text"
+                      >
+                        {paragraph}
+                      </p>
+                    ),
+                  )}
+                </div>
+              </div>
+            ) : null}
+            {isSending ? (
+              <div className="quote-chat-message quote-chat-message--assistant">
+                <div
+                  className="quote-chat-message__loading-bubble"
+                  aria-label="Generating response"
+                >
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
+            ) : null}
+            {!isSending && failedTurn ? (
+              <>
                 <div className="quote-chat-message quote-chat-message--user">
                   <div className="quote-chat-message__bubble">
-                    {formatMessageContent(pendingUserMessage).map(
+                    {formatMessageContent(failedTurn.userMessage).map(
                       (paragraph, index) => (
                         <p
-                          key={`pending-${index}`}
+                          key={`failed-user-${index}`}
                           className="quote-chat-message__text"
                         >
                           {paragraph}
@@ -1887,28 +2045,14 @@ export function QuoteConversationModal({
                     )}
                   </div>
                 </div>
-              ) : null}
-              {isSending ? (
-                <div className="quote-chat-message quote-chat-message--assistant">
-                  <div
-                    className="quote-chat-message__loading-bubble"
-                    aria-label="Generating response"
-                  >
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                </div>
-              ) : null}
-              {!isSending && failedTurn ? (
-                <>
-                  <div className="quote-chat-message quote-chat-message--user">
-                    <div className="quote-chat-message__bubble">
-                      {formatMessageContent(failedTurn.userMessage).map(
+                <div className="quote-chat-message quote-chat-message--assistant quote-chat-message--retryable">
+                  <div className="quote-chat-message__bubble">
+                    <div className="quote-chat-message__error-card">
+                      {formatMessageContent(failedTurn.errorMessage).map(
                         (paragraph, index) => (
                           <p
-                            key={`failed-user-${index}`}
-                            className="quote-chat-message__text"
+                            key={`failed-error-${index}`}
+                            className="quote-chat-message__error-text"
                           >
                             {paragraph}
                           </p>
@@ -1916,155 +2060,171 @@ export function QuoteConversationModal({
                       )}
                     </div>
                   </div>
-                  <div className="quote-chat-message quote-chat-message--assistant quote-chat-message--retryable">
-                    <div className="quote-chat-message__bubble">
-                      <div className="quote-chat-message__error-card">
-                        {formatMessageContent(failedTurn.errorMessage).map(
-                          (paragraph, index) => (
-                            <p
-                              key={`failed-error-${index}`}
-                              className="quote-chat-message__error-text"
-                            >
-                              {paragraph}
-                            </p>
-                          ),
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="quote-chat-message__retry-action"
-                      onClick={() => void handleRetryFailedTurn()}
-                      disabled={isSending || isSavingConversation}
-                      aria-label="Try again"
-                      title="Try again"
-                    >
-                      <AppIcon name="retry" size={20} />
-                    </button>
-                  </div>
-                </>
-              ) : null}
-              {!messages.length && !pendingUserMessage && !failedTurn ? (
-                <div className="quote-chat-modal__empty">
-                  {activeQuote
-                    ? "Start asking about this quote."
-                    : "Paste a quote, choose a tool if you want one, and send."}
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
-
-        {!showScrollToBottom ? null : (
-          <button
-            type="button"
-            className="quote-chat-modal__scroll-to-bottom"
-            style={{
-              bottom: `${Math.max(bodyInsets.bottom - 16, 96)}px`,
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-              lastSeenReplyIdRef.current = Math.max(
-                lastSeenReplyIdRef.current,
-                getLatestConversationEntryId(messages),
-              );
-              setShowScrollToBottom(false);
-              scrollToBottom("smooth");
-            }}
-          >
-            New replies below
-          </button>
-        )}
-
-        {isViewerConversationOwner ? (
-          <div ref={composerAreaRef} className="quote-chat-modal__composer">
-            <div className="quote-chat-modal__composer-frame">
-              <textarea
-                ref={(node) => {
-                  composerRef.current = node;
-                  resizeTextarea(node, { maxLines: 5 });
-                }}
-                value={composer}
-                onChange={(event) => {
-                  setComposer(event.target.value);
-                  setError(null);
-                  if (failedTurn) {
-                    setFailedTurn(null);
-                  }
-                  resizeTextarea(event.currentTarget, { maxLines: 5 });
-                }}
-                onKeyDown={handleComposerKeyDown}
-                className="quote-chat-modal__textarea"
-                placeholder={
-                  activeQuote
-                    ? "Ask a follow-up about this quote..."
-                    : "Paste your quote here..."
-                }
-                disabled={isSending || isSavingConversation}
-                autoFocus
-              />
-
-              <div className="quote-chat-modal__controls">
-                <div className="quote-chat-modal__toolbox">
-                  <div
-                    className="quote-chat-modal__inline-menu"
-                    onClick={(event) => event.stopPropagation()}
+                  <button
+                    type="button"
+                    className="quote-chat-message__retry-action"
+                    onClick={() => void handleRetryFailedTurn()}
+                    disabled={isSending || isSavingConversation}
+                    aria-label="Try again"
+                    title="Try again"
                   >
+                    <AppIcon name="retry" size={20} />
+                  </button>
+                </div>
+              </>
+            ) : null}
+            {!messages.length && !pendingUserMessage && !failedTurn ? (
+              <div className="quote-chat__empty">
+                {activeQuote
+                  ? "Start asking about this quote."
+                  : "Paste a quote, choose a tool if you want one, and send."}
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      {!showScrollToBottom ? null : (
+        <button
+          type="button"
+          className="quote-chat__scroll-to-bottom"
+          style={{
+            bottom: `${Math.max(bodyInsets.bottom - 16, 96)}px`,
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            lastSeenReplyIdRef.current = Math.max(
+              lastSeenReplyIdRef.current,
+              getLatestConversationEntryId(messages),
+            );
+            setShowScrollToBottom(false);
+            scrollToBottom("smooth");
+          }}
+        >
+          New replies below
+        </button>
+      )}
+
+      {isViewerConversationOwner ? (
+        <div ref={composerAreaRef} className="quote-chat__composer">
+          <div className="quote-chat__composer-frame">
+            <textarea
+              ref={(node) => {
+                composerRef.current = node;
+                resizeTextarea(node, { maxLines: 5 });
+              }}
+              value={composer}
+              onChange={(event) => {
+                setComposer(event.target.value);
+                setError(null);
+                if (failedTurn) {
+                  setFailedTurn(null);
+                }
+                resizeTextarea(event.currentTarget, { maxLines: 5 });
+              }}
+              onKeyDown={handleComposerKeyDown}
+              className="quote-chat__textarea"
+              placeholder={
+                activeQuote
+                  ? "Ask a follow-up about this quote..."
+                  : "Paste your quote here..."
+              }
+              disabled={isSending || isSavingConversation}
+              autoFocus
+            />
+
+            <div className="quote-chat__controls">
+              <div className="quote-chat__toolbox">
+                <div
+                  className="quote-chat__inline-menu"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    className="quote-chat__composer-select quote-chat__composer-select--icon"
+                    onClick={() => {
+                      setIsToolMenuOpen((current) => !current);
+                      setIsLanguageMenuOpen(false);
+                    }}
+                    disabled={isSending || isSavingConversation}
+                    aria-label="Choose tool"
+                    title="Choose tool"
+                  >
+                    <AppIcon name="tools" size={18} />
+                  </button>
+                  {isToolMenuOpen && (
+                    <div className="quote-chat__inline-dropdown">
+                      {TOOL_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className="quote-chat__inline-item"
+                          onClick={() => {
+                            setSelectedTool(option.value);
+                            if (
+                              !hasConversationId &&
+                              !isLoadingHistory &&
+                              !composer.trim()
+                            ) {
+                              const quoteText = String(
+                                drawerQuoteText || "",
+                              ).trim();
+                              if (quoteText) {
+                                setComposer(quoteText);
+                              }
+                            }
+                            setIsToolMenuOpen(false);
+                          }}
+                        >
+                          <span className="quote-chat__inline-item-content">
+                            <AppIcon name={option.icon} size={16} />
+                            <span>{option.label}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {selectedTool && selectedTool !== "translate" && (
+                  <span className="quote-chat__mode-pill">
+                    {selectedToolOption ? (
+                      <AppIcon name={selectedToolOption.icon} size={14} />
+                    ) : null}
+                    {selectedToolLabel}
                     <button
                       type="button"
-                      className="quote-chat-modal__composer-select quote-chat-modal__composer-select--icon"
+                      className="quote-chat__mode-pill-close"
                       onClick={() => {
-                        setIsToolMenuOpen((current) => !current);
+                        setSelectedTool(null);
                         setIsLanguageMenuOpen(false);
                       }}
-                      disabled={isSending || isSavingConversation}
-                      aria-label="Choose tool"
-                      title="Choose tool"
+                      aria-label={`Clear ${selectedToolLabel} mode`}
                     >
-                      <AppIcon name="tools" size={18} />
+                      <AppIcon name="close" size={12} />
                     </button>
-                    {isToolMenuOpen && (
-                      <div className="quote-chat-modal__inline-dropdown">
-                        {TOOL_OPTIONS.map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            className="quote-chat-modal__inline-item"
-                            onClick={() => {
-                              setSelectedTool(option.value);
-                              if (
-                                !hasConversationId &&
-                                !isLoadingHistory &&
-                                !composer.trim()
-                              ) {
-                                const quoteText = String(
-                                  drawerQuoteText || "",
-                                ).trim();
-                                if (quoteText) {
-                                  setComposer(quoteText);
-                                }
-                              }
-                              setIsToolMenuOpen(false);
-                            }}
-                          >
-                            <span className="quote-chat-modal__inline-item-content">
-                              <AppIcon name={option.icon} size={16} />
-                              <span>{option.label}</span>
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {selectedTool && selectedTool !== "translate" && (
-                    <span className="quote-chat-modal__mode-pill">
-                      {selectedToolOption ? (
-                        <AppIcon name={selectedToolOption.icon} size={14} />
-                      ) : null}
-                      {selectedToolLabel}
+                  </span>
+                )}
+                {selectedTool === "translate" && (
+                  <div
+                    className="quote-chat__inline-menu"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="quote-chat__mode-pill quote-chat__mode-pill--interactive">
                       <button
                         type="button"
-                        className="quote-chat-modal__mode-pill-close"
+                        className="quote-chat__mode-pill-trigger"
+                        onClick={() => {
+                          setIsLanguageMenuOpen((current) => !current);
+                          setIsToolMenuOpen(false);
+                        }}
+                        disabled={isSending || isSavingConversation}
+                      >
+                        <AppIcon name="translate" size={14} />
+                        <span>{selectedLanguageLabel}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="quote-chat__mode-pill-close"
                         onClick={() => {
                           setSelectedTool(null);
                           setIsLanguageMenuOpen(false);
@@ -2073,80 +2233,65 @@ export function QuoteConversationModal({
                       >
                         <AppIcon name="close" size={12} />
                       </button>
-                    </span>
-                  )}
-                  {selectedTool === "translate" && (
-                    <div
-                      className="quote-chat-modal__inline-menu"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <div className="quote-chat-modal__mode-pill quote-chat-modal__mode-pill--interactive">
-                        <button
-                          type="button"
-                          className="quote-chat-modal__mode-pill-trigger"
-                          onClick={() => {
-                            setIsLanguageMenuOpen((current) => !current);
-                            setIsToolMenuOpen(false);
-                          }}
-                          disabled={isSending || isSavingConversation}
-                        >
-                          <AppIcon name="translate" size={14} />
-                          <span>{selectedLanguageLabel}</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="quote-chat-modal__mode-pill-close"
-                          onClick={() => {
-                            setSelectedTool(null);
-                            setIsLanguageMenuOpen(false);
-                          }}
-                          aria-label={`Clear ${selectedToolLabel} mode`}
-                        >
-                          <AppIcon name="close" size={12} />
-                        </button>
-                      </div>
-                      {isLanguageMenuOpen && (
-                        <div className="quote-chat-modal__inline-dropdown">
-                          {translationLanguageOptions.map((option) => (
-                            <button
-                              key={option.value}
-                              type="button"
-                              className="quote-chat-modal__inline-item"
-                              onClick={() => {
-                                setSelectedTranslationLanguage(
-                                  option.value as TranslationLanguageValue,
-                                );
-                                setIsLanguageMenuOpen(false);
-                              }}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  className="quote-chat-modal__send quote-chat-modal__send--icon"
-                  onClick={() => void handleSend()}
-                  disabled={
-                    isSending || isSavingConversation || !composer.trim()
-                  }
-                  aria-label={isSending ? "Sending message" : "Send message"}
-                  title={isSending ? "Sending..." : "Send"}
-                >
-                  <AppIcon name="send" size={22} />
-                </button>
+                    {isLanguageMenuOpen && (
+                      <div className="quote-chat__inline-dropdown">
+                        {translationLanguageOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className="quote-chat__inline-item"
+                            onClick={() => {
+                              setSelectedTranslationLanguage(
+                                option.value as TranslationLanguageValue,
+                              );
+                              setIsLanguageMenuOpen(false);
+                            }}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
 
-            {error && <p className="quote-chat-modal__error">{error}</p>}
+              <button
+                type="button"
+                className="quote-chat__send quote-chat__send--icon"
+                onClick={() => void handleSend()}
+                disabled={
+                  isSending ||
+                  isSavingConversation ||
+                  (!composer.trim() &&
+                    !(
+                      selectedTool === "translate" &&
+                      activeQuote?.id &&
+                      String(activeQuote?.quote || "").trim()
+                    ))
+                }
+                aria-label={isSending ? "Sending message" : "Send message"}
+                title={isSending ? "Sending..." : "Send"}
+              >
+                <AppIcon name="send" size={22} />
+              </button>
+            </div>
           </div>
-        ) : null}
-      </div>
-    </Modal>
+
+          {error && <p className="quote-chat__error">{error}</p>}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  if (renderMode === "modal") {
+    return modalContent;
+  }
+
+  return (
+    <div className={`${cardClassName} quote-chat-card--embedded`}>
+      {modalContent}
+    </div>
   );
 }

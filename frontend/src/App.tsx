@@ -31,6 +31,10 @@ const PublicProfilePageWrapper = lazy(async () => ({
 const DetailPageWrapper = lazy(async () => ({
   default: (await import("./pages/DetailPage")).DetailPageWrapper,
 }));
+const QuoteConversationPageWrapper = lazy(async () => ({
+  default: (await import("./pages/QuoteConversationPage"))
+    .QuoteConversationPageWrapper,
+}));
 const SplashPage = lazy(async () => ({
   default: (await import("./components/SplashPage")).SplashPage,
 }));
@@ -84,7 +88,7 @@ export default class App extends React.Component<Record<string, never>> {
                 <Route path="/work/:id" element={<DetailPageWrapper />} />
                 <Route
                   path="/work/:id/conversation/:quoteId"
-                  element={<DetailPageWrapper />}
+                  element={<QuoteConversationPageWrapper />}
                 />
                 <Route
                   path="/authors"

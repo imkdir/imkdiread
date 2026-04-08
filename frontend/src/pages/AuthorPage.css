@@ -160,6 +160,11 @@
     gap: 40px;
 }
 
+.author-page__quotes-workspace {
+    height: min(760px, calc(100vh - 220px));
+    min-height: 520px;
+}
+
 .author-page__cover {
     width: 100%;
     aspect-ratio: 0.66;
@@ -209,6 +214,13 @@
     }
 }
 
+@media (max-width: 1020px) {
+    .author-page__quotes-workspace {
+        height: min(720px, calc(100vh - 300px));
+        min-height: 540px;
+    }
+}
+
 @media (max-width: 800px) {
     .author-page__works-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -247,5 +259,10 @@
 
     .author-page__meta-line {
         flex-wrap: wrap;
+    }
+
+    .author-page__quotes-workspace {
+        min-height: 460px;
+        height: min(640px, calc(100vh - 360px));
     }
 }

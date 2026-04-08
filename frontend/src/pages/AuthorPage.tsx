@@ -1,5 +1,4 @@
 import React from "react";
-import Masonry from "react-masonry-css";
 
 import { useParams } from "react-router-dom";
 import { type Work, type Author, type Quote } from "../types";
@@ -8,10 +7,10 @@ import { GoodreadsCover } from "../components/GoodreadsCover";
 import { GoodreadsButton } from "../components/GoodreadsButton";
 import { AppIcon } from "../components/AppIcon";
 import { Modal } from "../components/Modal";
+import { QuoteConversationWorkspace } from "../components/QuoteConversationWorkspace";
 import { request } from "../utils/APIClient";
 import { getApiErrorMessage, readJsonSafe } from "../utils/apiResponse";
 import { showToast } from "../utils/toast";
-import { QuoteCard } from "../components/QuoteCard";
 
 import "./AuthorPage.css";
 
@@ -109,8 +108,8 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
       });
   };
 
-  getAuthorQuotes = (): AuthorQuote[] => {
-    const quotes = this.state.works.flatMap((work) =>
+  getAuthorQuotesFromWorks = (works: Work[]): AuthorQuote[] => {
+    const quotes = works.flatMap((work) =>
       (work.quotes || [])
         .filter((quote) => quote.quote)
         .map((quote) => ({
@@ -123,6 +122,10 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
+  };
+
+  getAuthorQuotes = (): AuthorQuote[] => {
+    return this.getAuthorQuotesFromWorks(this.state.works);
   };
 
   openBioModal = () => {
@@ -186,10 +189,6 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
         { tone: "error" },
       );
     }
-  };
-
-  renderQuoteCard = (entry: Quote) => {
-    return <QuoteCard quote={entry} onRefresh={() => {}} />;
   };
 
   render() {
@@ -327,22 +326,14 @@ export class AuthorPage extends React.Component<{ keyword: string }, State> {
                   </p>
                 </div>
               )
-            ) : authorQuotes.length ? (
-              <Masonry
-                breakpointCols={{ default: 3, 900: 2, 600: 1 }}
-                className="my-masonry-grid"
-                columnClassName="my-masonry-grid_column"
-              >
-                {authorQuotes.map(this.renderQuoteCard)}
-              </Masonry>
             ) : (
-              <div className="author-page__empty-state">
-                <div className="author-page__empty-icon">✍️</div>
-                <h2 className="author-page__empty-title">No Quotes Yet</h2>
-                <p className="author-page__empty-text">
-                  When you add quotes from {profile.name}'s works, they will
-                  appear here.
-                </p>
+              <div className="author-page__quotes-workspace">
+                <QuoteConversationWorkspace
+                  key={`author-quote-workspace-${profile.id}`}
+                  workId={works[0]?.id || ""}
+                  quotes={authorQuotes}
+                  onRefresh={this.fetchData}
+                />
               </div>
             )}
           </div>

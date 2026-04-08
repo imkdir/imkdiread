@@ -1,0 +1,30 @@
+.quote-conversation-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    background: var(--color-bg-page-reader);
+}
+
+.quote-conversation-page__content {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: 1200px;
+}
+
+.quote-conversation-page__content .quote-chat-card--embedded {
+    height: calc(100vh - 72px);
+}
+
+.quote-conversation-page--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quote-conversation-page__empty-text {
+    margin: 0;
+    color: var(--color-text-muted-mid);
+    font-size: 14px;
+}

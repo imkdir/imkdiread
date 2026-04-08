@@ -23,6 +23,7 @@ export type AppIconName =
   | "home"
   | "inbox"
   | "instagram"
+  | "info-circle"
   | "logout"
   | "pdf"
   | "search"
@@ -191,6 +192,24 @@ export function AppIcon(props: AppIconProps) {
         </svg>
       );
 
+    case "info-circle":
+      return (
+        <svg {...getSvgProps(props, "0 0 24 24")} fill="none">
+          <circle
+            cx="12"
+            cy="12"
+            r="10.9"
+            stroke="currentColor"
+            strokeWidth="2.2"
+          />
+          <circle cx="12" cy="7.2" r="1.5" fill="currentColor" />
+          <path
+            d="M9.2 11.1a1.4 1.4 0 0 1 1.4-1.4h1.8a1.4 1.4 0 0 1 1.4 1.4v5.9h1a1.4 1.4 0 1 1 0 2.8H9.4a1.4 1.4 0 1 1 0-2.8H11v-4.5h-.4a1.4 1.4 0 0 1-1.4-1.4Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+
     case "tools":
       return (
         <svg
@@ -211,10 +230,7 @@ export function AppIcon(props: AppIconProps) {
 
     case "translate":
       return (
-        <svg
-          {...getSvgProps(props, "0 0 24 24")}
-          fill="none"
-        >
+        <svg {...getSvgProps(props, "0 0 24 24")} fill="none">
           <defs>
             <mask id={translateMaskId}>
               <rect width="24" height="24" fill="white" />
@@ -283,7 +299,7 @@ export function AppIcon(props: AppIconProps) {
           {...getSvgProps(props, "0 0 24 24")}
           fill="none"
           stroke="currentColor"
-          strokeWidth="2.2"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
@@ -291,19 +307,26 @@ export function AppIcon(props: AppIconProps) {
             <mask id={copyMaskId}>
               <rect width="24" height="24" fill="white" />
               <rect
-                x="10"
-                y="4"
-                width="9"
-                height="11"
+                x="8"
+                y="2"
+                width="13"
+                height="15"
                 rx="2.2"
                 fill="black"
                 stroke="black"
-                strokeWidth="3.8"
+                strokeWidth="2"
               />
             </mask>
           </defs>
-          <rect x="5" y="7" width="9" height="11" rx="2.2" mask={`url(#${copyMaskId})`} />
-          <rect x="10" y="4" width="9" height="11" rx="2.2" />
+          <rect
+            x="3"
+            y="5"
+            width="13"
+            height="15"
+            rx="2.2"
+            mask={`url(#${copyMaskId})`}
+          />
+          <rect x="8" y="2" width="13" height="15" rx="2.2" />
         </svg>
       );
 

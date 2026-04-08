@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import Masonry from "react-masonry-css";
-import type { Quote, Work } from "../types";
+import type { Work } from "../types";
 
 import { AppIcon } from "../components/AppIcon";
 import { GoodreadsButton } from "../components/GoodreadsButton";
 import { DropboxButton } from "../components/DropboxButton";
 import { ProgressBar } from "../components/ProgressBar";
 import { KindleButton } from "../components/KindleButton";
-import { QuoteCard } from "../components/QuoteCard";
-import type { QuoteConversationOpenOptions } from "../components/QuoteCard";
 import { FinderButton } from "../components/FinderButton";
-import { QuoteConversationModal } from "../components/QuoteConversationModal";
+import { QuoteConversationWorkspace } from "../components/QuoteConversationWorkspace";
 import { DetailActionPanel } from "../components/detail/DetailActionPanel";
 import { DetailProgressModal } from "../components/detail/DetailProgressModal";
 import { DetailDropboxLinkModal } from "../components/detail/DetailDropboxLinkModal";
@@ -66,6 +63,12 @@ interface ReadingFocusSettings {
   maskOpacity: number;
   focusTopRatio: number;
   focusHeightRatio: number;
+}
+
+interface QuoteConversationDraftIntent {
+  token: number;
+  quote: string;
+  tool?: "analyze" | "translate";
 }
 
 const READING_FOCUS_STORAGE_KEY = "detail-reading-focus-settings";
@@ -227,6 +230,10 @@ function DetailPage({
   const { user } = useAuth();
   const navigate = useNavigate();
   const detail = useDetailPage({ workId, initialWork });
+  const isDraftConversationRequested = detail.isAddQuoteModalOpen;
+  const draftConversationQuote = detail.addQuoteWithTool.quote;
+  const draftConversationTool = detail.addQuoteWithTool.tool;
+  const closeDetailEditFormModal = detail.closeEditFormModal;
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const pdfFrameWrapperRef = useRef<HTMLDivElement | null>(null);
   const readingFocusPreviewRef = useRef<HTMLDivElement | null>(null);
@@ -275,10 +282,8 @@ function DetailPage({
   const [readingFocusDraft, setReadingFocusDraft] = useState(
     loadReadingFocusSettings,
   );
-  const [activeConversationQuote, setActiveConversationQuote] =
-    useState<Quote | null>(null);
-  const [isConversationDrawerOpen, setIsConversationDrawerOpen] =
-    useState(false);
+  const [conversationDraftIntent, setConversationDraftIntent] =
+    useState<QuoteConversationDraftIntent | null>(null);
   const [isSharedLayoutActive, setIsSharedLayoutActive] =
     useState(useEntrySharedLayout);
   const [pdfFrameHeight, setPdfFrameHeight] = useState(0);
@@ -317,54 +322,26 @@ function DetailPage({
   }, []);
 
   useEffect(() => {
-    setActiveConversationQuote(null);
+    setConversationDraftIntent(null);
   }, [workId]);
 
   useEffect(() => {
-    if (!initialConversationQuoteId) {
+    if (!isDraftConversationRequested) {
       return;
     }
 
-    const routeConversationQuotes = detail.work?.quotes || [];
-    const matchedQuote = routeConversationQuotes.find(
-      (entry) => entry.id === initialConversationQuoteId,
-    );
-
-    setActiveConversationQuote((current) => {
-      if (current?.id === initialConversationQuoteId) {
-        return current;
-      }
-
-      if (matchedQuote) {
-        return matchedQuote;
-      }
-
-      return {
-        id: initialConversationQuoteId,
-        work_id: workId,
-        user_id: "__unknown_owner__",
-        quote: "",
-        page_number: null,
-        created_at: new Date().toISOString(),
-      };
+    setConversationDraftIntent({
+      token: Date.now(),
+      quote: draftConversationQuote || "",
+      tool: draftConversationTool,
     });
-  }, [detail.work?.quotes, initialConversationQuoteId, workId]);
-
-  const openQuoteConversation = useCallback(
-    (quote: Quote, options?: QuoteConversationOpenOptions) => {
-      setIsConversationDrawerOpen(options?.openDrawer === true);
-      setActiveConversationQuote(quote);
-    },
-    [],
-  );
-
-  const closeQuoteConversation = useCallback(() => {
-    setActiveConversationQuote(null);
-    setIsConversationDrawerOpen(false);
-    if (initialConversationQuoteId) {
-      navigate(`/work/${encodeURIComponent(workId)}`, { replace: true });
-    }
-  }, [initialConversationQuoteId, navigate, workId]);
+    closeDetailEditFormModal("quote");
+  }, [
+    closeDetailEditFormModal,
+    draftConversationQuote,
+    draftConversationTool,
+    isDraftConversationRequested,
+  ]);
 
   const openSearchDrawer = (query: string) => {
     window.dispatchEvent(
@@ -381,8 +358,6 @@ function DetailPage({
     read,
     liked,
     shelved,
-    isAddQuoteModalOpen,
-    addQuoteWithTool,
     isProgressModalOpen,
     progressEditingForm,
     isSavingProgress,
@@ -401,7 +376,6 @@ function DetailPage({
     handleStarClick,
     setHoverRating,
     openEditFormModal,
-    closeEditFormModal,
     handleProgressInputChange,
     handleUpdateProgress,
     handleProgressFinished,
@@ -1602,7 +1576,6 @@ function DetailPage({
                 onResetHoverRating={() => setHoverRating(0)}
                 onStarMouseMove={handleStarMouseMove}
                 onStarClick={handleStarClick}
-                onOpenQuoteModal={() => openEditFormModal("quote")}
                 onOpenProgressModal={() => openEditFormModal("progress")}
                 onOpenReadingFocusModal={openReadingFocusModal}
                 onClosePDFViewer={closePDFViewer}
@@ -1611,33 +1584,23 @@ function DetailPage({
               />
             </div>
 
-            {displayQuotes.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.18, duration: 0.45 }}
-                className={`detail-quotes-section ${isPDFViewerOpen ? "detail-quotes-section--pdf-open" : ""}`}
-              >
-                <Masonry
-                  breakpointCols={
-                    isPDFViewerOpen
-                      ? { default: 1 }
-                      : { default: 3, 1400: 2, 900: 1 }
-                  }
-                  className="my-masonry-grid"
-                  columnClassName="my-masonry-grid_column"
-                >
-                  {displayQuotes.map((quote) => (
-                    <QuoteCard
-                      key={quote.id}
-                      quote={quote}
-                      onRefresh={fetchData}
-                      onOpenConversation={openQuoteConversation}
-                    />
-                  ))}
-                </Masonry>
-              </motion.div>
-            )}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.18, duration: 0.45 }}
+              className={`detail-quotes-section ${isPDFViewerOpen ? "detail-quotes-section--pdf-open" : ""}`}
+            >
+              <div className="detail-quotes-workspace">
+                <QuoteConversationWorkspace
+                  key={`detail-quote-workspace-${work.id}-${initialConversationQuoteId || "none"}-${conversationDraftIntent?.token || 0}`}
+                  workId={work.id}
+                  quotes={displayQuotes}
+                  initialQuoteId={initialConversationQuoteId}
+                  incomingDraft={conversationDraftIntent}
+                  onRefresh={fetchData}
+                />
+              </div>
+            </motion.div>
           </motion.div>
         </AnimatePresence>
 
@@ -1718,28 +1681,10 @@ function DetailPage({
         isSaving={isSavingProgress}
         editingForm={progressEditingForm}
         pageCount={work.page_count}
-        onClose={() => closeEditFormModal("progress")}
+        onClose={() => closeDetailEditFormModal("progress")}
         onSubmit={handleUpdateProgress}
         onInputChange={handleProgressInputChange}
         onProgressFinished={handleProgressFinished}
-      />
-      <QuoteConversationModal
-        isOpen={isAddQuoteModalOpen}
-        workId={work.id}
-        initialQuoteText={addQuoteWithTool.quote}
-        initialSelectedTool={addQuoteWithTool.tool}
-        forceScrollToBottomOnOpen={true}
-        onClose={() => closeEditFormModal("quote")}
-        onRefresh={fetchData}
-      />
-      <QuoteConversationModal
-        isOpen={!!activeConversationQuote}
-        workId={work.id}
-        quote={activeConversationQuote}
-        initialDrawerOpen={isConversationDrawerOpen}
-        forceScrollToBottomOnOpen={!initialConversationQuoteId}
-        onClose={closeQuoteConversation}
-        onRefresh={fetchData}
       />
       <DetailDropboxLinkModal
         isOpen={isDropboxLinkModalOpen}

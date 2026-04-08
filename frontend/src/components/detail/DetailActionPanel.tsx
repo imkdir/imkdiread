@@ -18,7 +18,6 @@ interface DetailActionPanelProps {
   onResetHoverRating: () => void;
   onStarMouseMove: (e: React.MouseEvent<Element>, starIndex: number) => void;
   onStarClick: () => void;
-  onOpenQuoteModal: () => void;
   onOpenProgressModal: () => void;
   onOpenReadingFocusModal: () => void;
   onClosePDFViewer: () => void;
@@ -41,7 +40,6 @@ export function DetailActionPanel({
   onResetHoverRating,
   onStarMouseMove,
   onStarClick,
-  onOpenQuoteModal,
   onOpenProgressModal,
   onOpenReadingFocusModal,
   onClosePDFViewer,
@@ -134,14 +132,6 @@ export function DetailActionPanel({
               );
             })}
           </div>
-        </div>
-
-        <hr className="detail-divider" />
-
-        <div className="detail-action-row">
-          <button onClick={onOpenQuoteModal} className="detail-action-button">
-            <span className="detail-action-label">Start conversation...</span>
-          </button>
         </div>
 
         <hr className="detail-divider" />

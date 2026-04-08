@@ -1265,6 +1265,15 @@
     margin-top: 32px;
 }
 
+.detail-quotes-workspace {
+    height: min(760px, calc(100vh - 180px));
+    min-height: 520px;
+}
+
+.detail-quotes-section--pdf-open .detail-quotes-workspace {
+    height: min(660px, calc(100vh - 220px));
+}
+
 .detail-reading-focus-overlay {
     position: absolute;
     inset: 0;
@@ -1397,6 +1406,11 @@
 }
 
 @media (max-width: 760px) {
+    .detail-quotes-workspace {
+        height: min(680px, calc(100vh - 260px));
+        min-height: 460px;
+    }
+
     .detail-reading-focus-layout {
         grid-template-columns: 1fr;
     }
