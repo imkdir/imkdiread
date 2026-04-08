@@ -1416,7 +1416,7 @@
     }
 }
 
-.detail-quote-modal-shell {
+.detail-progress-modal-shell {
     position: relative;
     z-index: 1;
     width: 100%;
@@ -1490,10 +1490,17 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-.detail-quote-modal-panel {
+.detail-progress-modal-panel {
     position: relative;
     width: 100%;
     z-index: 1;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 20px 20px;
     will-change: transform;
     transform: translateZ(0);
     border-radius: 18px;
@@ -1512,25 +1519,7 @@
     overflow: hidden;
 }
 
-.detail-modal-quote-face {
-    top: 0;
-    left: 0;
-    width: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    padding: 18px 20px 20px;
-}
-
-.detail-modal-quote-face--absolute {
-    position: absolute;
-}
-
-.detail-modal-quote-face--relative {
-    position: relative;
-}
-
-.detail-quote-form {
+.detail-progress-form {
     display: flex;
     flex-direction: column;
     gap: 14px;

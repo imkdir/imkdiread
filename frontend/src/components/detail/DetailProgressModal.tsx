@@ -1,6 +1,5 @@
 import type React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import "../QuoteCard.css";
 
 export interface DetailProgressEdtingForm {
   pageNumber: string;
@@ -39,9 +38,9 @@ export function DetailProgressModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="detail-quote-modal-shell">
+          <div className="detail-progress-modal-shell">
             <motion.div
-              className="detail-quote-modal-panel detail-modal-quote-face detail-modal-quote-face--relative"
+              className="detail-progress-modal-panel"
               initial={{ scale: 0.92, y: 24, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.96, y: 12, opacity: 0 }}
@@ -52,63 +51,61 @@ export function DetailProgressModal({
                 mass: 0.9,
               }}
             >
-              <div className="detail-modal-quote-face detail-modal-quote-face--relative">
-                <form onSubmit={onSubmit} className="detail-quote-form">
-                  <div className="detail-progress-header">
-                    <div className="detail-progress-inline">
-                      <label className="detail-secondary-label">
-                        Currently on
-                      </label>
+              <form onSubmit={onSubmit} className="detail-progress-form">
+                <div className="detail-progress-header">
+                  <div className="detail-progress-inline">
+                    <label className="detail-secondary-label">
+                      Currently on
+                    </label>
 
-                      <input
-                        name="pageNumber"
-                        required
-                        value={editingForm.pageNumber}
-                        placeholder="p."
-                        onChange={onInputChange}
-                        className="detail-input detail-input--page-inline"
-                        autoFocus
-                      />
+                    <input
+                      name="pageNumber"
+                      required
+                      value={editingForm.pageNumber}
+                      placeholder="p."
+                      onChange={onInputChange}
+                      className="detail-input detail-input--page-inline"
+                      autoFocus
+                    />
 
-                      <label className="detail-secondary-label">
-                        {`of ${pageCount ?? "-"}`}
-                      </label>
-                    </div>
-                    <button
-                      type="button"
-                      className="detail-finished-btn"
-                      onClick={onProgressFinished}
-                    >
-                      I'm finished!
-                    </button>
+                    <label className="detail-secondary-label">
+                      {`of ${pageCount ?? "-"}`}
+                    </label>
                   </div>
+                  <button
+                    type="button"
+                    className="detail-finished-btn"
+                    onClick={onProgressFinished}
+                  >
+                    I'm finished!
+                  </button>
+                </div>
 
-                  <textarea
-                    name="note"
-                    value={editingForm.note}
-                    onChange={onInputChange}
-                    className="detail-input detail-input--quote"
-                    placeholder={"Type your notes here..."}
-                  />
+                <textarea
+                  name="note"
+                  value={editingForm.note}
+                  onChange={onInputChange}
+                  className="detail-input detail-input--quote"
+                  placeholder={"Type your notes here..."}
+                />
 
-                  <div className="detail-form-actions">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="detail-btn detail-btn--cancel"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSaving}
-                      className="detail-btn detail-btn--save"
-                    >
-                      {isSaving ? "Saving..." : "Update"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                <div className="detail-form-actions">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="detail-btn detail-btn--cancel"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="detail-btn detail-btn--save"
+                  >
+                    {isSaving ? "Saving..." : "Update"}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         </motion.div>
