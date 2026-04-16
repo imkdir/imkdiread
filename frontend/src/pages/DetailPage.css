@@ -86,13 +86,6 @@
     margin-top: 12px;
 }
 
-.detail-missing-work__body {
-    max-width: 48ch;
-    margin: 0 0 20px;
-    color: rgba(255, 255, 255, 0.72);
-    line-height: 1.6;
-}
-
 .detail-missing-work__form {
     max-width: 440px;
 }
@@ -100,10 +93,6 @@
 .detail-missing-work__textarea {
     min-height: 88px;
     resize: vertical;
-}
-
-.detail-missing-work__actions {
-    margin-top: 8px;
 }
 
 /* =========================================================
@@ -506,10 +495,11 @@
     letter-spacing: 0.01em;
 }
 
-.detail-page-count-modal__field {
+.detial-page-modal__field {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    margin-bottom: 12px;
 }
 
 .detail-report-issue-type-toggle {
@@ -1531,19 +1521,10 @@
     justify-content: space-between;
 }
 
-.detail-quote-form--progress .detail-progress-header {
-    gap: 16px;
-}
-
 .detail-progress-inline {
     display: flex;
     gap: 8px;
     align-items: center;
-}
-
-.detail-quote-form--progress .detail-progress-inline {
-    gap: 10px;
-    flex-wrap: wrap;
 }
 
 .detail-label {
@@ -1565,10 +1546,6 @@
     font-size: 14px;
     font-family: Fredoka;
     color: var(--paper-cream-warm);
-}
-
-.detail-quote-form--progress .detail-finished-btn {
-    color: rgba(255, 255, 255, 0.9);
 }
 
 .detail-modal-title {
@@ -1615,12 +1592,6 @@
 .detail-input--page-inline {
     width: 36px;
     padding: 2px 4px;
-}
-
-.detail-quote-form--progress .detail-input--page-inline {
-    width: 46px;
-    padding: 4px 6px;
-    text-align: center;
 }
 
 .detail-input--page {

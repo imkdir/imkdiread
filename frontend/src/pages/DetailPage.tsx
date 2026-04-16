@@ -1084,20 +1084,15 @@ function DetailPage({
               <h1 className="detail-title detail-missing-work__title">
                 {isAdmin ? "Create this work" : "Work not found"}
               </h1>
-              <p className="detail-missing-work__body">
-                {isAdmin && notFound
-                  ? `There is no work at /work/${workId} yet. You can insert it now with this id.`
-                  : "We couldn't find a work for this id."}
-              </p>
 
               {isAdmin && notFound ? (
-                <div className="detail-missing-work__form detail-quote-form">
-                  <label className="detail-page-count-modal__field">
+                <div className="detail-missing-work__form">
+                  <label className="detial-page-modal__field">
                     <span className="detail-label">Work ID</span>
                     <input className="detail-input" value={workId} readOnly />
                   </label>
 
-                  <label className="detail-page-count-modal__field">
+                  <label className="detial-page-modal__field">
                     <span className="detail-label">Title</span>
                     <input
                       className="detail-input"
@@ -1109,7 +1104,7 @@ function DetailPage({
                     />
                   </label>
 
-                  <label className="detail-page-count-modal__field">
+                  <label className="detial-page-modal__field">
                     <span className="detail-label">Page count</span>
                     <input
                       className="detail-input"
@@ -1122,7 +1117,7 @@ function DetailPage({
                     />
                   </label>
 
-                  <label className="detail-page-count-modal__field">
+                  <label className="detial-page-modal__field">
                     <span className="detail-label">Authors</span>
                     <textarea
                       className="detail-input detail-missing-work__textarea"
@@ -1134,7 +1129,7 @@ function DetailPage({
                     />
                   </label>
 
-                  <label className="detail-page-count-modal__field">
+                  <label className="detial-page-modal__field">
                     <span className="detail-label">Tags</span>
                     <textarea
                       className="detail-input detail-missing-work__textarea"
@@ -1146,7 +1141,7 @@ function DetailPage({
                     />
                   </label>
 
-                  <div className="detail-form-actions detail-missing-work__actions">
+                  <div className="detail-form-actions">
                     <button
                       type="button"
                       className="detail-btn detail-btn--cancel"
@@ -1165,7 +1160,7 @@ function DetailPage({
                   </div>
                 </div>
               ) : (
-                <div className="detail-form-actions detail-missing-work__actions">
+                <div className="detail-form-actions">
                   <button
                     type="button"
                     className="detail-btn detail-btn--cancel"
@@ -1931,7 +1926,7 @@ function DetailPage({
         </div>
 
         {reportIssueType === "blank_or_missing_pages" ? (
-          <label className="detail-page-count-modal__field">
+          <label className="detial-page-modal__field">
             <span className="detail-title-modal__label">PDF page number</span>
             <input
               type="number"
@@ -2256,7 +2251,7 @@ function DetailPage({
           <p className="modal-subtitle">Page count</p>
         </div>
 
-        <label className="detail-page-count-modal__field">
+        <label className="detial-page-modal__field">
           <div className="detail-page-count-stepper">
             <button
               type="button"
