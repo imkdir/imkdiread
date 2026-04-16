@@ -32,12 +32,11 @@
 
 .detail-split-view-container {
     display: flex;
-    flex-wrap: wrap;
     align-items: flex-start;
-    gap: 40px;
+    gap: 20px;
     max-width: 1800px;
     margin: 0 auto;
-    padding: 60px 0 0 0;
+    padding: 30px 0 0 0;
 }
 
 .detail-split-view-container--centered {
@@ -52,15 +51,6 @@
     width: min(560px, 100%);
     max-width: 100%;
     margin: 0 auto;
-}
-
-.detail-main-content-pane {
-    flex: 1 1 500px;
-    min-width: 320px;
-    max-width: 1280px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
 }
 
 .detail-missing-work {
@@ -98,62 +88,25 @@
 /* =========================================================
    7. DETAIL / PDF PAGE & VIEWER LAYOUT
    ========================================================= */
-.detail-content-wrapper {
+.detail-main-content-pane {
+    flex: 1 1 500px;
+    display: flex;
+    flex-direction: column;
     position: relative;
     z-index: var(--z-content-raised);
-    display: flex;
-    gap: 40px;
+    gap: 24px;
     align-items: flex-start;
-}
-
-.detail-left-col {
-    width: 230px;
-    flex-shrink: 0;
-}
-
-.detail-cover-upload {
-    width: 100%;
-}
-
-.detail-cover-upload-trigger {
-    position: relative;
-    display: block;
-    width: 100%;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-}
-
-.detail-cover-upload-trigger:disabled {
-    cursor: progress;
-}
-
-.detail-cover-upload-error {
-    margin-top: 10px;
-    color: var(--color-text-danger, #b91c1c);
-    font-size: 0.9rem;
-    line-height: 1.4;
-}
-
-.detail-middle-col {
-    flex-grow: 1;
-}
-
-.detail-right-col {
-    width: 250px;
-    flex-shrink: 0;
+    padding-left: 12px;
 }
 
 .detail-title {
-    margin-top: 30px;
+    margin: 0;
     font-family: "Libre Baskerville";
     font-size: 3.5rem;
     font-weight: 400;
     letter-spacing: -0.01em;
     line-height: 1.1;
     color: var(--color-text-page-primary);
-    margin-bottom: 0.5rem;
 }
 
 .detail-title-button {
@@ -195,7 +148,7 @@
 }
 
 /* --- PDF Viewer Pane --- */
-.pdf-viewer-pane {
+.detail-pdf-viewer-pane {
     flex: 1 1 800px;
     min-width: 320px;
     position: sticky;
@@ -241,19 +194,10 @@
     background-color: #ffffff;
 }
 
-/* Force Right Column to Wrap when PDF Viewer is side-by-side */
-.detail-content-wrapper.pdf-open-wrap {
-    flex-wrap: wrap;
-    z-index: var(--z-overlay-detail-layout);
-}
-
-.detail-content-wrapper.pdf-open-wrap .detail-middle-col {
-    width: calc(100% - 270px);
-}
-
 /* Morph Right Column into Sliding Drawer */
-.detail-content-wrapper.pdf-open-wrap .detail-right-col,
-.detail-right-col--drawer-mode {
+.detail-action-panel {
+    width: 250px;
+    flex-shrink: 0;
     position: fixed;
     top: 15vh;
     right: 0;
@@ -261,18 +205,32 @@
     transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.detail-content-wrapper.pdf-open-wrap .detail-right-col.drawer-closed,
-.detail-right-col--drawer-mode.drawer-closed {
+.detail-action-main-content {
+    background-color: var(--overlay-black-85);
+    backdrop-filter: blur(10px);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px var(--color-bg-overlay-soft);
+    isolation: isolate;
+    contain: layout paint;
+    will-change: transform;
+}
+
+.detail-action-cover {
+    aspect-ratio: 0.7;
+    width: 100%;
+    margin-bottom: -25%;
+}
+
+.detail-action-panel.drawer-closed {
     transform: translateX(100%);
 }
 
-.detail-content-wrapper.pdf-open-wrap .detail-right-col.drawer-open,
-.detail-right-col--drawer-mode.drawer-open {
+.detail-action-panel.drawer-open {
     transform: translateX(0);
 }
 
-.detail-content-wrapper.pdf-open-wrap .drawer-handle,
-.detail-right-col--drawer-mode .drawer-handle {
+.detail-action-drawer-handle {
     display: flex;
     position: absolute;
     left: -48px;
@@ -294,21 +252,15 @@
     box-shadow: -4px 4px 15px var(--overlay-black-30);
 }
 
-.detail-content-wrapper.pdf-open-wrap .drawer-handle:hover,
-.detail-right-col--drawer-mode .drawer-handle:hover {
+.detail-action-drawer-handle:hover {
     background-color: var(--detail-handle-bg-hover);
     color: var(--detail-handle-text-hover);
 }
 
 /* --- Responsive PDF Modal/Drawer States --- */
 @media (max-width: 1470px) {
-    .detail-content-wrapper.pdf-open-wrap {
-        position: static;
-        z-index: auto;
-    }
-
     /* Modal Overlay Mode */
-    .pdf-viewer-pane {
+    .detail-pdf-viewer-pane {
         position: fixed;
         top: 0;
         left: 0;
@@ -332,63 +284,25 @@
         flex-direction: row;
         gap: 20px;
     }
-
-    .detail-content-wrapper.pdf-open-wrap .detail-middle-col {
-        width: 100%;
-    }
-
-    .quotes-grid.pdf-open-grid {
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    }
 }
 
 @media (max-width: 768px) {
-    .detail-content-wrapper {
-        flex-direction: column;
-        align-items: center;
-        padding-left: 16px;
-        padding-right: 16px;
-    }
-
-    .detail-left-col {
-        width: 100%;
-        display: flex;
-        justify-content: center;
-    }
-
-    .detail-middle-col {
-        width: 100%;
-    }
-
-    .detail-title {
-        margin-top: 0;
-    }
-
-    .detail-right-col {
-        width: 100%;
-        max-width: 420px;
-    }
-
     /* Stacked Modal Mode */
-    .pdf-viewer-pane {
+    .detail-pdf-viewer-pane {
         padding: 56px 16px 16px 16px;
         flex-direction: column;
         gap: 12px;
     }
 
-    .detail-right-col--drawer-mode {
+    .detail-action-panel {
         top: auto;
         bottom: 24px;
         width: min(340px, calc(100vw - 24px));
         max-width: calc(100vw - 24px);
     }
 
-    .detail-right-col--drawer-mode .drawer-handle {
+    .detail-action-drawer-handle {
         top: 24px;
-    }
-
-    .detail-action-panel {
-        width: 100%;
     }
 
     .detail-action-icons-row {
@@ -403,16 +317,11 @@
     }
 }
 
-.drawer-handle {
-    display: none; /* Hidden by default */
-}
-
 .detail-metadata {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 16px;
-    margin-bottom: 20px;
 }
 
 .detail-urls {
@@ -1124,19 +1033,6 @@
     margin-bottom: 4px;
 }
 
-.detail-action-panel {
-    background-color: var(--overlay-black-85);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 6px;
-    overflow: hidden;
-    box-shadow: 0 5px 15px var(--color-bg-overlay-soft);
-    isolation: isolate;
-    contain: layout paint;
-    transform: translateZ(0);
-    will-change: transform;
-}
-
 .detail-action-icons-row {
     display: flex;
     gap: 24px;
@@ -1247,21 +1143,9 @@
     opacity: 1;
 }
 
-.detail-quotes-section {
-    margin-top: 48px;
-}
-
-.detail-quotes-section--pdf-open {
-    margin-top: 32px;
-}
-
 .detail-quotes-workspace {
-    height: min(760px, calc(100vh - 180px));
-    min-height: 520px;
-}
-
-.detail-quotes-section--pdf-open .detail-quotes-workspace {
-    height: min(660px, calc(100vh - 220px));
+    flex: 1 1 500px;
+    height: calc(100vh - 60px - var(--app-menu-bar-height));
 }
 
 .detail-reading-focus-overlay {
@@ -1396,11 +1280,6 @@
 }
 
 @media (max-width: 760px) {
-    .detail-quotes-workspace {
-        height: min(680px, calc(100vh - 260px));
-        min-height: 460px;
-    }
-
     .detail-reading-focus-layout {
         grid-template-columns: 1fr;
     }

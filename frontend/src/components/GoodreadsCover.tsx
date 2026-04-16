@@ -55,7 +55,9 @@ export function GoodreadsCover({
   const src = work.cover_img_url || "";
   const title = work.title || work.id || "Untitled Work";
   const showFallback = !src || hasError;
-  const sharedLayoutId = enableSharedLayout ? `work-cover-${work.id}` : undefined;
+  const sharedLayoutId = enableSharedLayout
+    ? `work-cover-${work.id}`
+    : undefined;
 
   const mouseXSpring = useSpring(x, { stiffness: 240, damping: 22 });
   const mouseYSpring = useSpring(y, { stiffness: 240, damping: 22 });
@@ -107,7 +109,7 @@ export function GoodreadsCover({
 
   return (
     <motion.div
-      className={joinClasses("goodreads-cover", className)}
+      className={joinClasses("work-cover", className)}
       style={{
         ...style,
         rotateX,
@@ -123,7 +125,7 @@ export function GoodreadsCover({
       <Link
         to={disabled ? "#" : `/work/${work.id}`}
         state={{ work }}
-        className={joinClasses("goodreads-cover__link", linkClassName)}
+        className={joinClasses("work-cover__link", linkClassName)}
         onClick={onLinkClick}
       >
         {showFallback ? (
@@ -132,7 +134,7 @@ export function GoodreadsCover({
             src={noCover}
             alt={title}
             title={title}
-            className={joinClasses("goodreads-cover__image", imageClassName)}
+            className={joinClasses("work-cover__image", imageClassName)}
             transition={coverTransition}
           />
         ) : (
@@ -140,7 +142,7 @@ export function GoodreadsCover({
             layoutId={sharedLayoutId}
             src={src}
             alt={title}
-            className={joinClasses("goodreads-cover__image", imageClassName)}
+            className={joinClasses("work-cover__image", imageClassName)}
             transition={coverTransition}
             style={{
               opacity: isLoaded ? 1 : 0,
@@ -154,7 +156,7 @@ export function GoodreadsCover({
         )}
 
         <motion.div
-          className="goodreads-cover__glare"
+          className="work-cover__glare"
           style={{
             background: glareBackground,
             opacity: isHovered ? 1 : 0,

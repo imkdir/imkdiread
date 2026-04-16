@@ -34,18 +34,18 @@
     text-align: center;
 }
 
-.goodreads-cover {
+.work-cover {
     position: relative;
     display: block;
     width: 100%;
-    aspect-ratio: var(--goodreads-cover-aspect-ratio);
+    aspect-ratio: var(--work-cover-aspect-ratio);
     overflow: hidden;
     border-radius: inherit;
     transform-style: preserve-3d;
     will-change: transform;
 }
 
-.goodreads-cover__link {
+.work-cover__link {
     position: relative;
     display: block;
     height: 100%;
@@ -63,7 +63,7 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.goodreads-cover__image {
+.work-cover__image {
     position: relative;
     z-index: 1;
     display: block;
@@ -76,7 +76,7 @@
     transition: opacity 0.5s ease-in-out;
 }
 
-.goodreads-cover__glare {
+.work-cover__glare {
     position: absolute;
     inset: 0;
     z-index: 2;

@@ -7,7 +7,6 @@ import { AppIcon } from "../components/AppIcon";
 import { GoodreadsButton } from "../components/GoodreadsButton";
 import { DropboxButton } from "../components/DropboxButton";
 import { ProgressBar } from "../components/ProgressBar";
-import { KindleButton } from "../components/KindleButton";
 import { FinderButton } from "../components/FinderButton";
 import { QuoteConversationWorkspace } from "../components/QuoteConversationWorkspace";
 import { DetailActionPanel } from "../components/detail/DetailActionPanel";
@@ -30,12 +29,9 @@ import {
   updateWorkPageCount,
   updateWorkTags,
   updateWorkTitle,
-  uploadWorkCover,
 } from "../services/detailPageService";
 import { formatTagLabel, isGenreTag } from "../utils/tags";
 import { showToast } from "../utils/toast";
-
-import noCover from "../assets/imgs/no_cover.png";
 
 import "./DetailPage.css";
 
@@ -86,12 +82,6 @@ const READING_FOCUS_PREVIEW_TEXT = [
   "When in the Course of human events, it becomes necessary for one people to dissolve the political bands which have connected them with another, and to assume among the powers of the earth, the separate and equal station to which the Laws of Nature and of Nature's God entitle them, a decent respect to the opinions of mankind requires that they should declare the causes which impel them to the separation.",
   "We hold these truths to be self-evident, that all men are created equal, that they are endowed by their Creator with certain unalienable Rights, that among these are Life, Liberty and the pursuit of Happiness.",
 ];
-
-const coverTransition = {
-  type: "tween" as const,
-  duration: 0.42,
-  ease: [0.16, 1, 0.3, 1] as const,
-};
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -224,7 +214,6 @@ export function DetailPageWrapper() {
 function DetailPage({
   workId,
   initialWork,
-  useEntrySharedLayout = false,
   initialConversationQuoteId = null,
 }: Props) {
   const { user } = useAuth();
@@ -234,14 +223,12 @@ function DetailPage({
   const draftConversationQuote = detail.addQuoteWithTool.quote;
   const draftConversationTool = detail.addQuoteWithTool.tool;
   const closeDetailEditFormModal = detail.closeEditFormModal;
-  const coverInputRef = useRef<HTMLInputElement | null>(null);
+
   const pdfFrameWrapperRef = useRef<HTMLDivElement | null>(null);
   const readingFocusPreviewRef = useRef<HTMLDivElement | null>(null);
   const authorDropdownRef = useRef<HTMLDivElement | null>(null);
   const finderDropdownRef = useRef<HTMLDivElement | null>(null);
   const tagDropdownRef = useRef<HTMLDivElement | null>(null);
-  const [isUploadingCover, setIsUploadingCover] = useState(false);
-  const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
   const [isAuthorsModalOpen, setIsAuthorsModalOpen] = useState(false);
   const [isAuthorDropdownOpen, setIsAuthorDropdownOpen] = useState(false);
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
@@ -284,42 +271,11 @@ function DetailPage({
   );
   const [conversationDraftIntent, setConversationDraftIntent] =
     useState<QuoteConversationDraftIntent | null>(null);
-  const [isSharedLayoutActive, setIsSharedLayoutActive] =
-    useState(useEntrySharedLayout);
+
   const [pdfFrameHeight, setPdfFrameHeight] = useState(0);
   const [readingFocusPreviewHeight, setReadingFocusPreviewHeight] = useState(0);
-  const [isNarrowActionDrawerMode, setIsNarrowActionDrawerMode] = useState(
-    () => window.innerWidth < 768,
-  );
   const isAdmin = user?.role === "admin";
   const pdfToolbarReserve = getPdfViewerToolbarReserve();
-
-  useEffect(() => {
-    if (!useEntrySharedLayout) {
-      setIsSharedLayoutActive(false);
-      return;
-    }
-
-    setIsSharedLayoutActive(true);
-    const timer = window.setTimeout(() => {
-      setIsSharedLayoutActive(false);
-    }, 450);
-
-    return () => window.clearTimeout(timer);
-  }, [useEntrySharedLayout, workId]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 768px)");
-
-    const updateMatches = () => {
-      setIsNarrowActionDrawerMode(mediaQuery.matches);
-    };
-
-    updateMatches();
-    mediaQuery.addEventListener("change", updateMatches);
-
-    return () => mediaQuery.removeEventListener("change", updateMatches);
-  }, []);
 
   useEffect(() => {
     setConversationDraftIntent(null);
@@ -401,7 +357,6 @@ function DetailPage({
     handleWorkFileUpload,
     handleReportWorkIssue,
   } = detail;
-  const isActionPanelDrawerMode = isPDFViewerOpen || isNarrowActionDrawerMode;
   const readingFocusOverlayColor = hexToRgba(
     readingFocusSettings.maskColor,
     readingFocusSettings.maskOpacity,
@@ -644,37 +599,6 @@ function DetailPage({
     window.addEventListener("app-escape", handleAppEscape);
     return () => window.removeEventListener("app-escape", handleAppEscape);
   }, [closeActionDrawer, isActionDrawerOpen, isPDFViewerOpen]);
-
-  const handleCoverUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) return;
-
-    setCoverUploadError(null);
-    setIsUploadingCover(true);
-
-    try {
-      const result = await uploadWorkCover(workId, file);
-      if (!result.success) {
-        setCoverUploadError(result.error || "Failed to upload cover.");
-        return;
-      }
-
-      await fetchData();
-    } catch (error) {
-      console.error("Failed to upload cover:", error);
-      setCoverUploadError("Failed to upload cover.");
-      showToast(
-        error instanceof Error ? error.message : "Failed to upload cover.",
-        { tone: "error" },
-      );
-    } finally {
-      setIsUploadingCover(false);
-    }
-  };
 
   const openTagsModal = () => {
     if (!work) return;
@@ -1187,9 +1111,6 @@ function DetailPage({
   const firstTag = visibleTags[0];
   const extraTags = visibleTags.slice(1);
   const extraTagCount = Math.max(0, visibleTags.length - 1);
-  const detailCoverLayoutId = isSharedLayoutActive
-    ? `work-cover-${work.id}`
-    : undefined;
 
   return (
     <div
@@ -1206,401 +1127,24 @@ function DetailPage({
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={work.id}
-            className="detail-main-content-pane"
+            className="detail-quotes-workspace"
             initial={{ opacity: 0, y: 18, scale: 0.992 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -12, scale: 1.006 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div
-              className={`detail-content-wrapper ${isPDFViewerOpen ? "pdf-open-wrap" : ""}`}
-            >
-              <aside className="detail-left-col">
-                {work.cover_img_url ? (
-                  <motion.img
-                    layoutId={detailCoverLayoutId}
-                    src={work.cover_img_url as string}
-                    alt={work.id}
-                    className="goodreads-cover"
-                    transition={coverTransition}
-                  />
-                ) : (
-                  <div className="detail-cover-upload">
-                    {user?.role === "admin" ? (
-                      <>
-                        <button
-                          type="button"
-                          className="detail-cover-upload-trigger"
-                          onClick={() => coverInputRef.current?.click()}
-                          disabled={isUploadingCover}
-                        >
-                          <motion.img
-                            layoutId={detailCoverLayoutId}
-                            src={noCover}
-                            alt={work.id}
-                            className="goodreads-cover"
-                            transition={coverTransition}
-                          />
-                        </button>
-                        <input
-                          ref={coverInputRef}
-                          type="file"
-                          accept="image/png"
-                          hidden
-                          onChange={handleCoverUpload}
-                        />
-                      </>
-                    ) : (
-                      <motion.img
-                        layoutId={detailCoverLayoutId}
-                        src={noCover}
-                        alt={work.id}
-                        className="goodreads-cover"
-                        transition={coverTransition}
-                      />
-                    )}
-                    {coverUploadError && (
-                      <p className="detail-cover-upload-error">
-                        {coverUploadError}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </aside>
-
-              <motion.main
-                className="detail-middle-col"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.35 }}
-              >
-                <div>
-                  <h1 className="detail-title">
-                    {isAdmin ? (
-                      <button
-                        type="button"
-                        className="detail-title-button"
-                        onClick={openTitleModal}
-                      >
-                        <span className="detail-title-button__text">
-                          {work.title || "Untitled Work"}
-                        </span>
-                        <span
-                          className="detail-title-button__icon"
-                          aria-hidden="true"
-                        >
-                          <AppIcon name="edit" title="Edit title" size={18} />
-                        </span>
-                      </button>
-                    ) : (
-                      work.title || "Untitled Work"
-                    )}
-                  </h1>
-
-                  <div className="detail-metadata">
-                    {firstAuthor && (
-                      <MetadataPillWrap
-                        className="detail-author-pill-wrap"
-                        ref={authorDropdownRef}
-                      >
-                        <MetadataPill className="detail-author-pill">
-                          <>
-                            {isAdmin && (
-                              <MetadataPillSegment
-                                as="button"
-                                type="button"
-                                className="detail-author-pill__icon-button"
-                                onClick={openAuthorsModal}
-                                aria-label="Edit authors"
-                              >
-                                <AppIcon
-                                  name="edit"
-                                  title="Edit authors"
-                                  size={13}
-                                />
-                              </MetadataPillSegment>
-                            )}
-                            <MetadataPillSegment
-                              as={Link}
-                              divided={isAdmin}
-                              to={`/collection/${encodeURIComponent(firstAuthor)}`}
-                              className="detail-author-pill__link"
-                            >
-                              {firstAuthor}
-                            </MetadataPillSegment>
-                            {extraAuthorCount > 0 && (
-                              <MetadataPillSegment
-                                as="button"
-                                type="button"
-                                divided
-                                className="detail-author-pill__more-button"
-                                onClick={() =>
-                                  setIsAuthorDropdownOpen((current) => !current)
-                                }
-                                aria-label={`Show ${extraAuthorCount} more authors`}
-                                aria-expanded={isAuthorDropdownOpen}
-                              >
-                                {extraAuthorCount}+
-                              </MetadataPillSegment>
-                            )}
-                          </>
-                        </MetadataPill>
-                        {extraAuthorCount > 0 && isAuthorDropdownOpen && (
-                          <MetadataDropdown className="detail-author-dropdown">
-                            {extraAuthors.map((author) => (
-                              <MetadataDropdownItem
-                                as={Link}
-                                key={author}
-                                to={`/collection/${encodeURIComponent(author)}`}
-                                className="detail-author-dropdown__item"
-                                onClick={() => setIsAuthorDropdownOpen(false)}
-                              >
-                                {author}
-                              </MetadataDropdownItem>
-                            ))}
-                          </MetadataDropdown>
-                        )}
-                      </MetadataPillWrap>
-                    )}
-
-                    {isAdmin ? (
-                      <MetadataPill className="detail-page-count-pill">
-                        <>
-                          <MetadataPillSegment
-                            as="button"
-                            type="button"
-                            className="detail-page-count-pill__edit-button"
-                            onClick={openPageCountModal}
-                            aria-label="Edit page count"
-                          >
-                            <AppIcon
-                              name="edit"
-                              title="Edit page count"
-                              size={13}
-                            />
-                          </MetadataPillSegment>
-                          <MetadataPillSegment
-                            as="button"
-                            type="button"
-                            divided
-                            className="detail-page-count-pill__content"
-                            onClick={openPageCountModal}
-                          >
-                            {work.page_count} pages
-                          </MetadataPillSegment>
-                        </>
-                      </MetadataPill>
-                    ) : (
-                      <MetadataPill className="detail-page-count-pill">
-                        <MetadataPillSegment>
-                          {work.page_count} pages
-                        </MetadataPillSegment>
-                      </MetadataPill>
-                    )}
-
-                    {firstTag ? (
-                      <MetadataPillWrap
-                        className="detail-tag-pill-wrap"
-                        ref={tagDropdownRef}
-                      >
-                        <MetadataPill className="detail-tag-pill">
-                          <>
-                            {isAdmin && (
-                              <MetadataPillSegment
-                                as="button"
-                                type="button"
-                                className="detail-tag-pill__icon-button"
-                                onClick={openTagsModal}
-                                aria-label="Edit tags"
-                              >
-                                <AppIcon
-                                  name="edit"
-                                  title="Edit tags"
-                                  size={13}
-                                />
-                              </MetadataPillSegment>
-                            )}
-                            <MetadataPillSegment
-                              as="button"
-                              type="button"
-                              divided={isAdmin}
-                              className="detail-tag-pill__link detail-tag-pill__link-button"
-                              onClick={() =>
-                                openSearchDrawer(formatTagLabel(firstTag))
-                              }
-                            >
-                              {formatTagLabel(firstTag)}
-                            </MetadataPillSegment>
-                            {extraTagCount > 0 && (
-                              <MetadataPillSegment
-                                as="button"
-                                type="button"
-                                divided
-                                className="detail-tag-pill__more-button"
-                                onClick={() =>
-                                  setIsTagDropdownOpen((current) => !current)
-                                }
-                                aria-label={`Show ${extraTagCount} more tags`}
-                                aria-expanded={isTagDropdownOpen}
-                              >
-                                {extraTagCount}+
-                              </MetadataPillSegment>
-                            )}
-                          </>
-                        </MetadataPill>
-                        {extraTagCount > 0 && isTagDropdownOpen && (
-                          <MetadataDropdown className="detail-tag-dropdown">
-                            {extraTags.map((tag) => (
-                              <MetadataDropdownItem
-                                as="button"
-                                type="button"
-                                key={tag}
-                                className="detail-tag-dropdown__item"
-                                onClick={() => {
-                                  setIsTagDropdownOpen(false);
-                                  openSearchDrawer(formatTagLabel(tag));
-                                }}
-                              >
-                                {formatTagLabel(tag)}
-                              </MetadataDropdownItem>
-                            ))}
-                          </MetadataDropdown>
-                        )}
-                      </MetadataPillWrap>
-                    ) : (
-                      isAdmin && (
-                        <MetadataPill
-                          className="detail-tag-pill detail-tag-pill--empty"
-                          onClick={openTagsModal}
-                        >
-                          <MetadataPillSegment className="detail-tag-pill__empty-content">
-                            <AppIcon
-                              name="close"
-                              title="Add tag"
-                              size={12}
-                              style={{ transform: "rotate(45deg)" }}
-                            />
-                            <span>Add tag</span>
-                          </MetadataPillSegment>
-                        </MetadataPill>
-                      )
-                    )}
-                  </div>
-                  <div className="detail-urls">
-                    {canUseFinder && (
-                      <MetadataPillWrap
-                        className="detail-finder-pill-wrap"
-                        ref={finderDropdownRef}
-                      >
-                        <FinderButton
-                          onClick={handleFinderButtonClick}
-                          aria-expanded={
-                            finderFiles.length > 1
-                              ? isFinderDropdownOpen
-                              : undefined
-                          }
-                          aria-haspopup={
-                            finderFiles.length > 1 ? "menu" : undefined
-                          }
-                          aria-label={
-                            finderFiles.length > 1
-                              ? "Choose a file version"
-                              : "Open in Finder"
-                          }
-                        />
-                        {finderFiles.length > 1 && isFinderDropdownOpen && (
-                          <MetadataDropdown className="detail-finder-dropdown">
-                            {finderFiles.map(({ label, url }) => (
-                              <MetadataDropdownItem
-                                key={label}
-                                as="button"
-                                type="button"
-                                className="detail-finder-dropdown__item"
-                                onClick={() => handleFinderFileSelect(url)}
-                              >
-                                {label}
-                              </MetadataDropdownItem>
-                            ))}
-                          </MetadataDropdown>
-                        )}
-                      </MetadataPillWrap>
-                    )}
-
-                    {canUseDropbox && (
-                      <DropboxButton
-                        onClick={() => togglePDFViewer("dropbox")}
-                        style={{
-                          backgroundColor:
-                            "var(--detail-page-dropbox-button-bg)",
-                        }}
-                      />
-                    )}
-
-                    <GoodreadsButton
-                      category="book"
-                      goodreadsId={work.goodreads_id}
-                      resourceId={work.id}
-                      onSavedId={() => {
-                        void fetchData();
-                      }}
-                      style={{
-                        backgroundColor:
-                          "var(--detail-page-goodreads-button-bg)",
-                      }}
-                    />
-
-                    {work.amazon_asin && (
-                      <KindleButton asin={work.amazon_asin} />
-                    )}
-                  </div>
-                </div>
-              </motion.main>
-
-              <DetailActionPanel
-                read={read}
-                liked={liked}
-                shelved={shelved}
-                displayRating={displayRating}
-                isPDFViewerOpen={isPDFViewerOpen}
-                isDrawerMode={isActionPanelDrawerMode}
-                isActionDrawerOpen={isActionDrawerOpen}
-                isReadingFocusEnabled={readingFocusSettings.enabled}
-                progressContent={<ProgressBar work={work} />}
-                onToggleDrawer={toggleActionDrawer}
-                onToggleAction={toggleAction}
-                onResetHoverRating={() => setHoverRating(0)}
-                onStarMouseMove={handleStarMouseMove}
-                onStarClick={handleStarClick}
-                onOpenProgressModal={() => openEditFormModal("progress")}
-                onOpenReadingFocusModal={openReadingFocusModal}
-                onClosePDFViewer={closePDFViewer}
-                onReportIssue={openReportPdfIssueModal}
-                isReportingPdfIssue={isReportingFileIssue}
-              />
-            </div>
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.18, duration: 0.45 }}
-              className={`detail-quotes-section ${isPDFViewerOpen ? "detail-quotes-section--pdf-open" : ""}`}
-            >
-              <div className="detail-quotes-workspace">
-                <QuoteConversationWorkspace
-                  key={`detail-quote-workspace-${work.id}-${initialConversationQuoteId || "none"}-${conversationDraftIntent?.token || 0}`}
-                  workId={work.id}
-                  quotes={displayQuotes}
-                  initialQuoteId={initialConversationQuoteId}
-                  incomingDraft={conversationDraftIntent}
-                  onRefresh={fetchData}
-                />
-              </div>
-            </motion.div>
+            <QuoteConversationWorkspace
+              key={`detail-quote-workspace-${work.id}-${initialConversationQuoteId || "none"}-${conversationDraftIntent?.token || 0}`}
+              workId={work.id}
+              quotes={displayQuotes}
+              initialQuoteId={initialConversationQuoteId}
+              incomingDraft={conversationDraftIntent}
+              onRefresh={fetchData}
+            />
           </motion.div>
         </AnimatePresence>
-
-        {isPDFViewerOpen && (
-          <div className="pdf-viewer-pane">
+        {isPDFViewerOpen ? (
+          <div className="detail-pdf-viewer-pane">
             <div className="detail-pdf-frame-wrapper" ref={pdfFrameWrapperRef}>
               <iframe
                 src={viewerInitialUrl as string}
@@ -1668,7 +1212,286 @@ function DetailPage({
               )}
             </div>
           </div>
+        ) : (
+          <div className="detail-main-content-pane">
+            <h1 className="detail-title">
+              {isAdmin ? (
+                <button
+                  type="button"
+                  className="detail-title-button"
+                  onClick={openTitleModal}
+                >
+                  <span className="detail-title-button__text">
+                    {work.title || "Untitled Work"}
+                  </span>
+                  <span
+                    className="detail-title-button__icon"
+                    aria-hidden="true"
+                  >
+                    <AppIcon name="edit" title="Edit title" size={18} />
+                  </span>
+                </button>
+              ) : (
+                work.title || "Untitled Work"
+              )}
+            </h1>
+            <div className="detail-metadata">
+              {firstAuthor && (
+                <MetadataPillWrap
+                  className="detail-author-pill-wrap"
+                  ref={authorDropdownRef}
+                >
+                  <MetadataPill className="detail-author-pill">
+                    <>
+                      {isAdmin && (
+                        <MetadataPillSegment
+                          as="button"
+                          type="button"
+                          className="detail-author-pill__icon-button"
+                          onClick={openAuthorsModal}
+                          aria-label="Edit authors"
+                        >
+                          <AppIcon name="edit" title="Edit authors" size={13} />
+                        </MetadataPillSegment>
+                      )}
+                      <MetadataPillSegment
+                        as={Link}
+                        divided={isAdmin}
+                        to={`/collection/${encodeURIComponent(firstAuthor)}`}
+                        className="detail-author-pill__link"
+                      >
+                        {firstAuthor}
+                      </MetadataPillSegment>
+                      {extraAuthorCount > 0 && (
+                        <MetadataPillSegment
+                          as="button"
+                          type="button"
+                          divided
+                          className="detail-author-pill__more-button"
+                          onClick={() =>
+                            setIsAuthorDropdownOpen((current) => !current)
+                          }
+                          aria-label={`Show ${extraAuthorCount} more authors`}
+                          aria-expanded={isAuthorDropdownOpen}
+                        >
+                          {extraAuthorCount}+
+                        </MetadataPillSegment>
+                      )}
+                    </>
+                  </MetadataPill>
+                  {extraAuthorCount > 0 && isAuthorDropdownOpen && (
+                    <MetadataDropdown className="detail-author-dropdown">
+                      {extraAuthors.map((author) => (
+                        <MetadataDropdownItem
+                          as={Link}
+                          key={author}
+                          to={`/collection/${encodeURIComponent(author)}`}
+                          className="detail-author-dropdown__item"
+                          onClick={() => setIsAuthorDropdownOpen(false)}
+                        >
+                          {author}
+                        </MetadataDropdownItem>
+                      ))}
+                    </MetadataDropdown>
+                  )}
+                </MetadataPillWrap>
+              )}
+
+              {isAdmin ? (
+                <MetadataPill className="detail-page-count-pill">
+                  <>
+                    <MetadataPillSegment
+                      as="button"
+                      type="button"
+                      className="detail-page-count-pill__edit-button"
+                      onClick={openPageCountModal}
+                      aria-label="Edit page count"
+                    >
+                      <AppIcon name="edit" title="Edit page count" size={13} />
+                    </MetadataPillSegment>
+                    <MetadataPillSegment
+                      as="button"
+                      type="button"
+                      divided
+                      className="detail-page-count-pill__content"
+                      onClick={openPageCountModal}
+                    >
+                      {work.page_count} pages
+                    </MetadataPillSegment>
+                  </>
+                </MetadataPill>
+              ) : (
+                <MetadataPill className="detail-page-count-pill">
+                  <MetadataPillSegment>
+                    {work.page_count} pages
+                  </MetadataPillSegment>
+                </MetadataPill>
+              )}
+
+              {firstTag ? (
+                <MetadataPillWrap
+                  className="detail-tag-pill-wrap"
+                  ref={tagDropdownRef}
+                >
+                  <MetadataPill className="detail-tag-pill">
+                    <>
+                      {isAdmin && (
+                        <MetadataPillSegment
+                          as="button"
+                          type="button"
+                          className="detail-tag-pill__icon-button"
+                          onClick={openTagsModal}
+                          aria-label="Edit tags"
+                        >
+                          <AppIcon name="edit" title="Edit tags" size={13} />
+                        </MetadataPillSegment>
+                      )}
+                      <MetadataPillSegment
+                        as="button"
+                        type="button"
+                        divided={isAdmin}
+                        className="detail-tag-pill__link detail-tag-pill__link-button"
+                        onClick={() =>
+                          openSearchDrawer(formatTagLabel(firstTag))
+                        }
+                      >
+                        {formatTagLabel(firstTag)}
+                      </MetadataPillSegment>
+                      {extraTagCount > 0 && (
+                        <MetadataPillSegment
+                          as="button"
+                          type="button"
+                          divided
+                          className="detail-tag-pill__more-button"
+                          onClick={() =>
+                            setIsTagDropdownOpen((current) => !current)
+                          }
+                          aria-label={`Show ${extraTagCount} more tags`}
+                          aria-expanded={isTagDropdownOpen}
+                        >
+                          {extraTagCount}+
+                        </MetadataPillSegment>
+                      )}
+                    </>
+                  </MetadataPill>
+                  {extraTagCount > 0 && isTagDropdownOpen && (
+                    <MetadataDropdown className="detail-tag-dropdown">
+                      {extraTags.map((tag) => (
+                        <MetadataDropdownItem
+                          as="button"
+                          type="button"
+                          key={tag}
+                          className="detail-tag-dropdown__item"
+                          onClick={() => {
+                            setIsTagDropdownOpen(false);
+                            openSearchDrawer(formatTagLabel(tag));
+                          }}
+                        >
+                          {formatTagLabel(tag)}
+                        </MetadataDropdownItem>
+                      ))}
+                    </MetadataDropdown>
+                  )}
+                </MetadataPillWrap>
+              ) : (
+                isAdmin && (
+                  <MetadataPill
+                    className="detail-tag-pill detail-tag-pill--empty"
+                    onClick={openTagsModal}
+                  >
+                    <MetadataPillSegment className="detail-tag-pill__empty-content">
+                      <AppIcon
+                        name="close"
+                        title="Add tag"
+                        size={12}
+                        style={{ transform: "rotate(45deg)" }}
+                      />
+                      <span>Add tag</span>
+                    </MetadataPillSegment>
+                  </MetadataPill>
+                )
+              )}
+            </div>
+            <div className="detail-urls">
+              {canUseFinder && (
+                <MetadataPillWrap
+                  className="detail-finder-pill-wrap"
+                  ref={finderDropdownRef}
+                >
+                  <FinderButton
+                    onClick={handleFinderButtonClick}
+                    aria-expanded={
+                      finderFiles.length > 1 ? isFinderDropdownOpen : undefined
+                    }
+                    aria-haspopup={finderFiles.length > 1 ? "menu" : undefined}
+                    aria-label={
+                      finderFiles.length > 1
+                        ? "Choose a file version"
+                        : "Open in Finder"
+                    }
+                  />
+                  {finderFiles.length > 1 && isFinderDropdownOpen && (
+                    <MetadataDropdown className="detail-finder-dropdown">
+                      {finderFiles.map(({ label, url }) => (
+                        <MetadataDropdownItem
+                          key={label}
+                          as="button"
+                          type="button"
+                          className="detail-finder-dropdown__item"
+                          onClick={() => handleFinderFileSelect(url)}
+                        >
+                          {label}
+                        </MetadataDropdownItem>
+                      ))}
+                    </MetadataDropdown>
+                  )}
+                </MetadataPillWrap>
+              )}
+
+              {canUseDropbox && (
+                <DropboxButton
+                  onClick={() => togglePDFViewer("dropbox")}
+                  style={{
+                    backgroundColor: "var(--detail-page-dropbox-button-bg)",
+                  }}
+                />
+              )}
+
+              <GoodreadsButton
+                category="book"
+                goodreadsId={work.goodreads_id}
+                resourceId={work.id}
+                onSavedId={() => {
+                  void fetchData();
+                }}
+                style={{
+                  backgroundColor: "var(--detail-page-goodreads-button-bg)",
+                }}
+              />
+            </div>
+          </div>
         )}
+        <DetailActionPanel
+          coverImageUrl={work.cover_img_url}
+          read={read}
+          liked={liked}
+          shelved={shelved}
+          displayRating={displayRating}
+          isPDFViewerOpen={isPDFViewerOpen}
+          isActionDrawerOpen={isActionDrawerOpen}
+          isReadingFocusEnabled={readingFocusSettings.enabled}
+          progressContent={<ProgressBar work={work} />}
+          onToggleDrawer={toggleActionDrawer}
+          onToggleAction={toggleAction}
+          onResetHoverRating={() => setHoverRating(0)}
+          onStarMouseMove={handleStarMouseMove}
+          onStarClick={handleStarClick}
+          onOpenProgressModal={() => openEditFormModal("progress")}
+          onOpenReadingFocusModal={openReadingFocusModal}
+          onClosePDFViewer={closePDFViewer}
+          onReportIssue={openReportPdfIssueModal}
+          isReportingPdfIssue={isReportingFileIssue}
+        />
       </div>
 
       <DetailProgressModal

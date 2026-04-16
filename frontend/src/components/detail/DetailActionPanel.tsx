@@ -4,12 +4,12 @@ import { AppIcon } from "../AppIcon";
 export type DetailActionType = "read" | "liked" | "shelved";
 
 interface DetailActionPanelProps {
+  coverImageUrl: string | null | undefined;
   read: boolean;
   liked: boolean;
   shelved: boolean;
   displayRating: number;
   isPDFViewerOpen: boolean;
-  isDrawerMode: boolean;
   isActionDrawerOpen: boolean;
   isReadingFocusEnabled: boolean;
   progressContent: React.ReactNode;
@@ -26,12 +26,12 @@ interface DetailActionPanelProps {
 }
 
 export function DetailActionPanel({
+  coverImageUrl,
   read,
   liked,
   shelved,
   displayRating,
   isPDFViewerOpen,
-  isDrawerMode,
   isActionDrawerOpen,
   isReadingFocusEnabled,
   progressContent,
@@ -48,10 +48,10 @@ export function DetailActionPanel({
 }: DetailActionPanelProps) {
   return (
     <aside
-      className={`detail-right-col ${isDrawerMode ? "detail-right-col--drawer-mode" : ""} ${isActionDrawerOpen ? "drawer-open" : "drawer-closed"}`}
+      className={`detail-action-panel ${isActionDrawerOpen ? "drawer-open" : "drawer-closed"}`}
     >
       <button
-        className="drawer-handle"
+        className="detail-action-drawer-handle"
         onClick={onToggleDrawer}
         aria-expanded={isActionDrawerOpen}
       >
@@ -61,7 +61,15 @@ export function DetailActionPanel({
         <span>Menu</span>
       </button>
 
-      <div className="detail-action-panel">
+      <div className="detail-action-main-content">
+        {!!coverImageUrl && (
+          <img
+            src={coverImageUrl}
+            alt={"cover"}
+            className="detail-action-cover"
+          />
+        )}
+
         <div className="detail-action-icons-row">
           <div
             className={`detail-action-icon-col ${read ? "detail-action-icon-col--read-active" : ""}`}

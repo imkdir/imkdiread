@@ -85,7 +85,7 @@
 
 .explore-page__cover-image {
     width: 100%;
-    aspect-ratio: var(--goodreads-cover-aspect-ratio);
+    aspect-ratio: var(--work-cover-aspect-ratio);
     border-radius: 20px;
 }
 
