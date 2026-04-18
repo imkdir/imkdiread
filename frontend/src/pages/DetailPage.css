@@ -1285,15 +1285,6 @@
     }
 }
 
-.detail-progress-modal-shell {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    max-width: 460px;
-    isolation: isolate;
-    transform: translateZ(0);
-}
-
 .detail-upload-file-row {
     margin-top: 12px;
     display: flex;
@@ -1357,53 +1348,6 @@
     box-shadow:
         0 12px 20px rgba(63, 38, 17, 0.12),
         inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
-.detail-progress-modal-panel {
-    position: relative;
-    width: 100%;
-    z-index: 1;
-    top: 0;
-    left: 0;
-    width: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    padding: 18px 20px 20px;
-    will-change: transform;
-    transform: translateZ(0);
-    border-radius: 18px;
-    background:
-        linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.08),
-            rgba(255, 255, 255, 0.03)
-        ),
-        rgba(14, 14, 14, 0.22);
-    box-shadow:
-        0 18px 42px rgba(0, 0, 0, 0.24),
-        inset 0 1px 0 rgba(255, 255, 255, 0.14);
-    backdrop-filter: blur(18px) saturate(120%);
-    -webkit-backdrop-filter: blur(18px) saturate(120%);
-    overflow: hidden;
-}
-
-.detail-progress-form {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-.detail-progress-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.detail-progress-inline {
-    display: flex;
-    gap: 8px;
-    align-items: center;
 }
 
 .detail-label {

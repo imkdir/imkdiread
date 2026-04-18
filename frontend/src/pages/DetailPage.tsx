@@ -10,7 +10,6 @@ import { ProgressBar } from "../components/ProgressBar";
 import { FinderButton } from "../components/FinderButton";
 import { QuoteConversationWorkspace } from "../components/QuoteConversationWorkspace";
 import { DetailActionPanel } from "../components/detail/DetailActionPanel";
-import { DetailProgressModal } from "../components/detail/DetailProgressModal";
 import { DetailDropboxLinkModal } from "../components/detail/DetailDropboxLinkModal";
 import { DetailFileUploadModal } from "../components/detail/DetailFileUploadModal";
 import {
@@ -222,7 +221,6 @@ function DetailPage({
   const isDraftConversationRequested = detail.isAddQuoteModalOpen;
   const draftConversationQuote = detail.addQuoteWithTool.quote;
   const draftConversationTool = detail.addQuoteWithTool.tool;
-  const closeDetailEditFormModal = detail.closeEditFormModal;
 
   const pdfFrameWrapperRef = useRef<HTMLDivElement | null>(null);
   const readingFocusPreviewRef = useRef<HTMLDivElement | null>(null);
@@ -291,9 +289,7 @@ function DetailPage({
       quote: draftConversationQuote || "",
       tool: draftConversationTool,
     });
-    closeDetailEditFormModal("quote");
   }, [
-    closeDetailEditFormModal,
     draftConversationQuote,
     draftConversationTool,
     isDraftConversationRequested,
@@ -314,8 +310,6 @@ function DetailPage({
     read,
     liked,
     shelved,
-    isProgressModalOpen,
-    progressEditingForm,
     isSavingProgress,
     isPDFViewerOpen,
     viewerInitialUrl,
@@ -331,10 +325,7 @@ function DetailPage({
     handleStarMouseMove,
     handleStarClick,
     setHoverRating,
-    openEditFormModal,
-    handleProgressInputChange,
-    handleUpdateProgress,
-    handleProgressFinished,
+    saveProgressPage,
     triggerClipboardQuoteCapture,
     togglePDFViewer,
     closePDFViewer,
@@ -1483,13 +1474,18 @@ function DetailPage({
           isPDFViewerOpen={isPDFViewerOpen}
           isActionDrawerOpen={isActionDrawerOpen}
           isReadingFocusEnabled={readingFocusSettings.enabled}
-          progressContent={<ProgressBar work={work} />}
+          progressContent={
+            <ProgressBar
+              work={work}
+              isSaving={isSavingProgress}
+              onSavePage={saveProgressPage}
+            />
+          }
           onToggleDrawer={toggleActionDrawer}
           onToggleAction={toggleAction}
           onResetHoverRating={() => setHoverRating(0)}
           onStarMouseMove={handleStarMouseMove}
           onStarClick={handleStarClick}
-          onOpenProgressModal={() => openEditFormModal("progress")}
           onOpenReadingFocusModal={openReadingFocusModal}
           onClosePDFViewer={closePDFViewer}
           onReportIssue={openReportPdfIssueModal}
@@ -1497,16 +1493,6 @@ function DetailPage({
         />
       </div>
 
-      <DetailProgressModal
-        isOpen={isProgressModalOpen}
-        isSaving={isSavingProgress}
-        editingForm={progressEditingForm}
-        pageCount={work.page_count}
-        onClose={() => closeDetailEditFormModal("progress")}
-        onSubmit={handleUpdateProgress}
-        onInputChange={handleProgressInputChange}
-        onProgressFinished={handleProgressFinished}
-      />
       <DetailDropboxLinkModal
         isOpen={isDropboxLinkModalOpen}
         value={dropboxLinkDraft}

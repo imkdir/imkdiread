@@ -119,24 +119,6 @@ export async function saveProgress(
   return data;
 }
 
-export async function finishWorkProgress(
-  workId: string,
-  note: string,
-): Promise<boolean> {
-  const res = await request(
-    `/api/works/${encodeURIComponent(workId)}/progress/finish`,
-    {
-      method: "POST",
-      body: JSON.stringify({ note }),
-    },
-  );
-  const data = await readJsonSafe<ApiSuccessResponse>(res);
-  if (!res.ok) {
-    throw new Error(getApiErrorMessage(data, "Failed to finish work."));
-  }
-  return !!data?.success;
-}
-
 export function buildLocalPdfUrl(
   fileUrl: string,
   currentPage?: number | null,

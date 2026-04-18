@@ -55,3 +55,31 @@
 .progress-bar:hover .progress-bar__label {
     color: var(--detail-progress-text-hover);
 }
+
+.progress-bar__controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.progress-bar__label-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: text;
+}
+
+.progress-bar__input {
+    width: 42px;
+    padding: 0 6px;
+    border: 1px solid var(--detail-progress-track-hover);
+    background: var(--page-background);
+    color: var(--detail-progress-text-hover);
+    font-size: 13px;
+    text-align: right;
+    outline: none;
+}
+
+.progress-bar__input:focus {
+    border-color: transparent;
+}

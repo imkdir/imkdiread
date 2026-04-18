@@ -5,7 +5,6 @@ import type { Quote, Work } from "../types";
 import {
   buildLocalPdfUrl,
   fetchWorkById,
-  finishWorkProgress,
   saveProgress,
   saveDropboxLink,
   uploadWorkFile,
@@ -16,14 +15,11 @@ import {
   type WorkFileIssueType,
 } from "../services/detailPageService";
 import { showToast } from "../utils/toast";
-import { type DetailProgressEdtingForm } from "../components/detail/DetailProgressModal";
 
 interface UseDetailPageOptions {
   workId: string;
   initialWork?: Work;
 }
-
-type EditFormTarget = "quote" | "progress";
 
 const DICTIONARY_PASTE_PATTERN = /^[\p{L}\p{M}\s]+$/u;
 
@@ -90,9 +86,6 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     quote: string;
     tool?: "analyze" | "translate";
   }>({ quote: "" });
-  const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
-  const [progressEditingForm, setProgressEditingForm] =
-    useState<DetailProgressEdtingForm>({ note: "", pageNumber: "" });
   const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [isPDFViewerOpen, setIsPDFViewerOpen] = useState(false);
   const [viewerInitialUrl, setViewerInitialUrl] = useState<string | null>(null);
@@ -109,15 +102,10 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
   const [isReportingFileIssue, setIsReportingFileIssue] = useState(false);
 
   const workRef = useRef(work);
-  const progressEditingFormRef = useRef(progressEditingForm);
 
   useEffect(() => {
     workRef.current = work;
   }, [work]);
-
-  useEffect(() => {
-    progressEditingFormRef.current = progressEditingForm;
-  }, [progressEditingForm]);
 
   useEffect(() => {
     if (!initialWork || initialWork.id !== workId) return;
@@ -283,86 +271,58 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     });
   }, [hoverRating, workId]);
 
-  const openEditFormModal = useCallback((target: EditFormTarget) => {
-    if (target === "quote") {
-      setIsAddQuoteModalOpen(true);
-    } else if (target === "progress") {
-      setIsProgressModalOpen(true);
-    }
-  }, []);
+  const saveProgressPage = useCallback(
+    async (pageNumber: number) => {
+      const normalizedPageNumber = Math.trunc(pageNumber);
 
-  const closeEditFormModal = useCallback((target: EditFormTarget) => {
-    if (target === "quote") {
-      setIsAddQuoteModalOpen(false);
-    } else if (target === "progress") {
-      setIsProgressModalOpen(false);
-    }
-  }, []);
+      if (
+        !Number.isInteger(normalizedPageNumber) ||
+        normalizedPageNumber <= 0
+      ) {
+        showToast("Please enter a valid page number.", { tone: "error" });
+        return false;
+      }
 
-  const handleProgressInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const { name, value } = e.target;
-      setProgressEditingForm((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    },
-    [],
-  );
+      if (work?.page_count && normalizedPageNumber > work.page_count) {
+        showToast(`Page number cannot exceed ${work.page_count}.`, {
+          tone: "error",
+        });
+        return false;
+      }
 
-  const submitProgressToDB = useCallback(
-    async (form: DetailProgressEdtingForm) => {
-      const parsedPageNumber = Number(form.pageNumber);
       setIsSavingProgress(true);
+
       try {
         const data = await saveProgress(workId, {
-          note: form.note.trim(),
-          pageNumber: parsedPageNumber,
+          note: "",
+          pageNumber: normalizedPageNumber,
         });
 
-        if (!data.success) return;
+        if (!data.success) {
+          return false;
+        }
 
+        setWork((prev) =>
+          prev ? { ...prev, current_page: normalizedPageNumber } : prev,
+        );
         setRead(!!data.read);
         setShelved(false);
-        setIsProgressModalOpen(false);
         void fetchData();
+
+        return true;
       } catch (err) {
         console.error("Failed to save progress:", err);
         showToast(
           err instanceof Error ? err.message : "Failed to save progress.",
           { tone: "error" },
         );
+        return false;
       } finally {
         setIsSavingProgress(false);
       }
     },
-    [fetchData, workId],
+    [fetchData, work?.page_count, workId],
   );
-
-  const handleUpdateProgress = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      void submitProgressToDB(progressEditingFormRef.current);
-    },
-    [submitProgressToDB],
-  );
-
-  const handleProgressFinished = useCallback(async () => {
-    const note = progressEditingFormRef.current.note.trim();
-    try {
-      const success = await finishWorkProgress(workId, note);
-      if (!success) return;
-
-      setRead(true);
-      setShelved(false);
-      void fetchData();
-    } catch (err) {
-      console.error("Failed to finish work:", err);
-      showToast(err instanceof Error ? err.message : "Failed to finish work.", {
-        tone: "error",
-      });
-    }
-  }, [fetchData, workId]);
 
   const openPDFViewer = useCallback(
     (initialUrl: string | null) => {
@@ -599,8 +559,6 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     hoverRating,
     isAddQuoteModalOpen,
     addQuoteWithTool,
-    isProgressModalOpen,
-    progressEditingForm,
     isSavingProgress,
     isPDFViewerOpen,
     viewerInitialUrl,
@@ -616,11 +574,7 @@ export function useDetailPage({ workId, initialWork }: UseDetailPageOptions) {
     handleStarMouseMove,
     handleStarClick,
     setHoverRating,
-    openEditFormModal,
-    closeEditFormModal,
-    handleProgressInputChange,
-    handleUpdateProgress,
-    handleProgressFinished,
+    saveProgressPage,
     triggerClipboardQuoteCapture,
     togglePDFViewer,
     closePDFViewer,
