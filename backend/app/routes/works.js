@@ -27,17 +27,26 @@ const workFileStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, workFilesDir),
   filename: (req, file, cb) => {
     const rawId = req.params?.id;
-    const extension = path.extname(file.originalname);
 
-    if (!rawId || extension !== ".pdf") return;
+    if (!rawId) {
+      cb(new Error("Work ID is required."));
+      return;
+    }
 
-    cb(null, `${rawId}${extension}`);
+    cb(null, `${rawId}.pdf`);
   },
 });
 
 const workFileUpload = multer({
   storage: workFileStorage,
   limits: { fileSize: 200 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const isPdf =
+      file.mimetype === "application/pdf" ||
+      path.extname(file.originalname).toLowerCase() === ".pdf";
+
+    cb(null, isPdf);
+  },
 });
 
 const workCoverStorage = multer.diskStorage({
@@ -527,7 +536,7 @@ function createWorksRouter({ db, workService, inboxService }) {
         }
 
         if (!req.file) {
-          return jsonError(res, 400, "File is required.");
+          return jsonError(res, 400, "A PDF file is required.");
         }
 
         workService.refreshWorkFileCache();
