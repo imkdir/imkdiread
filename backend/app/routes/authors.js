@@ -24,7 +24,9 @@ function createAuthorsRouter({ db, workService }) {
   const getAuthorById = (value) => {
     const authorId = parseAuthorId(value);
     if (!authorId) return null;
-    return db.prepare("SELECT * FROM authors WHERE id = ?").get(authorId) || null;
+    return (
+      db.prepare("SELECT * FROM authors WHERE id = ?").get(authorId) || null
+    );
   };
 
   const getAvatarPath = (goodreadsId) => {
@@ -161,37 +163,32 @@ function createAuthorsRouter({ db, workService }) {
     },
   );
 
-  router.post(
-    "/api/authors/:id/follow",
-    authenticateToken,
-    requireAdmin,
-    (req, res) => {
-      try {
-        const author = getAuthorById(req.params.id);
-        const userId = req.user.id;
-        if (typeof req.body?.followed !== "boolean") {
-          return jsonError(res, 400, "followed must be a boolean.");
-        }
-        const followed = req.body.followed ? 1 : 0;
+  router.post("/api/authors/:id/follow", authenticateToken, (req, res) => {
+    try {
+      const author = getAuthorById(req.params.id);
+      const userId = req.user.id;
+      if (typeof req.body?.followed !== "boolean") {
+        return jsonError(res, 400, "followed must be a boolean.");
+      }
+      const followed = req.body.followed ? 1 : 0;
 
-        if (!author) {
-          return res.status(404).json({ error: "Author not found." });
-        }
+      if (!author) {
+        return res.status(404).json({ error: "Author not found." });
+      }
 
-        db.prepare(
-          `INSERT INTO user_author_interactions (user_id, author_id, followed)
+      db.prepare(
+        `INSERT INTO user_author_interactions (user_id, author_id, followed)
           VALUES (?, ?, ?)
           ON CONFLICT(user_id, author_id)
           DO UPDATE SET followed = excluded.followed`,
-        ).run(userId, author.id, followed);
+      ).run(userId, author.id, followed);
 
-        res.json({ success: true, followed: !!followed });
-      } catch (error) {
-        console.error("Failed to update author follow:", error);
-        res.status(500).json({ error: "Failed to update follow status." });
-      }
-    },
-  );
+      res.json({ success: true, followed: !!followed });
+    } catch (error) {
+      console.error("Failed to update author follow:", error);
+      res.status(500).json({ error: "Failed to update follow status." });
+    }
+  });
 
   router.put(
     "/api/authors/:id",
@@ -223,7 +220,11 @@ function createAuthorsRouter({ db, workService }) {
           req.body?.goodreads_id !== null &&
           typeof req.body?.goodreads_id !== "string"
         ) {
-          return jsonError(res, 400, "goodreads_id must be a string when provided.");
+          return jsonError(
+            res,
+            400,
+            "goodreads_id must be a string when provided.",
+          );
         }
 
         const nameConflict = db
@@ -248,7 +249,9 @@ function createAuthorsRouter({ db, workService }) {
 
         const author = workService.processAuthor(
           workService.getAuthorWithRelations(
-            db.prepare("SELECT * FROM authors WHERE id = ?").get(existingAuthor.id),
+            db
+              .prepare("SELECT * FROM authors WHERE id = ?")
+              .get(existingAuthor.id),
             req.user?.id,
           ),
         );
@@ -288,28 +291,35 @@ function createAuthorsRouter({ db, workService }) {
     },
   );
 
-  router.delete("/api/authors/:id", authenticateToken, requireAdmin, (req, res) => {
-    try {
-      const author = getAuthorById(req.params.id);
-      if (!author) {
-        return res.status(404).json({ error: "Author not found." });
+  router.delete(
+    "/api/authors/:id",
+    authenticateToken,
+    requireAdmin,
+    (req, res) => {
+      try {
+        const author = getAuthorById(req.params.id);
+        if (!author) {
+          return res.status(404).json({ error: "Author not found." });
+        }
+
+        db.transaction(() => {
+          db.prepare("DELETE FROM work_authors WHERE author_id = ?").run(
+            author.id,
+          );
+          db.prepare(
+            "DELETE FROM user_author_interactions WHERE author_id = ?",
+          ).run(author.id);
+          db.prepare("DELETE FROM authors WHERE id = ?").run(author.id);
+        })();
+
+        removeAuthorAvatarIfItExists(author.goodreads_id);
+
+        res.json({ success: true });
+      } catch (error) {
+        jsonError(res, 500, "Failed to delete author");
       }
-
-      db.transaction(() => {
-        db.prepare("DELETE FROM work_authors WHERE author_id = ?").run(author.id);
-        db.prepare(
-          "DELETE FROM user_author_interactions WHERE author_id = ?",
-        ).run(author.id);
-        db.prepare("DELETE FROM authors WHERE id = ?").run(author.id);
-      })();
-
-      removeAuthorAvatarIfItExists(author.goodreads_id);
-
-      res.json({ success: true });
-    } catch (error) {
-      jsonError(res, 500, "Failed to delete author");
-    }
-  });
+    },
+  );
 
   return router;
 }
