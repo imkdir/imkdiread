@@ -1,10 +1,15 @@
-import type React from "react";
+import React, { useRef, useState } from "react";
 import { AppIcon } from "../AppIcon";
+import { showToast } from "../../utils/toast";
+import { uploadWorkCover } from "../../services/detailPageService";
 
 export type DetailActionType = "read" | "liked" | "shelved";
 
 interface DetailActionPanelProps {
+  workId: string;
   coverImageUrl: string | null | undefined;
+  isAdmin: boolean;
+  onCoverUploadSuccess: () => Promise<void>;
   read: boolean;
   liked: boolean;
   shelved: boolean;
@@ -26,7 +31,10 @@ interface DetailActionPanelProps {
 }
 
 export function DetailActionPanel({
+  workId,
   coverImageUrl,
+  isAdmin,
+  onCoverUploadSuccess,
   read,
   liked,
   shelved,
@@ -46,6 +54,31 @@ export function DetailActionPanel({
   onReportIssue,
   isReportingPdfIssue,
 }: DetailActionPanelProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      await uploadWorkCover(workId, file);
+      showToast("Cover updated.", { tone: "success" });
+      await onCoverUploadSuccess();
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Failed to upload cover.",
+        { tone: "error" },
+      );
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   return (
     <aside
       className={`detail-action-panel ${isActionDrawerOpen ? "drawer-open" : "drawer-closed"}`}
@@ -62,13 +95,33 @@ export function DetailActionPanel({
       </button>
 
       <div className="detail-action-main-content">
-        {!!coverImageUrl && (
+        {coverImageUrl ? (
           <img
             src={coverImageUrl}
             alt={"cover"}
             className="detail-action-cover"
           />
-        )}
+        ) : isAdmin ? (
+          <div className="detail-action-row">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/png"
+              hidden
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="detail-action-button"
+              disabled={isUploading}
+            >
+              <AppIcon name="edit" size={16} />
+              <span className="detail-action-label">
+                {isUploading ? "Uploading..." : "Upload cover..."}
+              </span>
+            </button>
+          </div>
+        ) : null}
 
         <div className="detail-action-icons-row">
           <div

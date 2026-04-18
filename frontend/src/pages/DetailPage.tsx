@@ -1472,7 +1472,10 @@ function DetailPage({
           </div>
         )}
         <DetailActionPanel
+          workId={work.id}
           coverImageUrl={work.cover_img_url}
+          isAdmin={isAdmin}
+          onCoverUploadSuccess={fetchData}
           read={read}
           liked={liked}
           shelved={shelved}
