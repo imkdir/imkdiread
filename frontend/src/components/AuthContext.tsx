@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import type { User } from "../types";
+import { AUTH_LOGOUT_EVENT } from "../utils/APIClient";
 
 type AuthContextType = {
   user: User | null;
@@ -10,35 +17,47 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const savedUser = localStorage.getItem("user");
-      return savedUser ? JSON.parse(savedUser) : null;
-    } catch (error) {
-      console.warn("Failed to parse saved user from localStorage:", error);
-      localStorage.removeItem("user");
-      return null;
-    }
-  });
+function readStoredUser(): User | null {
+  try {
+    const savedUser = localStorage.getItem("user");
+    return savedUser ? (JSON.parse(savedUser) as User) : null;
+  } catch (error) {
+    console.warn("Failed to parse saved user from localStorage:", error);
+    localStorage.removeItem("user");
+    return null;
+  }
+}
 
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(() => readStoredUser());
   const [token, setToken] = useState<string | null>(() => {
     return localStorage.getItem("token");
   });
 
-  const login = (userData: User, newToken: string) => {
-    setUser(userData);
-    setToken(newToken);
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("token", newToken);
-  };
-
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setToken(null);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-  };
+  }, []);
+
+  const login = useCallback((userData: User, newToken: string) => {
+    setUser(userData);
+    setToken(newToken);
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", newToken);
+  }, []);
+
+  useEffect(() => {
+    const handleForcedLogout = () => {
+      logout();
+    };
+
+    window.addEventListener(AUTH_LOGOUT_EVENT, handleForcedLogout);
+    return () => {
+      window.removeEventListener(AUTH_LOGOUT_EVENT, handleForcedLogout);
+    };
+  }, [logout]);
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout }}>
@@ -47,7 +66,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// 2. Tell Vite's Fast Refresh to calm down about this specific export
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);

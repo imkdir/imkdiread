@@ -1,6 +1,10 @@
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(
+  /\/+$/,
+  "",
+);
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+export const AUTH_LOGOUT_EVENT = "auth:logout-required";
 
 export interface RequestOptions extends RequestInit {
   timeoutMs?: number;
@@ -106,12 +110,17 @@ const createRequestSignal = (
   };
 };
 
+const notifyForcedLogout = () => {
+  window.dispatchEvent(new CustomEvent(AUTH_LOGOUT_EVENT));
+};
+
 export const request = async (url: string, options: RequestOptions = {}) => {
   const {
     timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
     signal,
     ...fetchOptions
   } = options;
+
   const token = localStorage.getItem("token");
   const headers = new Headers(fetchOptions.headers || {});
   const isFormData =
@@ -121,6 +130,7 @@ export const request = async (url: string, options: RequestOptions = {}) => {
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
   }
+
   if (
     !isFormData &&
     fetchOptions.body !== undefined &&
@@ -146,14 +156,8 @@ export const request = async (url: string, options: RequestOptions = {}) => {
   }
 
   if (await shouldForceLogout(response)) {
-    console.warn("Session expired or unauthorized. Logging out...");
-
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-
-    if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
+    console.warn("Session expired or unauthorized.");
+    notifyForcedLogout();
   }
 
   return response;
