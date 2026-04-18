@@ -11,10 +11,15 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  // 1. Lazy Initialization: Reads synchronously ONLY on the first load
   const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem("user");
-    return savedUser ? JSON.parse(savedUser) : null;
+    try {
+      const savedUser = localStorage.getItem("user");
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (error) {
+      console.warn("Failed to parse saved user from localStorage:", error);
+      localStorage.removeItem("user");
+      return null;
+    }
   });
 
   const [token, setToken] = useState<string | null>(() => {
