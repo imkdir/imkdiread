@@ -13,13 +13,7 @@ export class DropboxButton extends PureComponent<Props> {
         style={{ ...styles.root, ...this.props.style }}
         onClick={this.props.onClick}
       >
-        <AppIcon
-          name="dropbox"
-          width={28}
-          height={26}
-          title="Dropbox"
-          style={styles.icon}
-        />
+        <AppIcon name="dropbox" width={28} height={26} />
       </button>
     );
   }
@@ -30,11 +24,5 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
-  },
-  icon: {
-    display: "block",
-    height: "26px",
-    width: "28px",
-    transform: "translateY(1px)",
   },
 };

@@ -8,11 +8,7 @@ export class FinderButton extends PureComponent<Props> {
     const { style, type = "button", ...props } = this.props;
 
     return (
-      <button
-        type={type}
-        style={{ ...styles.root, ...style }}
-        {...props}
-      >
+      <button type={type} style={{ ...styles.root, ...style }} {...props}>
         <img src={logo} style={styles.logo} alt={"finder-logo"} />
       </button>
     );
@@ -28,5 +24,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   logo: {
     display: "block",
     height: "26px",
+    aspectRatio: 1,
   },
 };
